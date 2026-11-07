@@ -10,6 +10,22 @@ const LIMIT = 100;
 // New clients explicitly opt into bounded pages on every request.
 const isPagedRegisteredRequest = query => query?.members_paged === '1' || query?.members_cursor != null;
 const ID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+// Public directory filters are optional strings, but Express also accepts
+// repeated/nested query params as arrays or objects. Reject those before any
+// SQL or trim() call so malformed anonymous requests never become a 500.
+const FILTER_KEYS = ['search','regione','tipologia','exclude_user_id'];
+function isValidRegisteredDirectoryFilters(query) {
+  if (!query || typeof query !== 'object' || Array.isArray(query)) return false;
+  for (const key of FILTER_KEYS) {
+    const value=query[key];
+    if (value === undefined) continue;
+    if (typeof value !== 'string' || value.length > 256) return false;
+    // An invalid string would otherwise reach the users.id UUID comparison
+    // and turn into a database cast error. Empty means "no exclusion".
+    if (key === 'exclude_user_id' && value !== '' && !ID.test(value)) return false;
+  }
+  return true;
+}
 function decodeRegisteredCursor(raw) {
   if (raw == null) return null;
   // An explicitly supplied empty cursor is malformed, not a first-page request.
@@ -36,4 +52,4 @@ function pageRegistered(rows) {
     : null;
   return {rows:page,members_next_cursor};
 }
-module.exports={LIMIT,decodeRegisteredCursor,pageRegistered,isPagedRegisteredRequest};
+module.exports={LIMIT,decodeRegisteredCursor,pageRegistered,isPagedRegisteredRequest,isValidRegisteredDirectoryFilters};
