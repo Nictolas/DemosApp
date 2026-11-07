@@ -52,7 +52,11 @@ router.post('/', personalNoStore, verifyToken, async (req, res) => {
     ? req.body.nome.normalize('NFC').trim().replace(/\s+/gu, ' ')
     : '';
   const urlProva = typeof req.body?.urlProva === 'string' ? req.body.urlProva.trim() : '';
-  if (nome.length < 3 || nome.length > 160) {
+  // Reject invisible control and bidirectional-override characters before SQL.
+  // They can make a nominated person's visible name differ from the stored key,
+  // defeating human moderation without changing the displayed characters.
+  const unsafeNameControls = /[\u0000-\u001f\u007f-\u009f\u061c\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
+  if (nome.length < 3 || nome.length > 160 || unsafeNameControls.test(nome)) {
     return res.status(400).json({ success: false, error: 'Nome non valido (3-160 caratteri)' });
   }
   // Accettiamo solo link a fonti HTTPS pubbliche; mai copia di sentenze o allegati.
