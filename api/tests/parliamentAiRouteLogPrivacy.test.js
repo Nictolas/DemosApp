@@ -35,6 +35,9 @@ function createBatchRouteHarness(aiService) {
     '../services/parliamentFinalVotePolicy': {
       isConfirmedFinalParliamentVote: () => true
     },
+    '../services/parliamentGroundedAnalysis': {
+      hasDocumentaryContext: value => typeof value === 'string' && value.trim().length >= 160
+    },
     '../services/aiExplanationService': aiService
   };
   const mod = { exports: {} };
