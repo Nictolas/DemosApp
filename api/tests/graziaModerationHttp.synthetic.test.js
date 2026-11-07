@@ -110,6 +110,7 @@ mock('../middleware/auth',{verifyToken,requireAdmin,pool});
 mock('../middleware/politicalConsent',{requirePoliticalConsent:(req,res,next)=>next()});
 mock('../middleware/civicIdentity',{requireVerifiedCivicIdentity:(req,res,next)=>next()});
 mock('../middleware/validation',{validateInput:()=> (req,res,next)=>next()});
+mock('../services/politicalConsentService',{getPoliticalConsentState:async()=>({exists:true,granted:true})});
 mock('../services/preferenceCooldownService',{getPreferenceCooldown:async()=>({isBlocked:false}),assertPreferenceChangeAllowed:async()=>{},recordPreferenceChange:async()=>{},sendCooldownError:()=>false});
 // The real server gate is fail-closed. This fixture is an isolated fake pool,
 // so it explicitly enables synthetic requests without changing process env.
