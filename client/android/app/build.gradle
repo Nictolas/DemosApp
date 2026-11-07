@@ -15,6 +15,10 @@ def demosDebugUmpEea = demosDebugAppOpenAds &&
 // Synthetic adult consent testing is opt-in, EEA-debug-only and NEVER a release capability.
 def demosDebugQaForceAdult = demosDebugUmpEea &&
     (project.findProperty('demosDebugQaForceAdult') ?: 'false').toString() == 'true'
+// Internal app sharing alone may use DEMOS package. Opt-in DEBUG only:
+// Google Play re-signs for testing; this APK must NEVER be a release.
+def demosDebugQaPlayInternalSharing = demosDebugUmpEea && demosDebugQaForceAdult &&
+    (project.findProperty('demosDebugQaPlayInternalSharing') ?: 'false').toString() == 'true'
 
 
 def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -54,8 +58,10 @@ android {
     }
     buildTypes {
         debug {
-            // Forced-EEA QA must never replace an installed DEMOS package.
-            if (demosDebugUmpEea) {
+            // Default QA stays isolated from installed DEMOS.
+            // Explicit Play Internal App Sharing build uses matching app package
+            // but is still a signed DEBUG APK with SAMPLE ads; NEVER publish it.
+            if (demosDebugUmpEea && !demosDebugQaPlayInternalSharing) {
                 applicationIdSuffix '.qaopen'
             }
             // Test IDs ufficiali Google: in debug soltanto, con opt-in esplicito.
