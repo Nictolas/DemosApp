@@ -35,6 +35,25 @@ test('QA rejects incorrect vote counts and mistaken enactment dates', () => {
   assert.deepEqual(assessOfficialAnswer({ ...CORRECT, esito: 'La Camera ha approvato il testo in via definitiva' }), { success: true, verifiedFields: 10, failedFields: [] });
   assert.deepEqual(assessOfficialAnswer({ ...CORRECT, esito: 'approvazione definitiva' }), { success: true, verifiedFields: 10, failedFields: [] });
 });
+test('T003 electoral-law official evidence rejects wrong vote totals and law effective date', () => {
+  const t003 = {
+    atto: 'C.2822-B', data_voto: '08/10/2026',
+    favorevoli: 227, contrari: 164, astenuti: 0,
+    esito: 'APPROVATO DEFINITIVAMENTE',
+    numero_legge: 180, data_pubblicazione: '09/10/2026',
+    data_entrata_in_vigore: '24/10/2026',
+    spiegazione: 'La Camera approva definitivamente le disposizioni in materia di elezioni dei due rami.'
+  };
+  assert.deepEqual(assessOfficialAnswer(t003, 'T003'),
+    { success: true, verifiedFields: 10, failedFields: [] });
+  assert.deepEqual(assessOfficialAnswer({ ...t003, favorevoli: 164 }, 'T003'),
+    { success: false, verifiedFields: 9, failedFields: ['favorevoli'] });
+  assert.deepEqual(assessOfficialAnswer({ ...t003, data_entrata_in_vigore: '09/10/2026' }, 'T003'),
+    { success: false, verifiedFields: 9, failedFields: ['data_entrata_in_vigore'] });
+  assert.deepEqual(assessOfficialAnswer({ ...t003, esito: 'APPROVATO NON DEFINITIVAMENTE' }, 'T003'),
+    { success: false, verifiedFields: 9, failedFields: ['esito'] });
+});
+
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
   let calls = 0;
   const r = await runOfficialCaseQA({
