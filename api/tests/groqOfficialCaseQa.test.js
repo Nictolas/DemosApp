@@ -1,7 +1,13 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assessOfficialAnswer, runOfficialCaseQA, diagnoseSenateExplanation } = require('../staging/groq_official_case_qa');
+const { assessOfficialAnswer, runOfficialCaseQA, diagnoseSenateExplanation, diagnoseAmendmentExplanation } = require('../staging/groq_official_case_qa');
+
+test('amendment explanation diagnosis requires both the proposed duration and its rejection', () => {
+  assert.deepEqual(diagnoseAmendmentExplanation('L’emendamento di 18 mesi è stato respinto.'), { timingFound: true, rejectedFound: true });
+  assert.deepEqual(diagnoseAmendmentExplanation('Si proponeva un rinvio di 18 mesi.'), { timingFound: true, rejectedFound: false });
+  assert.deepEqual(diagnoseAmendmentExplanation('Il Senato ha respinto la proposta.'), { timingFound: false, rejectedFound: true });
+});
 
 test('Senate explanation diagnostics only classify source topic and risky finality phrase', () => {
   assert.deepEqual(diagnoseSenateExplanation('Continuità degli impianti strategici, voto non conclusivo.'), {
