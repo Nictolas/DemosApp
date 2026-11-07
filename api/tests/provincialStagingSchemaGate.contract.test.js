@@ -36,6 +36,8 @@ test('provincial staging preflight is read-only, metadata-only, and scoped to kn
   assert.match(sql, /i\.indisunique AND i\.indisvalid/);
   assert.match(sql, /i\.indpred IS NULL AND i\.indexprs IS NULL/);
   assert.match(sql, /i\.indnkeyatts = 3/);
+  assert.match(sql, /WITH ORDINALITY AS k\(attnum, key_position\)/);
+  assert.match(sql, /k\.key_position <= i\.indnkeyatts/);
   for (const column of ['user_id', 'selection_kind', 'political_office_id']) {
     assert.match(sql, new RegExp("'"+column+"'"));
   }
