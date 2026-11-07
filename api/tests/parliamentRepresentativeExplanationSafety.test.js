@@ -205,6 +205,31 @@ test('plain-text explanation enforces the promised 100-word maximum before publi
 });
 
 
+test('legacy cached representative explanation is hidden when persisted evidence is absent', async () => {
+  for (const stored of [null, '', 'Solo un titolo']) {
+    const h = createHarness();
+    h.row.spiegazione = 'Vecchia spiegazione senza fonte';
+    h.row.descrizione_votazione = stored;
+    assert.equal(await h.service.generaESalvaSpiegazione(
+      'Rappresentante QA', 'Votazione finale A', 'Documento non verificato '.repeat(20),
+      'Camera', 'Favorevole'
+    ), null);
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.updates, 0);
+    assert.equal(h.row.spiegazione, 'Vecchia spiegazione senza fonte');
+  }
+});
+
+test('cached representative explanation remains readable with a sufficient stored source', async () => {
+  const h = createHarness();
+  h.row.spiegazione = 'Spiegazione già verificata';
+  assert.equal(await h.service.generaESalvaSpiegazione(
+    'Rappresentante QA', 'Votazione finale A', null, 'Camera', 'Favorevole'
+  ), 'Spiegazione già verificata');
+  assert.equal(h.providerCalls, 0);
+  assert.equal(h.updates, 0);
+});
+
 test('representative generation uses the persisted document, never caller-supplied text', async () => {
   const h = createHarness();
   const text = await h.service.generaESalvaSpiegazione(
