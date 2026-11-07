@@ -148,7 +148,15 @@ function diagnoseCoordinationExplanation(value) {
     finalityPhraseFound: /approvat[oa]\s+definitivament/i.test(explanation),
     negatedFinalityFound: /(?:non|senza).{0,42}approvat[oa]\s+definitivament/i.test(explanation),
     lawStateFound: /legge\s+(?:già\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(explanation),
-    falseFinalityFound: /approvat[oa]\s+definitivament|legge\s+(?:già\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(explanation)
+    // Ignore explicit local negations; do not treat "non approvato definitivamente"
+    // or "legge non promulgata" as affirmative claims about legal finality.
+    // A separate affirmative assertion in the same text must still fail closed.
+    falseFinalityFound: (() => {
+      const withoutNegatedClaims = explanation
+        .replace(/\b(?:non|senza)\s+(?:(?:essere|stata|stato|ancora|già)\s+){0,3}approvat[oa]\s+definitivament\w*/gi, '')
+        .replace(/\blegge\s+(?:non\s+|mai\s+|non\s+(?:ancora\s+)?)(?:(?:è\s+stata|risulta|è)\s+)?(?:in\s+vigore|promulgat\w*|pubblicat\w*)/gi, '');
+      return /approvat[oa]\s+definitivament|legge\s+(?:già\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(withoutNegatedClaims);
+    })()
   };
 }
 
