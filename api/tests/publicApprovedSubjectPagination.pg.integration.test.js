@@ -73,6 +73,28 @@ test('105 approved nominations/category: microsecond cursor, no duplicates, with
    assert.ok(all.every(x=>Object.keys(x).sort().join(',')==='id,title'));
    assert.ok(all.every(x=>!x.title.includes('WITHDRAWN')));
    assert.ok(all.every(x=>x.id.startsWith(category==='attivisti'?'90000000':'a0000000')));
+
+   // Synthetic DSAR/urgent unpublish regression: a visitor may already hold
+   // a pagination cursor when an Admin withdraws a previously approved name.
+   // Apply only a synthetic status transition; no DEMOS data or live route.
+   const withdrawn=second.data.at(-1);
+   const update=await client.query(
+    "UPDATE subject_proposals SET status='withdrawn' WHERE id=$1 AND category=$2 AND status='approved' RETURNING id",
+    [withdrawn.id,category]
+   );
+   assert.equal(update.rowCount,1,'synthetic withdrawal must affect one approved row');
+   const staleCursorPage=await readApprovedPage(client,category,first.next_cursor);
+   assert.equal(staleCursorPage.data.length,4,'withdrawn row must vanish even for an old cursor');
+   assert.equal(staleCursorPage.next_cursor,null);
+   assert.ok(staleCursorPage.data.every(x=>x.id!==withdrawn.id));
+   assert.ok(staleCursorPage.data.every(x=>Object.keys(x).sort().join(',')==='id,title'));
+   const freshFirst=await readApprovedPage(client,category);
+   const freshSecond=await readApprovedPage(client,category,freshFirst.next_cursor);
+   const afterWithdrawal=[...freshFirst.data,...freshSecond.data];
+   assert.equal(afterWithdrawal.length,104,'104 synthetic approved names remain');
+   assert.equal(new Set(afterWithdrawal.map(x=>x.id)).size,104);
+   assert.ok(afterWithdrawal.every(x=>x.id!==withdrawn.id));
+   assert.ok(afterWithdrawal.every(x=>Object.keys(x).sort().join(',')==='id,title'));
   }
   assert.equal(parseCursor('bad*!'),false);
   assert.equal(parseCursor(Buffer.from(JSON.stringify(['1','badid'])).toString('base64url')),false);
