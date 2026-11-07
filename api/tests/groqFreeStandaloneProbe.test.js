@@ -349,6 +349,39 @@ test('T024 formal-coordination explanation diagnostics expose no generated text'
   assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_MODEL_OUTPUT|rawText/);
 });
 
+test('T024 per-sample coordination diagnostics are bounded and never include text', async () => {
+  let n = 0;
+  const result = await runCaseSamples({
+    env: { GROQ_QA_REPEATS: '3', GROQ_QA_CASE_ID: 'T024' },
+    runCase: async () => {
+      n++;
+      return {
+        caseId: 'T024', status: 'SOURCE_MISMATCH', success: false,
+        verifiedFields: 9, failedFields: ['spiegazione'],
+        explanationDiagnostics: {
+          coordinationFound: true, referencesFound: n === 3,
+          approvedFound: true, falseFinalityFound: false,
+          raw: 'PRIVATE_GENERATION'
+        },
+        actDiagnostics: {
+          coordinationMarkerFound: n > 1, correctItemNumberFound: true,
+          genericBillOnly: n === 1
+        }
+      };
+    }
+  });
+  const safe = sanitizeCaseResult(result);
+  assert.deepEqual(safe.t024SampleCategories,
+    ['SOURCE_MISMATCH', 'SOURCE_MISMATCH', 'SOURCE_MISMATCH']);
+  assert.deepEqual(safe.t024SampleScores, [9,9,9]);
+  assert.deepEqual(safe.t024FlagTallies, {
+    coordinationFound: 3, referencesFound: 1, approvedFound: 3,
+    falseFinalityFound: 0, coordinationMarkerFound: 2,
+    correctItemNumberFound: 3, genericBillOnly: 1
+  });
+  assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_GENERATION|raw/);
+});
+
 test('standalone smoke has no database, Firebase, cron or secret output handlers', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'staging', 'groq_free_standalone_probe.js'), 'utf8');
   assert.doesNotMatch(src, /require\(['"]\.\.\/config\/database['"]\)|getPool\(|firebase-admin|sendEachForMulticast|cron\.schedule|setInterval\(/);
