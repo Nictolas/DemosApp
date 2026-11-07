@@ -11,7 +11,7 @@ const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceCh
 
 const router = express.Router();
 // Apply the same display-safety rule to nomination labels and private vote input.
-const unsafeNameControls = /[\u0000-\u001f\u007f-\u009f\u061c\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
+const unsafeNameControls = /[\u0000-\u001f\u007f-\u009f\u00ad\u034f\u061c\u180e\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
 
 // Cache only a validated pair of schema column names, never user data.
 // One metadata lookup per worker/schema version instead of once per viewer.
