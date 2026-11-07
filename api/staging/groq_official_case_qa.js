@@ -36,10 +36,10 @@ const ELECTORAL_SENATE_FINAL_EVIDENCE = [
 // All ten source checks remain unchanged, including false-finality rejection.
 const T001_QA_PROMPT = [
   'FONTE UFFICIALE: ' + ELECTORAL_SENATE_FINAL_EVIDENCE,
-  'Rispondi SOLO in JSON con chiavi atto, data_voto, favorevoli, contrari, astenuti, esito, numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Date GG/MM/AAAA, voti interi.',
-  'Usa solo la fonte, senza deduzioni su voti individuali. Se non e una legge promulgata usa null nei tre campi sulla legge. Esito ESATTAMENTE uno di: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE.',
-  'Per S.1971 descrivi in massimo tre frasi il voto elettorale di Camera e Senato, le modificazioni, S.61 assorbito e il ritorno alla Camera. Non dire che il voto del Senato ha approvato definitivamente una legge, ne che ha promulgato, pubblicato o reso efficace una legge.'
-].join('\\n');
+  'Usa esclusivamente la fonte. Produci solo un JSON con questi campi: atto, data_voto, favorevoli, contrari, astenuti, esito, numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Date GG/MM/AAAA, numeri interi, atto nel formato S.1971.',
+  'Esito ESATTAMENTE una di: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. Distingui il risultato del Senato dal completamento dell iter legislativo. Se il voto non conclude l iter, numero_legge e date della legge sono null. Non inventare dati o voti individuali.',
+  'Spiegazione massimo tre frasi: descrivi esplicitamente la riforma elettorale per le elezioni di Camera e Senato; indica S.1971 approvato con modificazioni al Senato e il testo tornato alla Camera; specifica che S.61 e stato assorbito. Il voto del Senato non era approvazione definitiva della legge. Non attribuire al voto promulgazione, pubblicazione o entrata in vigore.'
+].join(' ');
 
 const SENATE_EVIDENCE = [
   'Senato della Repubblica, XIX legislatura, seduta 463 del 07/10/2026.',
