@@ -164,7 +164,7 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
   if (caseId === 'T006') {
     const explanation = String(answer.spiegazione || '');
     const checks = [
-      /^S\\.?\\s*1804$/i.test(String(answer.atto || '')),
+      /^S\.?\s*1804$/i.test(String(answer.atto || '')),
       String(answer.data_voto || '') === '28/10/2026',
       Number(answer.favorevoli) === 75,
       Number(answer.contrari) === 52,
