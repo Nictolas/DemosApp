@@ -173,6 +173,22 @@ jobs:
                   for flag in sorted(allowed_flags):
                       count = flags.get(flag)
                       print('T024', flag, 'count:', count if type(count) is int and 0 <= count <= 3 else 'UNKNOWN')
+          if case_id == 'T001':
+              allowed_flags = {'electoralTopicFound','notFinalLawFound',
+                               'absorbedBillFound','falseFinalityFound'}
+              cats = result.get('t001SampleCategories', [])
+              scores = result.get('t001SampleScores', [])
+              tallies = result.get('t001FlagTallies', {})
+              if isinstance(cats, list):
+                  print('T001 sample statuses:', ','.join(
+                      x if x in safe_statuses else 'UNKNOWN' for x in cats[:3]))
+              if isinstance(scores, list):
+                  print('T001 per-sample verified fields:', ','.join(
+                      str(x) for x in scores[:3] if type(x) is int and 0 <= x <= 10))
+              if isinstance(tallies, dict):
+                  for flag in sorted(allowed_flags):
+                      count = tallies.get(flag)
+                      print('T001', flag, 'count:', count if type(count) is int and 0 <= count <= 3 else 'UNKNOWN')
           if case_id == 'T025':
               safe_flags = {'postponementFound','topicFound','approvedFound',
                             'noNameRecordFound','falselyMotionApproved','inventedCountsFound'}
