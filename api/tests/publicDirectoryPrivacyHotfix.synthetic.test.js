@@ -50,6 +50,8 @@ test('each mounted public directory route uses the projector and active-account 
   for (const [name, expected] of [['attivisti',2],['organizzazioni',1]]) {
     const src = fs.readFileSync(path.join(root,'api/routes',name+'.js'),'utf8');
     assert.equal((src.match(/data:\s*projectPublicDirectoryMembers\(/g)||[]).length,expected,name);
+    assert.doesNotMatch(src,/console\.log\(/,'public directory must not log query values');
+    assert.doesNotMatch(src,/console\.error\([^\n]*,\s*error\)/,'raw SQL errors must not be logged');
     assert.match(src,/const\s+MODERN_\w+_FILTER\s*=\s*[^;]*u\.status = 'a'/);
     assert.match(src,/const\s+LEGACY_\w+_FILTER\s*=\s*[^;]*u\.status = 'a'/);
     for (const privateCol of ['email','genere','data_nascita','cittadinanza',
