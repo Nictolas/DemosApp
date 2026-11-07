@@ -75,3 +75,13 @@ The original metadata audit checked runtime SELECT permission and a declared rea
 6. Only after the above is evidenced should the final 12th checkpoint be marked complete. Deployment, production changes, merge and feature release remain separate decisions.
 
 **This log documents only read-only database inspection and Draft-PR source changes; no staging or production schema, RLS, privileges, data, secrets, runtime configuration or deploy were changed.**
+
+
+## Candidate empty-legacy schema rehearsal (07/11/2026, NOT executed on Supabase)
+
+- The current staging catalog verifies **no incoming foreign keys** on public.political_selections and no non-internal triggers on that relation. The preflight now exposes selection_has_incoming_foreign_keys and blocks referenced legacy keys. This alone does not authorize changes.
+- api/qa/provincial_empty_legacy_schema_upgrade_CANDIDATE.sql is a **one-time, staging-only candidate for an EMPTY legacy table**. It requires an explicit operator session flag, staging-project acknowledgment, exactly the verified three-column legacy shape and PK, RLS enabled, no incoming FKs/triggers, and **zero existing selection rows**. It sets short lock/statement timeouts and changes only the canonical selection relation transactionally. The flags prevent accidental execution but DO NOT prove operator authorization or database identity.
+- api/tests/provincialEmptyLegacySchema.pg.test.js exercises the candidate on a **disposable GitHub Actions PostgreSQL 17 container only**, not on Supabase. It checks fail-closed refusal without approval and with existing legacy rows, no partial schema change on refusal, retained RLS, selecting the same person for different offices, and same-office uniqueness. Latest CI results must be verified before claiming PASS.
+- **Critical limitation:** application-row inspection has not been performed on shared Demos-Staging; whether its legacy selections table is empty is UNKNOWN. Any existing rows make the candidate abort. A data-preserving, synthetic-only, reviewed office-mapping plan with rollback is required instead. The other schema and runtime RLS/GRANT blockers remain separate and unresolved. This candidate must not be applied to production or the shared staging merely because its source tests pass.
+
+No connected Supabase schema, policies, privileges, runtime, fixture data or production data were changed.
