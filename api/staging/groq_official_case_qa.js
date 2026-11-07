@@ -253,6 +253,11 @@ async function runOfficialCaseQA({
       temperature: 0,
       max_completion_tokens: 1100
     });
+    // A null response means the shared Free budget or provider admission gate
+    // declined this call. It is not evidence of an empty model generation.
+    if (!completion) {
+      return { caseId: CASE_ID, status: 'FREE_QUOTA_UNAVAILABLE', success: false, verifiedFields: 0 };
+    }
     const choice = completion?.choices?.[0];
     if (choice?.finish_reason !== 'stop' ||
         typeof choice?.message?.content !== 'string' ||
