@@ -7,7 +7,7 @@
 const { resolveFreeGroqModel, isGroqConfigured } = require('../services/parliamentFreeAiPolicy');
 const { requestFreeGroq, classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
 
-const CASE_ID = ['T002', 'T003', 'T009'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
+const CASE_ID = ['T002', 'T003', 'T009', 'T010'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
 const EVIDENCE = [
   'Camera dei deputati, XIX legislatura, seduta 729 del 20/10/2026.',
   'Votazione finale A.C. 3131: 125 favorevoli, 43 contrari, 52 astenuti, 168 votanti, 220 presenti.',
@@ -51,6 +51,28 @@ const AMENDMENT_EVIDENCE = [
   'Questo è il voto su un emendamento, non il voto finale sul disegno di legge.',
   'Non associare all’emendamento respinto numero di legge, data di pubblicazione o data di entrata in vigore.'
 ].join(' ');
+
+// Senato: https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl/votazione?did=60317&sessionId=453&voteId=121
+// Resoconto stenografico 14/09/2026, Allegato A:
+// https://www.senato.it/show-doc?id=1520856&idoggetto=0&leg=19&part=doc_dc-allegatoa_aa-ddltit_ddldasda44c3dr1971-oggetto_a9ntadcdd-oggettoem_e&tipodoc=Resaula
+const SECOND_LEGISLATURE_AMENDMENT_EVIDENCE = [
+  'Senato della Repubblica, XIX legislatura, seduta 453 del 14/09/2026.',
+  'Votazione elettronica sull’emendamento 9.0.2 di Pirondini, Boccia, De Cristofaro e Paita al disegno S.1971, esaminato insieme a S.61.',
+  'Presenti 152, votanti 141, favorevoli 48, contrari 91, astenuti 2. Esito: RESPINTO.',
+  'Testo dell’emendamento 9.0.2: aggiungere un articolo 9-bis, Entrata in vigore.',
+  'La proposta stabiliva che la legge elettorale si applicasse a decorrere dalla seconda legislatura successiva alla sua approvazione.',
+  'Non proponeva un termine fisso di 18 mesi: quello era l’emendamento distinto 9.0.3.',
+  'L’emendamento 9.0.2 è stato respinto e non è diventato legge; non attribuire numero di legge, data di pubblicazione o entrata in vigore.'
+].join(' ');
+
+function diagnoseSecondLegislatureExplanation(value) {
+  const explanation = String(value || '');
+  return {
+    secondLegislatureFound: /(?:seconda|2[ªa]?)\s+legislatur/i.test(explanation),
+    rejectedFound: /respint|bocciat|non approvat/i.test(explanation),
+    wrong18MonthFound: /(?:18|diciotto)\s*mes/i.test(explanation)
+  };
+}
 
 function diagnoseAmendmentExplanation(value) {
   // Safe booleans only: no text from Groq is returned by the probe.
@@ -106,6 +128,24 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
     ];
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
     return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: diagnoseAmendmentExplanation(explanation) };
+  }
+  if (caseId === 'T010') {
+    const explanation = String(answer.spiegazione || '');
+    const flags = diagnoseSecondLegislatureExplanation(explanation);
+    const checks = [
+      /^(?:EM(?:ENDAMENTO)?\.?\s*)?9\.0\.2$/i.test(String(answer.atto || '').trim()),
+      String(answer.data_voto || '') === '14/09/2026',
+      Number(answer.favorevoli) === 48,
+      Number(answer.contrari) === 91,
+      Number(answer.astenuti) === 2,
+      String(answer.esito || '').trim().toUpperCase() === 'RESPINTO',
+      answer.numero_legge == null,
+      answer.data_pubblicazione == null,
+      answer.data_entrata_in_vigore == null,
+      flags.secondLegislatureFound && flags.rejectedFound && !flags.wrong18MonthFound
+    ];
+    const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
+    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: flags };
   }
   if (caseId === 'T003') {
     const checks = [
@@ -167,9 +207,9 @@ async function runOfficialCaseQA({
       model,
       messages: [
         { role: 'system', content: 'Sei un verificatore di dati parlamentari. Usa ESCLUSIVAMENTE la fonte fornita. Non inventare fatti. Rispondi solo con un oggetto JSON conforme alle chiavi richieste.' },
-        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : EVIDENCE) +
+        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : EVIDENCE) +
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
-          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
+          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
           'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
@@ -210,4 +250,4 @@ async function runOfficialCaseQA({
   }
 }
 
-module.exports = { CASE_ID, EVIDENCE, diagnoseSenateExplanation, diagnoseAmendmentExplanation, assessOfficialAnswer, runOfficialCaseQA };
+module.exports = { CASE_ID, EVIDENCE, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, assessOfficialAnswer, runOfficialCaseQA };
