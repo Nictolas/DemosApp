@@ -91,6 +91,40 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal(rights.rows[0].auth_can_read, false);
 
     pool = new Pool({connectionString,max:16,options:'-c search_path=' + SCHEMA + ',public'});
+
+    // Exact notification SQL from the application: a concurrent suspension
+    // must exclude a private notice. FOR KEY SHARE cannot protect a status
+    // UPDATE; FOR SHARE must block until it commits and recheck active status.
+    const notifySource = fs.readFileSync(path.join(__dirname,'../routes/subject-proposals.js'),'utf8');
+    const notifySqlMatch = notifySource.match(/\x60(INSERT INTO notifiche_demos \(id_utente, titolo, testo\)[\s\S]*?FOR SHARE)\x60/);
+    assert.ok(notifySqlMatch, 'test the actual in-app notification INSERT SELECT');
+    const blockedNoticeSql = notifySqlMatch[1];
+    const statusConnection = await pool.connect();
+    const noticeConnection = await pool.connect();
+    try {
+      await statusConnection.query('BEGIN');
+      await statusConnection.query("UPDATE users SET status='x' WHERE id=$1",[B]);
+      await noticeConnection.query("SET lock_timeout='500ms'");
+      await assert.rejects(
+        noticeConnection.query(blockedNoticeSql,[B,'Synthetic review notice','Synthetic content']),
+        error => error.code === '55P03',
+        'notification SELECT must wait for pending non-key account suspension');
+      await statusConnection.query('COMMIT');
+      const ignoredNotice = await noticeConnection.query(
+        blockedNoticeSql,[B,'Synthetic review notice','Synthetic content']);
+      assert.equal(ignoredNotice.rowCount,0,
+        'after suspension commits, do not deliver to the inactive account');
+      const storedNotice = await noticeConnection.query(
+        "SELECT count(*)::integer AS n FROM notifiche_demos WHERE id_utente=$1 AND testo='Synthetic content'",[B]);
+      assert.equal(storedNotice.rows[0].n,0,'no synthetic notice can survive an inactive recipient');
+    } finally {
+      await statusConnection.query('ROLLBACK').catch(()=>{});
+      await noticeConnection.query('RESET lock_timeout').catch(()=>{});
+      statusConnection.release();
+      noticeConnection.release();
+      await pool.query("UPDATE users SET status='a' WHERE id=$1",[B]);
+    }
+
     const dbPath = require.resolve('../config/database');
     const authPath = require.resolve('../middleware/auth');
     require.cache[dbPath] = {id:dbPath,filename:dbPath,loaded:true,exports:{getPool:() => pool}};
