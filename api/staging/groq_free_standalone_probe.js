@@ -44,7 +44,7 @@ function requestedCaseSamples(env = process.env) {
 }
 
 function selectedCaseId(env = process.env) {
-  return ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018'].includes(env.GROQ_QA_CASE_ID)
+  return ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018', 'T023'].includes(env.GROQ_QA_CASE_ID)
     ? env.GROQ_QA_CASE_ID : 'T008';
 }
 
@@ -115,7 +115,7 @@ function sanitizeCaseResult(result) {
   const count = Number(result?.verifiedFields);
   const latency = Number(result?.latencyMs);
   return {
-    caseId: ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008',
+    caseId: ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018', 'T023'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008',
     status,
     success: status === 'OK' && result?.success === true,
     verifiedFields: Number.isInteger(count) ? Math.max(0, Math.min(10, count)) : 0,
@@ -124,6 +124,13 @@ function sanitizeCaseResult(result) {
       samplesRequested: result.samplesRequested,
       samplesCompleted: Number.isInteger(result.samplesCompleted) && result.samplesCompleted >= 0 && result.samplesCompleted <= 3 ? result.samplesCompleted : 0,
       samplesPassed: Number.isInteger(result.samplesPassed) && result.samplesPassed >= 0 && result.samplesPassed <= 3 ? result.samplesPassed : 0
+    } : {}),
+    ...(result?.caseId === 'T023' && result?.explanationDiagnostics ? {
+      explanationDiagnostics: {
+        noNewCostsFound: result.explanationDiagnostics.noNewCostsFound === true,
+        approvedFound: result.explanationDiagnostics.approvedFound === true,
+        falselyFinalFound: result.explanationDiagnostics.falselyFinalFound === true
+      }
     } : {}),
     ...(result?.caseId === 'T013' && Array.isArray(result?.sampleCategories) ? {
       sampleCategories: result.sampleCategories.slice(0, 3).map(status => safe.has(status) ? status : 'NETWORK_OR_UNKNOWN'),
@@ -231,7 +238,7 @@ function createHandler(getProbe, getCase = () => ({ status: 'NOT_RUN' })) {
 
 if (require.main === module) {
   let probe = { status: 'PENDING', success: false };
-  let officialCase = { caseId: ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008', status: 'PENDING', success: false, verifiedFields: 0 };
+  let officialCase = { caseId: ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018', 'T023'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008', status: 'PENDING', success: false, verifiedFields: 0 };
   const server = http.createServer(createHandler(() => probe, () => officialCase));
   server.listen(Number(process.env.PORT) || 10000, '0.0.0.0', () => {
     console.log('Standalone Groq Free probe listening; no DB or push initialized');
