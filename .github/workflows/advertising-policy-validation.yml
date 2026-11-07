@@ -259,6 +259,68 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # This second APK checks the REAL backend /auth/me age decision.
+      # Unlike the synthetic UMP-demo build it cannot advertise while anonymous.
+      # Keep its .qaage package separate from normal DEMOS and .qaopen QA.
+      - name: Package age-gated Android QA APK without synthetic adult
+        working-directory: client/android
+        shell: bash
+        env:
+          DEMOS_QA_ADMOB_APP_ID: ${{ secrets.DEMOS_QA_ADMOB_APP_ID }}
+        run: |
+          set -euo pipefail
+          app_id="${DEMOS_QA_ADMOB_APP_ID:-ca-app-pub-7488681940015678~2926952834}"
+          if [[ ! "$app_id" =~ ^ca-app-pub-[0-9]{16}~[0-9]{10}$ ]]; then
+            echo "::error::Invalid QA AdMob App ID"
+            exit 1
+          fi
+          echo "::add-mask::$app_id"
+          ./gradlew :app:assembleDebug \
+            -PdemosDebugAppOpenAds=true \
+            -PdemosDebugUmpEea=true \
+            -PdemosDebugQaForceAdult=false \
+            -PdemosDebugQaRealAge=true \
+            "-PdemosDebugAdMobAppId=$app_id" \
+            --no-daemon --console=plain
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          "$aapt" dump badging "$apk" | grep -Fq "package: name='community.demos.qaage'"
+          build_config="$(find app/build/generated/source/buildConfig/debug -name BuildConfig.java -print -quit)"
+          test -n "$build_config"
+          grep -Eq 'DEMOS_QA_FORCE_ADULT = false;' "$build_config"
+          grep -Eq 'DEMOS_APP_OPEN_ADS_ENABLED = true;' "$build_config"
+          grep -Eq 'DEMOS_UMP_DEBUG_EEA = true;' "$build_config"
+          out=app/build/outputs/apk/debug/real-age-qa
+          mkdir -p "$out"
+          cp "$apk" "$out/DEMOS-REAL-AGE-QA-TEST-ONLY.apk"
+          sha256sum "$out/DEMOS-REAL-AGE-QA-TEST-ONLY.apk"
+          cat > "$out/LEGGIMI-ETA-REALE.txt" <<EOF
+          DEMOS ANDROID - TEST ETA REALE (SOLO ADULTI TESTER)
+          ====================================================
+          Package separato: community.demos.qaage. Solo unità annunci TEST Google.
+          Questo APK NON simula un adulto. Il gate Android resta DENY finché
+          /auth/me non conferma ads_adult_eligible=true in una sessione autenticata.
+          Con utente anonimo o data di nascita non verificabile: NO UMP / NO ADS.
+          Provare login adulto, revoca, logout, cambio account e reti disattivate.
+          Non inserire dati personali nei report o negli screenshot.
+          La verifica del consenso Google UMP richiede device online e configurazione
+          Privacy & Messaging; nessuna impression è garantita sul caricamento naturale.
+          Per testare i minori usare SOLO account sintetici/test con autorizzazione.
+          NON usare questo APK su Play o in distribuzione pubblica.
+          La versione Release DEMOS rimane senza pubblicità.
+          EOF
+
+      - name: Archive age-gated QA APK (no synthetic adult)
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEMOS-REAL-AGE-UMP-GOOGLE-TEST-ADS-DEBUG-APK
+          path: client/android/app/build/outputs/apk/debug/real-age-qa/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Confirm release runtime does not include AdMob or UMP
         working-directory: client/android
         shell: bash
