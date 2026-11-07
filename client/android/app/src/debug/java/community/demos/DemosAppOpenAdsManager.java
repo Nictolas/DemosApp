@@ -11,6 +11,8 @@ import android.webkit.WebView;
 
 import androidx.annotation.NonNull;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import com.google.android.ump.ConsentDebugSettings;
 import com.google.android.ump.ConsentInformation;
 import com.google.android.ump.ConsentRequestParameters;
@@ -70,7 +72,16 @@ final class DemosAppOpenAdsManager {
     private boolean consentVerifiedForAdultSession = false;
     // Invalidate any in-flight load when privacy choices change or Activity dies.
     private long consentGeneration = 0;
+    // The GMA initialization worker is off the UI thread. Revocation/logout must
+    // invalidate queued work before it can initiate the SDK.
+    private final AtomicLong workerConsentEpoch = new AtomicLong();
+    private boolean initializing = false;
     private long readyAtElapsedMs = 0;
+
+    private long invalidateConsentGeneration() {
+        workerConsentEpoch.incrementAndGet();
+        return ++consentGeneration;
+    }
 
     DemosAppOpenAdsManager(MainActivity activity) {
         this.activity = activity;
@@ -96,7 +107,7 @@ final class DemosAppOpenAdsManager {
         if (BuildConfig.DEMOS_QA_FORCE_ADULT && !confirmedAdult) return;
         if (adultEligible == confirmedAdult) return;
         adultEligible = confirmedAdult;
-        consentGeneration++;
+        invalidateConsentGeneration();
         consentVerifiedForAdultSession = false;
         if (readyAd != null) {
             readyAd.destroy();
@@ -246,7 +257,7 @@ final class DemosAppOpenAdsManager {
         }
         privacyFormOpen = true;
         consentVerifiedForAdultSession = false;
-        final long optionsGeneration = ++consentGeneration;
+        final long optionsGeneration = invalidateConsentGeneration();
         UserMessagingPlatform.showPrivacyOptionsForm(activity, formError -> {
             privacyFormOpen = false;
             notifyPrivacyOptionsChanged();
@@ -272,7 +283,7 @@ final class DemosAppOpenAdsManager {
     void onDestroy() {
         foreground = false;
         consentVerifiedForAdultSession = false;
-        consentGeneration++; // Prevent an async network callback from storing an ad.
+        invalidateConsentGeneration(); // Prevent late callbacks and queued SDK initialization.
         if (readyAd != null) {
             readyAd.destroy();
             readyAd = null;
@@ -301,10 +312,11 @@ final class DemosAppOpenAdsManager {
     }
 
     private void initializeSdk() {
-        if (initialized || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED || !BuildConfig.DEBUG
+        if (initialized || initializing || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED || !BuildConfig.DEBUG
             || !adultEligible || !consentVerifiedForAdultSession || !hasExplicitTcfConsent()) return;
         if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "sdk-initialize-approved");
-        initialized = true;
+        initializing = true;
+        final long authorizedEpoch = workerConsentEpoch.get();
 
         // PPT disables personalized ads for the entire session before any load.
         final RequestConfiguration configuration = new RequestConfiguration.Builder()
@@ -313,15 +325,39 @@ final class DemosAppOpenAdsManager {
             .setMaxAdContentRating(RequestConfiguration.MaxAdContentRating.MAX_AD_CONTENT_RATING_G)
             .build();
 
-        // Google requires Next-Gen initialization off the main thread.
+        // Next-Gen GMA initialization must run off the main thread. Recheck the
+        // atomic consent epoch immediately before invoking it: a queued worker
+        // must not initialize the SDK after logout, consent changes or destroy.
         new Thread(() -> {
-            MobileAds.initialize(
-                activity.getApplicationContext(),
-                new InitializationConfig.Builder(BuildConfig.DEMOS_ADMOB_APP_ID)
-                    .setRequestConfiguration(configuration)
-                    .build(),
-                initializationStatus -> mainHandler.post(this::loadOnlyTestAppOpenAd)
-            );
+            if (authorizedEpoch != workerConsentEpoch.get()) {
+                mainHandler.post(() -> {
+                    initializing = false;
+                    // Consent may have been re-granted while the previous worker
+                    // was queued. Do not leave the new session stuck.
+                    initializeSdk();
+                });
+                return;
+            }
+            try {
+                MobileAds.initialize(
+                    activity.getApplicationContext(),
+                    new InitializationConfig.Builder(BuildConfig.DEMOS_ADMOB_APP_ID)
+                        .setRequestConfiguration(configuration)
+                        .build(),
+                    initializationStatus -> mainHandler.post(() -> {
+                        initializing = false;
+                        initialized = true;
+                        // The ad request itself checks the CURRENT adult, UMP,
+                        // TCF and foreground gates. Old callbacks never grant
+                        // permission on behalf of an earlier session.
+                        loadOnlyTestAppOpenAd();
+                    })
+                );
+            } catch (RuntimeException initializationFailure) {
+                // SDK errors must not lock out a new authorized QA session.
+                // Never log exception messages, identifiers or consent strings.
+                mainHandler.post(() -> initializing = false);
+            }
         }, "demos-ads-test-initialization").start();
     }
 
