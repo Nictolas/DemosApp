@@ -72,6 +72,11 @@ test('provincial staging preflight is read-only, metadata-only, and scoped to kn
   assert.equal(new Set(requiredColumns).size, requiredColumns.length);
   assert.match(sql, /has_table_privilege\('demos_staging_runtime'/);
   assert.match(sql, /BLOCKED_NO_SELECT_GRANT/);
+  assert.match(sql, /anon_client_has_privilege/);
+  assert.match(sql, /authenticated_client_has_privilege/);
+  assert.match(sql, /BLOCKED_CLIENT_DIRECT_TABLE_GRANT/);
+  assert.match(sql, /has_table_privilege\('anon'/);
+  assert.match(sql, /has_table_privilege\('authenticated'/);
   assert.match(sql, /BLOCKED_MISSING_RELATION/);
   assert.match(sql, /METADATA_PASS_NOT_E2E_GO/);
   // Privilege names appear as SQL string literals; they are not statements.
