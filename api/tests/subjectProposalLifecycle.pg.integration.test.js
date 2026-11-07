@@ -508,6 +508,13 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const inactiveId=freshOrg.body.proposal.id;
     await pool.query("UPDATE users SET status='x' WHERE id=$1",[B]);
     try {
+      // The same synthetic JWT still passes middleware, but a suspended
+      // owner must not see the ID/status of an existing private proposal.
+      const suspendedMine=await req('/api/subject-proposals/mine?category=organizzazioni','b');
+      assert.equal(suspendedMine.status,200);
+      assert.match(suspendedMine.cacheControl||'',/private,\s*no-store/);
+      assert.deepEqual(suspendedMine.body,{success:true,pending:null,latest:null},
+        'stale auth session must not disclose a suspended owner private proposal');
       // A synthetic JWT remains valid, but a suspended account must not
       // create a new proposal while its account is inactive in PostgreSQL.
       const titleSuspended='Attivista sintetica inviata da account sospeso';
@@ -546,6 +553,11 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     } finally {
       await pool.query("UPDATE users SET status='a' WHERE id=$1",[B]);
     }
+    const restoredMine=await req('/api/subject-proposals/mine?category=organizzazioni','b');
+    assert.equal(restoredMine.status,200);
+    assert.equal(restoredMine.body.latest?.id,inactiveId,
+      'reactivated owner can read own review state without exposing other users');
+    assert.equal(restoredMine.body.latest?.status,'rejected');
 
     // More than 100 approved subjects must remain reachable for urgent
     // Admin unpublishing. Timestamps differ only by microseconds, which
