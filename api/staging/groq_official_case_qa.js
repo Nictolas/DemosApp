@@ -52,6 +52,15 @@ const AMENDMENT_EVIDENCE = [
   'Non associare all’emendamento respinto numero di legge, data di pubblicazione o data di entrata in vigore.'
 ].join(' ');
 
+function diagnoseAmendmentExplanation(value) {
+  // Safe booleans only: no text from Groq is returned by the probe.
+  const explanation = String(value || '');
+  return {
+    timingFound: /(?:18|diciotto)\s*mes/i.test(explanation),
+    rejectedFound: /respint|bocciat|non approvat/i.test(explanation)
+  };
+}
+
 function diagnoseSenateExplanation(value) {
   // Diagnostic flags only: no model text is logged or returned by the public probe.
   const explanation = String(value || '');
@@ -93,10 +102,10 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
       answer.numero_legge == null,
       answer.data_pubblicazione == null,
       answer.data_entrata_in_vigore == null,
-      /(?:18|diciotto)\s*mes/i.test(explanation) && /respint|bocciat|non approvat/i.test(explanation)
+      (() => { const checks = diagnoseAmendmentExplanation(explanation); return checks.timingFound && checks.rejectedFound; })()
     ];
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
-    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]) };
+    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: diagnoseAmendmentExplanation(explanation) };
   }
   if (caseId === 'T003') {
     const checks = [
@@ -165,7 +174,7 @@ async function runOfficialCaseQA({
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
           'Per esito, usa esclusivamente una delle quattro stringhe ammesse in base alla fonte, senza presumere la definitività. ' +
-          'Spiegazione: massimo due frasi; indica l\'ambito materiale specifico dell\'atto con un termine distintivo presente nella fonte e l\'esito del voto del ramo indicato. Non limitarti a riportare il numero del provvedimento; ' +
+          'Spiegazione: massimo due frasi; indica l\'ambito materiale specifico dell\'atto con un termine distintivo presente nella fonte e l\'esito del voto del ramo indicato. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Non limitarti a riportare il numero del provvedimento; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
       ],
       response_format: { type: 'json_object' },
@@ -201,4 +210,4 @@ async function runOfficialCaseQA({
   }
 }
 
-module.exports = { CASE_ID, EVIDENCE, diagnoseSenateExplanation, assessOfficialAnswer, runOfficialCaseQA };
+module.exports = { CASE_ID, EVIDENCE, diagnoseSenateExplanation, diagnoseAmendmentExplanation, assessOfficialAnswer, runOfficialCaseQA };
