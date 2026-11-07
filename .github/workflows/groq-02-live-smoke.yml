@@ -54,6 +54,9 @@ jobs:
                   http_status = exc.code
                   payload = exc.read(1024)
               except Exception:
+                  if attempt < 15:
+                      time.sleep(5)
+                      continue
                   print("Groq Free live probe: NETWORK_UNAVAILABLE")
                   sys.exit(1)
 
