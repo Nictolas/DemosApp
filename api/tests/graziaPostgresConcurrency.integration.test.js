@@ -469,6 +469,54 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     assert.equal(rejectedWithoutProposer.rows[0].status,'rejected');
 
 
+    // Exercise the three *actual* application INSERT..SELECT notification SQL
+    // statements against disposable PG17. A concurrent account suspension
+    // must block each one and, after commit, prevent inserting an inbox row.
+    const notificationSource=fs.readFileSync(
+      path.join(__dirname,'../routes/grazia.js'),'utf8');
+    const notificationStatements=notificationSource.split('\n')
+      .map(line=>line.trim())
+      .filter(line=>line.startsWith('"INSERT INTO notifiche_demos '))
+      .map(line=>JSON.parse(line.replace(/,$/,'')));
+    assert.equal(notificationStatements.length,3,
+      'new proposal, withdrawal and decision notices need the same row lock');
+    const notifyCases=[
+      [notificationStatements.find(sql=>sql.includes('WHERE is_admin')),ADMIN,[]],
+      [notificationStatements.find(sql=>sql.includes('WHERE id::text=$1')),A,[A]],
+      [notificationStatements.find(sql=>sql.includes('WHERE id::text = $1')),A,[A,'Synthetic notice outcome']]
+    ];
+    for(const [sql,recipientId,args] of notifyCases){
+      assert.equal(typeof sql,'string','find the original SQL from the route');
+      assert.match(sql,/FOR SHARE$/,'lock against non-key account status UPDATE');
+      const statusConnection=await pool.connect();
+      const noticeConnection=await pool.connect();
+      try {
+        const before=await pool.query(
+          'SELECT count(*)::integer n FROM notifiche_demos WHERE id_utente=$1',[recipientId]);
+        await statusConnection.query('BEGIN');
+        await statusConnection.query("UPDATE users SET status='x' WHERE id=$1",[recipientId]);
+        await noticeConnection.query("SET lock_timeout='350ms'");
+        await assert.rejects(
+          noticeConnection.query(sql,args),
+          err=>err.code==='55P03',
+          'notification must wait for the in-flight suspension transaction');
+        await statusConnection.query('COMMIT');
+        const after=await noticeConnection.query(sql,args);
+        assert.equal(after.rowCount,0,
+          'after suspension, no private notification may be inserted');
+        const count=await pool.query(
+          'SELECT count(*)::integer n FROM notifiche_demos WHERE id_utente=$1',[recipientId]);
+        assert.equal(count.rows[0].n,before.rows[0].n,
+          'failed notification must not leave an inbox entry');
+      } finally {
+        await statusConnection.query('ROLLBACK').catch(()=>{});
+        await noticeConnection.query('RESET lock_timeout').catch(()=>{});
+        statusConnection.release();
+        noticeConnection.release();
+        await pool.query("UPDATE users SET status='a' WHERE id=$1",[recipientId]);
+      }
+    }
+
     // Two distinct accounts racing on the same canonical subject must
     // produce exactly one pending request, never two competing moderators.
     await pool.query('INSERT INTO users(id,is_admin,status) VALUES ($1,false,$3),($2,false,$3)',[C,D,'a']);
