@@ -131,11 +131,11 @@ const ARTICLE_9_EVIDENCE = [
 // Official electronic votes: https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=55212&tab=votazioni
 // Official coordination text: https://www.senato.it/show-doc?id=1520971&idoggetto=0&leg=19&part=doc_dc-allegatoa_aa&tipodoc=Resaula
 const COORDINATION_EVIDENCE = [
-  'Senato seduta 454 del 15/09/2026: Coord. 1 De Priamo sul DDL elettorale S.1971, con S.61 e S.1822 abbinati.',
-  'Voto su coordinamento: presenti 180, votanti 179, favorevoli 106, contrari 71, astenuti 2. APPROVATO.',
-  'Corregge rinvii normativi e riferimenti negli articoli 1, 2 e 8, tra cui richiami ai periodi dell’articolo 18-bis.',
-  'Voto NON finale sul DDL: distinta votazione finale 113 favorevoli, 71 contrari, 2 astenuti.',
-  'Coord. 1 non è una legge promulgata: nessun numero legge né data di pubblicazione/efficacia propri.'
+  'Senato 15/09/2026 seduta 454, Coord. 1 De Priamo sul ddl elettorale S.1971 (S.61 abbinato).',
+  'Voto coordinamento: presenti 180, votanti 179, favorevoli 106, contrari 71, astenuti 2. APPROVATO.',
+  'Correzione formale di rinvii normativi negli articoli 1, 2 e 8, incluso articolo 18-bis.',
+  'Voto finale sul ddl distinto: 113 favorevoli, 71 contrari, 2 astenuti.',
+  'Coord. 1 non è legge promulgata: nessun numero legge o data pubblicazione/efficacia propri.'
 ].join(' ');
 
 function diagnoseCoordinationExplanation(value) {
@@ -143,7 +143,8 @@ function diagnoseCoordinationExplanation(value) {
   return {
     coordinationFound: /coordinament|correzion|rettific/i.test(explanation),
     referencesFound: /rinvi|riferiment|richiam|articol[oi]\s+(?:1|2|8)|18-bis/i.test(explanation),
-    approvedFound: /approvat|accolt/i.test(explanation),
+    approvedFound: /approvat|accolt|adottat|via\s+libera|esito\s+positivo|voto\s+favorevole/i.test(explanation) &&
+      !/coordinament.{0,30}non\s+(?:è\s+stato\s+)?approvat/i.test(explanation),
     finalityPhraseFound: /approvat[oa]\s+definitivament/i.test(explanation),
     negatedFinalityFound: /(?:non|senza).{0,42}approvat[oa]\s+definitivament/i.test(explanation),
     lawStateFound: /legge\s+(?:già\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(explanation),
@@ -485,7 +486,7 @@ async function runOfficialCaseQA({
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
           'Per esito, usa esclusivamente una delle quattro stringhe ammesse in base alla fonte, senza presumere la definitività. ' +
-          'Spiegazione: massimo tre frasi, concise; indica l\'ambito materiale specifico dell\'atto con un termine distintivo presente nella fonte e l\'esito del voto del ramo indicato. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta prevede condizioni e due alternative temporali, indica quando si applica la prima e quando la seconda, riportando eventuali soglie e senza sostituire la proposta con altri emendamenti. Se la votazione è sulla fiducia, distingui la fiducia dall\'approvazione dell\'atto e indica la materia specifica. Se è una proposta di coordinamento formale, descrivi quali riferimenti del testo corregge, senza confonderla con il successivo voto finale sul disegno di legge. Non limitarti a riportare il numero del provvedimento; ' +
+          'Spiegazione: massimo tre frasi, concise; esplicita se il singolo atto, articolo o coordinamento è stato approvato o respinto, poi descrivi l\'oggetto specifico con termini della fonte. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta prevede condizioni e due alternative temporali, indica quando si applica la prima e quando la seconda, riportando eventuali soglie e senza sostituire la proposta con altri emendamenti. Se la votazione è sulla fiducia, distingui la fiducia dall\'approvazione dell\'atto e indica la materia specifica. Se è una proposta di coordinamento formale, descrivi quali riferimenti del testo corregge, senza confonderla con il successivo voto finale sul disegno di legge. Non limitarti a riportare il numero del provvedimento; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
       ],
       response_format: { type: 'json_object' },
