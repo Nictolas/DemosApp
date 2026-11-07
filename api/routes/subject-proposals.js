@@ -55,8 +55,11 @@ router.get('/mine', verifyToken, async (req, res) => {
   if (category === 'grazia') return res.status(409).json({ success: false, error: 'GRAZIA_CODA_UNICA' });
   if (!CATEGORIES.has(category)) return res.status(400).json({ success: false, error: 'Categoria non valida' });
   try {
+    // An access token or cached auth subject may outlive account suspension.
+    // Recheck current DB status in the SAME private-read query: no extra SQL.
+    // No active owner -> neutral empty result, without confirming a proposal.
     const result = await pool.query(
-      "SELECT id, status, created_at, reviewed_at FROM subject_proposals WHERE proposer_user_id = $1 AND category = $2 ORDER BY created_at DESC LIMIT 1",
+      "SELECT p.id, p.status, p.created_at, p.reviewed_at FROM subject_proposals p JOIN users u ON u.id=p.proposer_user_id AND u.status='a' WHERE p.proposer_user_id = $1 AND p.category = $2 ORDER BY p.created_at DESC, p.id DESC LIMIT 1",
       [req.user.id, category]
     );
     const latest = result.rows[0] || null;
