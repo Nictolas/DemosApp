@@ -297,6 +297,25 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     await pool.query('DELETE FROM voti_grazia WHERE userid=$1 AND nome=$2',[B,legacyDisplayName]);
     await pool.query('DELETE FROM grazia_carcerati WHERE nome=$1',[legacyDisplayName]);
 
+    // Synthetic legacy duplicates bypass the old lower(btrim(nome)) unique
+    // index because they differ only in internal whitespace. A canonical
+    // lookup must not choose an arbitrary row or erase an existing choice.
+    const ambiguousDisplayA='Persona  ambigua sintetica';
+    const ambiguousDisplayB='Persona ambigua sintetica';
+    const preservedVote='Voto sintetico precedente account B';
+    await pool.query('INSERT INTO grazia_carcerati(nome,attivo) VALUES($1,true),($2,true)',
+      [ambiguousDisplayA,ambiguousDisplayB]);
+    await pool.query('INSERT INTO voti_grazia(userid,nome) VALUES($1,$2)',[B,preservedVote]);
+    const ambiguousVote=await req('/api/grazia/vota','b','POST',{voti:[ambiguousDisplayB]});
+    assert.equal(ambiguousVote.status,422,
+      'canonical duplicate catalogue entries must be rejected without choosing a row');
+    const afterAmbiguous=await pool.query('SELECT nome FROM voti_grazia WHERE userid=$1',[B]);
+    assert.deepEqual(afterAmbiguous.rows.map(x=>x.nome),[preservedVote],
+      'ambiguous lookup must not erase the previous private preference');
+    await pool.query('DELETE FROM voti_grazia WHERE userid=$1 AND nome=$2',[B,preservedVote]);
+    await pool.query('DELETE FROM grazia_carcerati WHERE nome IN ($1,$2)',
+      [ambiguousDisplayA,ambiguousDisplayB]);
+
     // The vote checks an approved catalogue row inside its transaction.
     // Hold the Admin withdrawal row lock, then prove its FOR SHARE check is
     // genuinely waiting in disposable PostgreSQL before deactivating the row.
