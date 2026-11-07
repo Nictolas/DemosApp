@@ -2,7 +2,7 @@
 
 // Standalone GROQ-02 provider smoke on a dedicated Render Free service.
 // No DB, Firebase, scheduler, user records, or public text-generation route.
-// This service performs one connectivity check and one source QA case per start.
+// This service performs one connectivity check and one bounded set of source QA calls per start.
 // Its HTTP endpoints only expose sanitized status, never keys or model output.
 const http = require('node:http');
 const { checkGroqFreeConnectivity } = require('../services/groqFreeSmokeService');
@@ -37,6 +37,61 @@ async function runOneProbe({ env = process.env, check = checkGroqFreeConnectivit
   }
 }
 
+// Opt-in stability QA. Bound calls to three, never read a client-provided count,
+// and default to the historical single call. All samples use the Free-only gate.
+function requestedCaseSamples(env = process.env) {
+  return env.GROQ_QA_REPEATS === '3' ? 3 : 1;
+}
+
+function selectedCaseId(env = process.env) {
+  return ['T002', 'T003', 'T006', 'T009', 'T010'].includes(env.GROQ_QA_CASE_ID)
+    ? env.GROQ_QA_CASE_ID : 'T008';
+}
+
+async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA } = {}) {
+  const samplesRequested = requestedCaseSamples(env);
+  const caseId = selectedCaseId(env);
+  const results = [];
+  for (let index = 0; index < samplesRequested; index++) {
+    let value;
+    try {
+      value = await runCase({ env });
+    } catch (_) {
+      value = { caseId, status: 'NETWORK_OR_UNKNOWN', success: false, verifiedFields: 0 };
+    }
+    // Only keep allowlisted structural diagnostics. Never retain model output.
+    const safeStatus = value?.status;
+    results.push({
+      caseId: value?.caseId,
+      status: safeStatus,
+      success: value?.success === true,
+      verifiedFields: Number.isInteger(value?.verifiedFields) ? value.verifiedFields : 0,
+      failedFields: Array.isArray(value?.failedFields) ? value.failedFields : [],
+    });
+    // Do not hammer a Free provider when admission/auth/provider fails.
+    if (['RATE_LIMIT', 'FREE_QUOTA_UNAVAILABLE', 'NOT_CONFIGURED',
+         'MODEL_NOT_ALLOWED', 'AUTH', 'PROVIDER_UNAVAILABLE', 'NETWORK_OR_UNKNOWN'].includes(safeStatus)) break;
+  }
+
+  const matches = results.map(result =>
+    result.caseId === caseId && result.status === 'OK' &&
+    result.success && result.verifiedFields === 10 && result.failedFields.length === 0
+  );
+  const samplesPassed = matches.filter(Boolean).length;
+  const success = results.length === samplesRequested && samplesPassed === samplesRequested;
+  const failure = results.find(result => result.status !== 'OK');
+  return {
+    caseId,
+    status: success ? 'OK' : failure?.status && failure.status !== 'OK' ? failure.status : 'SOURCE_MISMATCH',
+    success,
+    verifiedFields: Math.min(...results.map(result => result.verifiedFields)),
+    failedFields: [...new Set(results.flatMap(result => result.failedFields))],
+    samplesRequested,
+    samplesCompleted: results.length,
+    samplesPassed,
+  };
+}
+
 function sanitizeCaseResult(result) {
   const safe = new Set(['PENDING', 'OK', 'NOT_RUN', 'NOT_CONFIGURED', 'MODEL_NOT_ALLOWED', 'FREE_QUOTA_UNAVAILABLE', 'EMPTY_OR_TRUNCATED', 'INVALID_JSON', 'SOURCE_MISMATCH', 'AUTH', 'MODEL_NOT_FOUND', 'INVALID_REQUEST', 'RATE_LIMIT', 'PROVIDER_UNAVAILABLE', 'NETWORK_OR_UNKNOWN']);
   const status = safe.has(result?.status) ? result.status : 'NETWORK_OR_UNKNOWN';
@@ -48,6 +103,11 @@ function sanitizeCaseResult(result) {
     success: status === 'OK' && result?.success === true,
     verifiedFields: Number.isInteger(count) ? Math.max(0, Math.min(10, count)) : 0,
     failedFields: Array.isArray(result?.failedFields) ? result.failedFields.filter(field => ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'].includes(field)).slice(0, 10) : [],
+    ...(Number.isInteger(result?.samplesRequested) && [1, 3].includes(result.samplesRequested) ? {
+      samplesRequested: result.samplesRequested,
+      samplesCompleted: Number.isInteger(result.samplesCompleted) && result.samplesCompleted >= 0 && result.samplesCompleted <= 3 ? result.samplesCompleted : 0,
+      samplesPassed: Number.isInteger(result.samplesPassed) && result.samplesPassed >= 0 && result.samplesPassed <= 3 ? result.samplesPassed : 0
+    } : {}),
     ...(result?.caseId === 'T002' && result?.explanationDiagnostics ? {
       explanationDiagnostics: {
         topicFound: result.explanationDiagnostics.topicFound === true,
@@ -105,14 +165,14 @@ if (require.main === module) {
   server.listen(Number(process.env.PORT) || 10000, '0.0.0.0', () => {
     console.log('Standalone Groq Free probe listening; no DB or push initialized');
   });
-  // Exactly one connectivity check and one fixed official case if connectivity succeeds.
+  // One connectivity check and either one or three fixed official-case samples.
   // No timer, scheduler, retry loop, or client-supplied prompt.
   void runOneProbe().then(async result => {
     probe = result;
-    officialCase = result.success ? await runOfficialCaseQA() : {
+    officialCase = result.success ? await runCaseSamples() : {
       caseId: ['T002', 'T003', 'T006', 'T009', 'T010'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008', status: 'NOT_RUN', success: false, verifiedFields: 0
     };
   });
 }
 
-module.exports = { sanitizeResult, sanitizeCaseResult, runOneProbe, createHandler };
+module.exports = { sanitizeResult, sanitizeCaseResult, runOneProbe, requestedCaseSamples, runCaseSamples, createHandler };
