@@ -35,6 +35,8 @@ on:
       - 'api/scripts/check-proposals-schema-readiness.js'
       - 'api/migrations/20261031_subject_proposals_review_gate.sql'
       - 'api/routes/subject-proposals.js'
+      - 'api/middleware/auth.js'
+      - 'api/tests/d12AuthMiddlewarePrivacy.synthetic.test.js'
       - 'api/tests/d12GenericNoStoreAllResponses.synthetic.test.js'
       - 'api/tests/d12GraziaPrivacyContact.contract.test.js'
       - 'api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js'
@@ -86,6 +88,7 @@ jobs:
           node --check api/routes/amnistia.js
           node --check api/routes/capo-stato.js
           node --check api/routes/subject-proposals.js
+          node --check api/middleware/auth.js
           node --check api/routes/attivisti.js
           node --check api/routes/organizzazioni.js
       - name: Privacy and reaction tests
@@ -113,6 +116,8 @@ jobs:
           if test -f api/tests/graziaModerationContract.test.js; then node --test api/tests/graziaModerationContract.test.js; fi
       - name: Grazia shared vote schema cache and private-write safety
         run: node --test api/tests/graziaVoteReadEfficiency.synthetic.test.js api/tests/graziaVoteSchemaCache.synthetic.test.js
+      - name: DEMOS12 auth middleware PII/log minimization (synthetic no DB)
+        run: node --test api/tests/d12AuthMiddlewarePrivacy.synthetic.test.js
       - name: DEMOS12 DSAR S4 synthetic deadline and delivery contract (no live data)
         run: node --test api/tests/demos12DsarS4.synthetic.test.js
       - name: Synthetic Grazia moderation HTTP checks
