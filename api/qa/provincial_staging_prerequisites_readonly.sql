@@ -108,6 +108,12 @@ inventory AS (
                WHERE k.key_position <= i.indnkeyatts
              ) = ARRAY['selected_user_id', 'selection_kind', 'user_id']::name[]
          ) ELSE NULL END AS legacy_selection_unique_key_conflict,
+         -- Incoming foreign keys must be reviewed before replacing the
+         -- legacy primary key. Metadata only: never inspect selected people.
+         CASE WHEN r.relation_name = 'political_selections' THEN EXISTS (
+           SELECT 1 FROM pg_catalog.pg_constraint fk
+           WHERE fk.contype = 'f' AND fk.confrelid = c.oid
+         ) ELSE NULL END AS selection_has_incoming_foreign_keys,
          COALESCE(c.relrowsecurity, false) AS rls_enabled,
          CASE WHEN c.oid IS NULL THEN false
            ELSE has_table_privilege('demos_staging_runtime', c.oid, 'SELECT')
@@ -158,6 +164,7 @@ SELECT relation_name, mandatory_for_e2e, purpose,
        missing_columns,
        canonical_selection_unique_key_ready,
        legacy_selection_unique_key_conflict,
+       selection_has_incoming_foreign_keys,
        runtime_can_select, rls_enabled, runtime_read_policy_declared,
        runtime_can_insert, runtime_can_update, runtime_can_delete,
        selection_insert_policy_declared, selection_update_policy_declared,
@@ -168,6 +175,10 @@ SELECT relation_name, mandatory_for_e2e, purpose,
                      THEN 'BLOCKED_MISSING_RELATION'
                      ELSE 'OPTIONAL_SCHEMA_ABSENT' END
          WHEN cardinality(missing_columns) > 0 THEN 'BLOCKED_MISSING_COLUMNS'
+         WHEN relation_name = 'political_selections'
+          AND legacy_selection_unique_key_conflict
+          AND selection_has_incoming_foreign_keys
+          THEN 'BLOCKED_LEGACY_SELECTION_KEY_REFERENCED'
          WHEN relation_name = 'political_selections'
           AND legacy_selection_unique_key_conflict
           THEN 'BLOCKED_LEGACY_SELECTION_UNIQUE_KEY_CONFLICT'
