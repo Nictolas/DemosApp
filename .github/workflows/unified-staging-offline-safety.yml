@@ -13,6 +13,7 @@ on:
       - 'api/server.js'
       - 'api/services/ministeroSync.js'
       - 'api/tests/ministeroPkUpsert.test.js'
+      - 'api/tests/ministeroBatchFailClosed.test.js'
       - 'api/services/ministeroPaginationSafety.js'
       - 'api/tests/ministeroPaginationSafety.test.js'
       - 'api/routes/eci.js'
@@ -85,6 +86,7 @@ on:
       - 'api/server.js'
       - 'api/services/ministeroSync.js'
       - 'api/tests/ministeroPkUpsert.test.js'
+      - 'api/tests/ministeroBatchFailClosed.test.js'
       - 'api/services/ministeroPaginationSafety.js'
       - 'api/tests/ministeroPaginationSafety.test.js'
       - 'api/routes/eci.js'
@@ -204,6 +206,7 @@ jobs:
           node --test api/tests/unifiedStagingCivicReadOnlyCanary.test.js
           node --test api/tests/ministeroPaginationSafety.test.js
           node --test api/tests/ministeroPkUpsert.test.js
+          node --test api/tests/ministeroBatchFailClosed.test.js
           node --test api/tests/ministeroPublicSnapshotAudit.test.js
           node --test api/tests/ministeroStagingSyncOnce.test.js
           node --test api/tests/unifiedStagingBootstrap.test.js api/tests/stagingRuntimeLockAudit.test.js api/tests/unifiedStagingPreflightServer.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSessionContinuity.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/legacyRenderPgRetirementGate.test.js
