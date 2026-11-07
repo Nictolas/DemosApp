@@ -39,7 +39,7 @@ function officeAllowedByProvince(office, context) {
   // foreign country membership must never unlock an Italian provincial office.
   const countries = context?.[TERRITORY_SCOPES.COUNTRY] || [];
   const provinces = context?.[TERRITORY_SCOPES.PROVINCE] || [];
-  const italianCountryCodes = new Set(['it', 'italia', 'italy']);
+  const italianCountryCodes = new Set(['it', 'ita', 'italia', 'italy']);
   const eligibleProvinceCodes = new Set(
     office.eligibleProvinceCodes.map((code) => String(code).trim().toLowerCase())
   );
