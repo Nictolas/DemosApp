@@ -110,18 +110,18 @@ jobs:
           DEMOS_QA_ADMOB_APP_ID: ${{ secrets.DEMOS_QA_ADMOB_APP_ID }}
         run: |
           set -euo pipefail
-          # For real DEMOS UMP QA, configure the repo secret with DEMOS's App ID.
-          # The official Google sample ID remains a safe fallback for compilation.
-          app_id="${DEMOS_QA_ADMOB_APP_ID:-ca-app-pub-3940256099942544~3347511713}"
-          if [ -z "${DEMOS_QA_ADMOB_APP_ID:-}" ]; then
-            qa_mode="SAMPLE_GOOGLE (CMP DEMOS non verificabile)"
-            echo "mode=SAMPLE_GOOGLE" >> "$GITHUB_OUTPUT"
-            echo "::notice::Using Google sample App ID; DEMOS's actual consent message cannot be validated with this APK"
-          else
-            qa_mode="DEMOS_UMP_CONFIGURATA (da verificare sul telefono)"
-            echo "mode=DEMOS_UMP" >> "$GITHUB_OUTPUT"
-            echo "::notice::Using configured DEMOS AdMob App ID; Google TEST ad unit only"
+          # AdMob App ID is a public Android app identifier, not a secret/API key.
+          # Owner-provided ID; secret can override it without changing the repo.
+          # ONLY the official Google TEST ad unit is used in debug builds.
+          app_id="${DEMOS_QA_ADMOB_APP_ID:-ca-app-pub-7488681940015678~2926952834}"
+          if [[ ! "$app_id" =~ ^ca-app-pub-[0-9]{16}~[0-9]{10}$ ]]; then
+            echo "::error::Invalid DEMOS App ID for QA"
+            exit 1
           fi
+          echo "::add-mask::$app_id"
+          qa_mode="DEMOS_UMP_APP_ID (messaggio CMP da verificare sul telefono)"
+          echo "mode=DEMOS_UMP" >> "$GITHUB_OUTPUT"
+          echo "::notice::Using DEMOS AdMob App ID with Google TEST ad unit only; CMP and impression still require physical QA"
           ./gradlew :app:assembleDebug \
             -PdemosDebugAppOpenAds=true \
             -PdemosDebugUmpEea=true \
