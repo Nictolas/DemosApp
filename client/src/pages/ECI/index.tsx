@@ -140,9 +140,11 @@ export default function ECI() {
     if (deepLinkHandled.current || isLoading || isError || !user) return;
     const id = new URLSearchParams(window.location.search).get("initiative");
     if (!id) return;
-    deepLinkHandled.current = true;
     const item = baseList.find(entry => String(entry.id) === id);
-    if (item) setViewItem(item);
+    if (item) {
+      deepLinkHandled.current = true;
+      setViewItem(item);
+    }
   }, [baseList, isLoading, isError, user]);
 
   if (isAuthLoading) {
