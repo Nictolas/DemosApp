@@ -65,7 +65,7 @@ jobs:
               sys.exit(1)
           print("Groq Free live authenticated check passed.")
           PY
-      - name: Check one real documented parliamentary analysis T006
+      - name: Check three independent source-grounded analyses for the selected official case
         env:
           CASE_URL: https://demos-groq-free-linked-qa-hd3y.onrender.com/health/case
         run: |
@@ -85,43 +85,49 @@ jobs:
               code = exc.code
               payload = exc.read(1024)
           except Exception:
-              print('T006 documented QA: NETWORK_UNAVAILABLE')
+              print('Official-case QA: NETWORK_UNAVAILABLE')
               sys.exit(1)
 
           try:
               result = json.loads(payload)
           except Exception:
-              print('T006 documented QA: INVALID_RESPONSE')
+              print('Official-case QA: INVALID_RESPONSE')
               sys.exit(1)
           safe_statuses = {'OK','PENDING','NOT_RUN','NOT_CONFIGURED','MODEL_NOT_ALLOWED',
                            'FREE_QUOTA_UNAVAILABLE','EMPTY_OR_TRUNCATED','INVALID_JSON',
                            'SOURCE_MISMATCH','AUTH','MODEL_NOT_FOUND','INVALID_REQUEST',
                            'RATE_LIMIT','PROVIDER_UNAVAILABLE','NETWORK_OR_UNKNOWN'}
+          case_id = result.get('caseId')
+          official_cases = {'T002','T003','T006','T008','T009','T010'}
+          if case_id not in official_cases:
+              print('Official-case QA: UNRECOGNIZED_CASE')
+              sys.exit(1)
+          print('Official-case identifier:', case_id)
           status = result.get('status')
           category = status if status in safe_statuses else 'UNKNOWN'
           verified = result.get('verifiedFields')
           verified = verified if isinstance(verified, int) and 0 <= verified <= 10 else 0
-          print('T006 real QA status:', category)
-          print('T006 fields matching official sources:', verified, 'of 10')
+          print('Official-case QA status:', category)
+          print('Official-case fields matching sources:', verified, 'of 10')
           allowed_fields = {'atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'}
           failed_fields = result.get('failedFields', [])
-          print('T006 mismatched public field names:', ','.join(x for x in failed_fields if x in allowed_fields) if isinstance(failed_fields, list) else 'UNAVAILABLE')
+          print('Official-case mismatched public field names:', ','.join(x for x in failed_fields if x in allowed_fields) if isinstance(failed_fields, list) else 'UNAVAILABLE')
           allowed_fields = {'atto','data_voto','favorevoli','contrari','astenuti','esito',
                             'numero_legge','data_pubblicazione',
                             'data_entrata_in_vigore','spiegazione'}
           missing = result.get('failedFields', [])
           safe_missing = [item for item in missing if isinstance(item, str) and item in allowed_fields] if isinstance(missing, list) else []
-          print('T006 missing field names (allowlist):', ', '.join(safe_missing) if safe_missing else 'none')
-          print('T006 HTTP:', code)
+          print('Official-case missing field names (allowlist):', ', '.join(safe_missing) if safe_missing else 'none')
+          print('Official-case HTTP:', code)
           requested = result.get('samplesRequested')
           completed = result.get('samplesCompleted')
           passed = result.get('samplesPassed')
-          print('T006 independent samples requested:', requested)
-          print('T006 independent samples completed:', completed)
-          print('T006 independent samples passing all 10 fields:', passed)
+          print('Official-case independent samples requested:', requested)
+          print('Official-case independent samples completed:', completed)
+          print('Official-case independent samples passing all 10 fields:', passed)
           if (code != 200 or category != 'OK' or verified != 10 or
-              result.get('caseId') != 'T006' or result.get('success') is not True or
+              case_id not in official_cases or result.get('success') is not True or
               requested != 3 or completed != 3 or passed != 3):
               sys.exit(1)
-          print('T006 three independent source-grounded Groq Free generations PASS')
+          print('Three independent source-grounded Groq Free generations PASS')
           PY
