@@ -154,6 +154,27 @@ test('embedded no-evidence placeholders in legislative effects must never be pub
   }
 });
 
+test('a separately listed no-evidence item in the general explanation is rejected', () => {
+  const payload = {
+    spiegazione_generale: 'Il documento descrive una misura pubblica.',
+    effetti_positivi: '',
+    effetti_negativi: ''
+  };
+  const invalid = [
+    'Il documento descrive una misura pubblica.\\nINFORMAZIONI_INSUFFICIENTI',
+    'Il documento descrive una misura pubblica.; 2) Informazioni insufficienti.',
+    'Il documento descrive una misura pubblica.\\n- Informazioni-insufficienti!'
+  ];
+  for (const explanation of invalid) {
+    payload.spiegazione_generale = explanation;
+    assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)), null);
+  }
+  payload.spiegazione_generale =
+    'Il documento disciplina il procedimento quando le informazioni sono insufficienti.';
+  assert.ok(parseGroundedAnalysisResponse(JSON.stringify(payload)),
+    'Meaningful prose must remain acceptable');
+});
+
 test('effect lists reject more than three points', () => {
   const response = { spiegazione_generale: 'Una misura documentata.', effetti_positivi: '', effetti_negativi: '' };
   for (const field of ['effetti_positivi', 'effetti_negativi']) {
