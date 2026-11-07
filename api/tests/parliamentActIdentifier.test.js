@@ -4,9 +4,31 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { estraiNumeroLegge, canSearchItalianBills, canSearchActTitle, estraiTipoAtto } = require('../services/parliamentActIdentifier');
+const { estraiNumeroLegge, canSearchItalianBills, canSearchActTitle, canUseBillTextAsVoteEvidence, estraiTipoAtto } = require('../services/parliamentActIdentifier');
 
 const file = fs.readFileSync(path.join(__dirname, '..', 'services', 'leggeAnalysisService.js'), 'utf8');
+
+test('a generic bill document is never substituted for the actual voted amendment or procedural item', () => {
+  for (const titolo of [
+    'S. 2023 — Emendamento 1.0.6 (Turco e altri)',
+    'S. 2023 — Emendamento 1.13 (Turco e altri)',
+    'S. 2029 — EM 1.0.6 bonus carburante',
+    'C. 2822-B — fiducia sull’articolo 2',
+    'S. 61 — Votazione articolo 9',
+    'S. 61 – Articolo 9 votazione',
+    'C. 2822-B – mozione 1-00553',
+    'S. 61 – ODG 1',
+    'S. 61 – Coord. 1 (De Priamo)',
+    'S. 1971 – questione pregiudiziale'
+  ]) assert.equal(canUseBillTextAsVoteEvidence(titolo), false, titolo);
+  for (const titolo of [
+    'S. 2023 — voto finale',
+    'C. 3131 — votazione finale',
+    'DDL 1718 — voto conclusivo'
+  ]) assert.equal(canUseBillTextAsVoteEvidence(titolo), true, titolo);
+  assert.equal(canUseBillTextAsVoteEvidence(null), false);
+  assert.match(file, /canUseBillTextAsVoteEvidence\(titolo\)/);
+});
 
 test('act classification uses whole terms, not EM buried inside ordinary Italian words', () => {
   for (const name of [
