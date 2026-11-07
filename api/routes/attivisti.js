@@ -30,7 +30,10 @@ router.get('/', async (req, res) => {
     }
     const { search, regione, tipologia, exclude_user_id } = req.query;
     const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
-    if (membersCursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
+    if (membersCursor === false) {
+      res.set('Cache-Control','no-store');
+      return res.status(400).json({success:false,error:'Cursore non valido'});
+    }
     const membersPaged = isPagedRegisteredRequest(req.query);
     
     // Disabilita il caching per questo endpoint
@@ -159,9 +162,16 @@ router.get('/', async (req, res) => {
 // GET /api/attivisti/tipologia/:tipo - Lista attivisti per tipologia specifica
 router.get('/tipologia/:tipo', async (req, res) => {
   try {
+    if (!isValidRegisteredDirectoryFilters(req.query)) {
+      res.set('Cache-Control','no-store');
+      return res.status(400).json({success:false,error:'Parametri di ricerca non validi'});
+    }
     const { tipo } = req.params;
     const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
-    if (membersCursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
+    if (membersCursor === false) {
+      res.set('Cache-Control','no-store');
+      return res.status(400).json({success:false,error:'Cursore non valido'});
+    }
     const membersPaged = isPagedRegisteredRequest(req.query);
     
     // Disabilita il caching per questo endpoint
