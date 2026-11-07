@@ -34,6 +34,10 @@ test('provincial staging preflight is read-only, metadata-only, and scoped to kn
   assert.match(sql, /BLOCKED_CANONICAL_CONFLICT_KEY_MISSING/);
   assert.match(sql, /legacy_selection_unique_key_conflict/);
   assert.match(sql, /BLOCKED_LEGACY_SELECTION_UNIQUE_KEY_CONFLICT/);
+  assert.match(sql, /selection_has_incoming_foreign_keys/);
+  assert.match(sql, /pg_catalog\.pg_constraint fk/);
+  assert.match(sql, /fk\.contype = 'f' AND fk\.confrelid = c\.oid/);
+  assert.match(sql, /BLOCKED_LEGACY_SELECTION_KEY_REFERENCED/);
   assert.match(sql, /ARRAY\['selected_user_id', 'selection_kind', 'user_id'\]::name\[\]/);
   assert.match(sql, /BLOCKED_SELECTION_WRITE_GRANTS/);
   assert.match(sql, /BLOCKED_SELECTION_WRITE_POLICIES/);
