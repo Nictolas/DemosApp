@@ -36,3 +36,11 @@ The user's Windows computer connectors were unavailable at this check (DeskMCP t
 The QA cohort can be retired after E2E sign-off by a scoped transaction with **verified fixture identities and row counts**, deleting **only** the QA event/candidacy/mandate/mapping/unit/consent/account rows and checking no unexpected references before commit. Do not delete the original GDPR fixture choices or drop the canonical schema as a shortcut. To reverse schema/ACL changes, write a separate data-preserving migration and first verify all consumers; there is no approved destructive rollback of the canonical selection table. The new scoped RLS policies and SELECT grants are individually addressable and can be reviewed/revoked separately if the QA role is decommissioned.
 
 **Result:** real staging database schema and synthetic SQL tests progressed; final technical checklist remains **11/12 (~92%)** because authenticated app + Chrome E2E and effective runtime RLS are still outstanding. Production, Google Play, provider billing, and merge remain unchanged.
+
+## Post-DDL exposed-table ACL correction — verified
+
+A separate catalog privilege query found the new `public.unita_elettorale_territorio` relation had inherited Supabase default table grants to `anon` and `authenticated` (**all table privileges**, not merely SELECT), even though its RLS policy was correctly scoped only to the runtime role. This is a concrete security issue and must not be overlooked by tests that inspect policy presence alone.
+
+Corrected in **Demos-Staging only** by transactionally issuing `REVOKE ALL PRIVILEGES ON TABLE public.unita_elettorale_territorio FROM anon, authenticated, PUBLIC`, then preserving dedicated `demos_staging_runtime` SELECT. Existing `service_role` permissions were not revoked. A fresh read-only catalog query across all eight mandatory provincial relations confirmed **8/8** have RLS enabled, intended runtime SELECT, one dedicated provincial QA policy each, and **zero SELECT privileges for anon/authenticated**. No production change was made.
+
+The remaining effective-RLS-session and Chrome E2E limitations remain unchanged.
