@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assessOfficialAnswer, runOfficialCaseQA, diagnoseElectoralSenateFinalExplanation, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation, diagnoseRinvioCpiExplanation } = require('../staging/groq_official_case_qa');
+const { assessOfficialAnswer, runOfficialCaseQA, diagnoseElectoralSenateFinalExplanation, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation, diagnoseRinvioCpiExplanation, T001_QA_PROMPT } = require('../staging/groq_official_case_qa');
 
 test('amendment explanation diagnosis requires both the proposed duration and its rejection', () => {
   assert.deepEqual(diagnoseAmendmentExplanation('L’emendamento di 18 mesi è stato respinto.'), { timingFound: true, rejectedFound: true });
@@ -413,3 +413,21 @@ test('QA never invokes provider without configured Free key or allowed model', a
   assert.equal(b.status,'MODEL_NOT_ALLOWED');
   assert.equal(calls,0);
 });
+
+const { LIMIT, estimateReservedTokens } = require('../services/parliamentFreeGroqBudget');
+
+test('T001 compact prompt preserves evidence and fits three requests under the unchanged Free gate', () => {
+  const messages = [
+    { role: 'system', content: 'Sei un verificatore di dati parlamentari. Usa ESCLUSIVAMENTE la fonte fornita. Non inventare fatti. Rispondi solo con un oggetto JSON conforme alle chiavi richieste.' },
+    { role: 'user', content: T001_QA_PROMPT }
+  ];
+  const perRequest = estimateReservedTokens(messages, 850);
+  assert.ok(perRequest * 3 <= LIMIT.estimatedTokensPerMinute, 'three T001 samples must fit the existing 7000 tokens/min gate');
+  assert.match(T001_QA_PROMPT, /S\.1971/);
+  assert.match(T001_QA_PROMPT, /S\.61/);
+  assert.match(T001_QA_PROMPT, /113 favorevoli, 71 contrari e 2 astenuti/);
+  assert.match(T001_QA_PROMPT, /NON definitivamente/);
+  assert.match(T001_QA_PROMPT, /null/);
+  assert.match(T001_QA_PROMPT, /Non dire che il voto del Senato ha approvato definitivamente/);
+});
+
