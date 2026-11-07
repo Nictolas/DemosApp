@@ -183,22 +183,34 @@ router.get('/', personalNoStore, async (req, res) => {
     if (userId) {
       try {
         const { user: userIdColumn, date: timestampColumn } = await getGraziaVoteColumns();
-        // MAX OVER gives the same cooldown fallback as the old second query,
-        // without an additional database round trip. Empty votes => null.
+        // Check account status in the SAME vote query, not an extra SQL call.
+        // A signed token can outlive account suspension/deletion; those users
+        // must not receive stale private choices or cooldown metadata.
+        // LEFT JOIN preserves the valid empty-vote case (and its cooldown).
         const mieiVotiQuery = `
-          SELECT nome, MAX(${timestampColumn}) OVER () AS last_changed_at
-          FROM voti_grazia
-          WHERE ${userIdColumn} = $1
-          ORDER BY ${timestampColumn} DESC
+          SELECT owner.active, vote.nome,
+                 MAX(vote.${timestampColumn}) OVER () AS last_changed_at
+          FROM (SELECT EXISTS(
+            SELECT 1 FROM users WHERE id::text = $2 AND status = 'a'
+          ) AS active) owner
+          LEFT JOIN LATERAL (
+            SELECT nome, ${timestampColumn}
+            FROM voti_grazia
+            WHERE ${userIdColumn} = $1
+          ) vote ON owner.active
+          ORDER BY vote.${timestampColumn} DESC NULLS LAST
         `;
-        const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
-        mieiVoti = mieiVotiResult.rows.map(row => row.nome);
-        const cooldown = await getPreferenceCooldown(pool, {
-          userId,
-          scope: 'grazia:preferenza',
-          fallbackChangedAt: mieiVotiResult.rows[0]?.last_changed_at || null
-        });
-        blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
+        const mieiVotiResult = await pool.query(mieiVotiQuery, [userId, String(userId)]);
+        if (mieiVotiResult.rows[0]?.active === true) {
+          mieiVoti = mieiVotiResult.rows
+            .map(row => row.nome).filter(nome => typeof nome === 'string');
+          const cooldown = await getPreferenceCooldown(pool, {
+            userId,
+            scope: 'grazia:preferenza',
+            fallbackChangedAt: mieiVotiResult.rows[0]?.last_changed_at || null
+          });
+          blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
+        }
       } catch (error) {
         // A schema migration may have renamed a previously cached column.
         // Do not cache a failed mapping or log tokens, user IDs or votes.
