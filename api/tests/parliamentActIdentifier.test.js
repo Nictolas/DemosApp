@@ -106,3 +106,18 @@ test('spelled-out Atto Senato and Atto Camera references enforce chamber and num
   assert.equal(canSearchActTitle('123', 'Atto Camera n. 123 - Atto Camera n. 999', 'Camera'), false);
   assert.equal(canSearchActTitle('123', 'DDL 123', 'Senato'), true);
 });
+
+test('ambiguous titles with multiple numbered bills never select an arbitrary first act', () => {
+  for (const title of [
+    'DDL 123 e DDL 456 - voto finale',
+    'Disegno di legge n. 123 e proposta di legge n. 456',
+    'Atto Senato n. 123 e Atto Camera n. 456',
+    'S. 123 e C. 456 - discussione congiunta',
+    'DDL 123, S. 999 - voto finale',
+    'Atto Senato n. 456 e DDL 123'
+  ]) assert.equal(estraiNumeroLegge(title), null, title);
+  assert.equal(estraiNumeroLegge('DDL 123 - S. 123'), '123');
+  assert.equal(estraiNumeroLegge('Atto Senato n. 501 e S. 501'), '501');
+  assert.equal(estraiNumeroLegge('DDL 123 e DDL 123'), '123');
+  assert.equal(estraiNumeroLegge('S. 61 - votazione finale'), '61');
+});
