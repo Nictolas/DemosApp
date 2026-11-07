@@ -32,6 +32,12 @@
   gap: 0.5rem;
 }
 
+/* A sixth category exists only for eligible autonomous-province residents,
+   after an explicit UI release. Keep the non-scrolling page at four rows. */
+.selection-grid-page__grid:has(> .provincial-office-choice) {
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+}
+
 .selection-grid-page__grid > button:first-child {
   grid-column: 1 / -1;
 }
@@ -138,5 +144,9 @@
 
   .selection-grid-page__grid > button:first-child {
     grid-column: auto;
+  }
+  .selection-grid-page__grid:has(> .provincial-office-choice) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
   }
 }

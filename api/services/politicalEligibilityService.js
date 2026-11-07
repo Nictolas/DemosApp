@@ -7,6 +7,8 @@ const {
 const {
   TERRITORY_PRIORITY,
   jurisdictionMatchesScope,
+  territoryValueFromJurisdiction,
+  territoryMatchesScope,
   mappingMatchesTerritory,
   chooseMostSpecificEligibleUnits,
 } = require('./politicalTerritoryService');
@@ -30,10 +32,50 @@ function asTerritoryContext(value) {
   return territoryAliases(value);
 }
 
+function officeAllowedByProvince(office, context) {
+  if (!office) return false;
+  if (!office.eligibleProvinceCodes?.length) return true;
+  // A province code alone is not proof of Italian residence. Missing or
+  // foreign country membership must never unlock an Italian provincial office.
+  const countries = context?.[TERRITORY_SCOPES.COUNTRY] || [];
+  const provinces = context?.[TERRITORY_SCOPES.PROVINCE] || [];
+  const italianCountryCodes = new Set(['it', 'ita', 'italia', 'italy']);
+  const eligibleProvinceCodes = new Set(
+    office.eligibleProvinceCodes.map((code) => String(code).trim().toLowerCase())
+  );
+  // Canonical and office-scoped memberships can coexist. A single matching
+  // IT/TN row must not override another active DE/BZ row for the same user.
+  // Accept equivalent aliases, but reject conflicting or missing residence.
+  return countries.length > 0 && provinces.length > 0 &&
+    countries.every((code) => italianCountryCodes.has(String(code).trim().toLowerCase())) &&
+    provinces.every((code) => eligibleProvinceCodes.has(String(code).trim().toLowerCase()));
+}
+
 function jurisdictionMatchesRepresentative(jurisdiction, grade, userOrContext) {
   const office = resolvePoliticalOffice(grade);
   if (!office) return false;
   const aliases = asTerritoryContext(userOrContext);
+  if (!officeAllowedByProvince(office, aliases)) return false;
+  if (office.eligibleProvinceCodes?.length) {
+    // A candidacy or mandate cannot claim a provincial office while its
+    // jurisdiction explicitly identifies a different institutional level.
+    if (jurisdiction?.level && resolvePoliticalOffice(jurisdiction.level)?.id !== office.id) return false;
+    // A matching province code is insufficient when the mandate or candidacy
+    // explicitly belongs to another country. Keep historical Italian rows
+    // without a country field eligible; reject conflicting explicit countries.
+    const recordedCountries = territoryValueFromJurisdiction(jurisdiction, TERRITORY_SCOPES.COUNTRY);
+    if (recordedCountries.length &&
+        !recordedCountries.every((code) => ['it', 'ita', 'italia', 'italy'].includes(code))) return false;
+    // A single matching province must not override a second, conflicting
+    // province alias in the same mandate/candidacy jurisdiction. The generic
+    // territory matcher accepts ANY alias, so enforce ALL explicit values here.
+    const recordedProvinces = territoryValueFromJurisdiction(jurisdiction, TERRITORY_SCOPES.PROVINCE);
+    const allowedProvinceCodes = new Set(
+      office.eligibleProvinceCodes.map((code) => String(code).trim().toLowerCase())
+    );
+    if (!recordedProvinces.length ||
+        !recordedProvinces.every((code) => allowedProvinceCodes.has(code))) return false;
+  }
   const allowUnspecified = office.residenceScope === TERRITORY_SCOPES.SUPRANATIONAL || office.residenceScope === TERRITORY_SCOPES.COUNTRY;
   return jurisdictionMatchesScope(jurisdiction || {}, office.residenceScope, aliases, { allowUnspecified });
 }
@@ -51,6 +93,9 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
   if (!office) return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'POLITICAL_OFFICE_UNKNOWN' };
 
   const territoryState = await loadUserPoliticalTerritoryState(pool, { userId, officeId: office.id });
+  if (!officeAllowedByProvince(office, territoryState.context)) {
+    return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'OFFICE_OUTSIDE_USER_TERRITORY' };
+  }
 
   const candidatesResult = await pool.query(
     `
@@ -111,9 +156,50 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
     territoryState.context,
     electoralMembershipState.memberships,
   );
-  const subjects = candidatesResult.rows.filter((row) =>
-    eligibleKeys.has(`${String(row.election_event_id)}:${String(row.electoral_unit_id)}`)
+  // For directly elected provincial offices, a broad REGION mapping must
+  // never substitute for evidence that the actual electoral unit belongs to
+  // the autonomous province. Even an exact unit membership and a province
+  // claim on the candidacy are insufficient without an explicit province
+  // mapping. Reject contradictory TN/BZ mappings for the same unit.
+  const provincialUnitCodes = new Map();
+  const allowedProvinceCodes = new Set(
+    (office.eligibleProvinceCodes || []).map((code) => String(code).trim().toLocaleLowerCase('en-US'))
   );
+  if (allowedProvinceCodes.size) {
+    for (const mapping of mappingsResult.rows) {
+      const type = String(mapping.territory_type || '').trim().toUpperCase();
+      if (type !== TERRITORY_SCOPES.PROVINCE && type !== TERRITORY_SCOPES.ADMIN_LEVEL_2) continue;
+      const key = `${String(mapping.election_event_id)}:${String(mapping.electoral_unit_id)}`;
+      const codes = provincialUnitCodes.get(key) || new Set();
+      codes.add(String(mapping.territory_code || '').trim().toLocaleLowerCase('en-US'));
+      provincialUnitCodes.set(key, codes);
+    }
+  }
+  const hasUnambiguousProvincialUnit = (row) => {
+    const key = `${String(row.election_event_id)}:${String(row.electoral_unit_id)}`;
+    const codes = provincialUnitCodes.get(key);
+    return Boolean(codes?.size && [...codes].every((code) => allowedProvinceCodes.has(code)));
+  };
+  const eligibleCandidates = candidatesResult.rows.filter((row) =>
+    eligibleKeys.has(`${String(row.election_event_id)}:${String(row.electoral_unit_id)}`) &&
+    // A matching province on the candidacy alone cannot repair an electoral
+    // unit that is regional-only or explicitly mapped to another province.
+    (!office.eligibleProvinceCodes?.length ||
+      (hasUnambiguousProvincialUnit(row) &&
+       jurisdictionMatchesRepresentative(row.jurisdiction, grade, territoryState.context)))
+  );
+
+  // Multiple active candidacy records for one person must not create
+  // duplicate provincial choices. Preserve all non-provincial behaviour.
+  const seenCandidates = new Set();
+  const subjects = office.eligibleProvinceCodes?.length
+    ? eligibleCandidates.filter((row) => {
+      const id = String(row.id);
+      if (seenCandidates.has(id)) return false;
+      seenCandidates.add(id);
+      return true;
+    })
+    : eligibleCandidates;
 
   return {
     subjects,
@@ -127,6 +213,9 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
 
 async function listEligibleCandidatesLegacy(pool, grade) {
   const office = resolvePoliticalOffice(grade);
+  if (office?.eligibleProvinceCodes?.length) {
+    return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'PROVINCIAL_REQUIRES_CANONICAL_DATA' };
+  }
   const legacyGrade = office?.aliases?.[0] || grade;
   const result = await pool.query(
     `
@@ -154,6 +243,9 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
   const office = resolvePoliticalOffice(grade);
   if (!office) return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'POLITICAL_OFFICE_UNKNOWN' };
   const territoryState = await loadUserPoliticalTerritoryState(pool, { userId, officeId: office.id });
+  if (!officeAllowedByProvince(office, territoryState.context)) {
+    return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'OFFICE_OUTSIDE_USER_TERRITORY' };
+  }
 
   const result = await pool.query(
     `
@@ -175,9 +267,41 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
     [getOfficeAliases(grade).map(normalizeKey)]
   );
 
-  const subjects = result.rows.filter((row) =>
+  const matched = result.rows.filter((row) =>
+    // A derived regional mandate is not an independently elected provincial
+    // mandate. If the stored office code explicitly identifies another
+    // office, reject it even if its jurisdiction claims this province.
+    (!office.eligibleProvinceCodes?.length ||
+      (typeof row.grado_elezione === 'string' &&
+        resolvePoliticalOffice(row.grado_elezione)?.id === office.id &&
+        // A contradictory jurisdiction level must not relabel another office's
+        // mandate as a directly elected provincial council seat.
+        (!row.jurisdiction?.level || resolvePoliticalOffice(row.jurisdiction.level)?.id === office.id))) &&
     jurisdictionMatchesRepresentative(row.jurisdiction, grade, territoryState.context)
   );
+  // A councillor can have a provincial mandate and a derived regional one.
+  // Both the provincial and the regional lists must present that person once.
+  // When two rows qualify for the regional list, keep an explicitly regional
+  // mandate over a derived provincial row, regardless of database row order.
+  // Other institutional lists retain their existing behaviour.
+  const deduplicatePeople = Boolean(office.eligibleProvinceCodes?.length) || office.id === 'it.regional';
+  const subjects = deduplicatePeople
+    ? (() => {
+      const byPerson = new Map();
+      for (const row of matched) {
+        const key = String(row.id);
+        const previous = byPerson.get(key);
+        if (!previous) {
+          byPerson.set(key, row);
+        } else if (office.id === 'it.regional' &&
+          resolvePoliticalOffice(row.grado_elezione)?.id === office.id &&
+          resolvePoliticalOffice(previous.grado_elezione)?.id !== office.id) {
+          byPerson.set(key, row);
+        }
+      }
+      return [...byPerson.values()];
+    })()
+    : matched;
   return {
     subjects,
     source: 'CAPABILITY',
@@ -189,6 +313,9 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
 
 async function listEligibleRepresentativesLegacy(pool, grade) {
   const office = resolvePoliticalOffice(grade);
+  if (office?.eligibleProvinceCodes?.length) {
+    return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'PROVINCIAL_REQUIRES_CANONICAL_DATA' };
+  }
   const legacyGrade = office?.aliases?.[0] || grade;
   const result = await pool.query(
     `

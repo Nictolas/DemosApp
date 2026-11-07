@@ -79,3 +79,21 @@ test('Podio levels and SQL normalization derive from the same office aliases', (
   assert.match(sql, /THEN 'REGIONE'/);
   assert.match(sql, /THEN 'COMUNE'/);
 });
+
+test('only autonomous directly elected provincial councils are registered, without legacy columns or a new Podio', () => {
+  const trento = resolvePoliticalOffice('it.provincial.trento');
+  const bolzano = resolvePoliticalOffice('it.provincial.bolzano');
+  assert.equal(trento.residenceScope, TERRITORY_SCOPES.PROVINCE);
+  assert.equal(bolzano.residenceScope, TERRITORY_SCOPES.PROVINCE);
+  assert.deepEqual(trento.eligibleProvinceCodes, ['TN', 'Trento']);
+  assert.deepEqual(bolzano.eligibleProvinceCodes, ['BZ', 'Bolzano', 'Bozen']);
+  assert.equal(trento.derivedRegionalOfficeId, 'it.regional');
+  assert.equal(bolzano.derivedRegionalOfficeId, 'it.regional');
+  assert.equal(resolvePoliticalOffice('CONSIGLIO_PROVINCIALE_TRENTO')?.id, trento.id);
+  assert.equal(resolvePoliticalOffice('CONSIGLIO_PROVINCIALE_BOLZANO')?.id, bolzano.id);
+  assert.equal(getLegacySelectionField('representative', trento.id), null);
+  assert.equal(getLegacySelectionField('candidate', bolzano.id), null);
+  assert.equal(getOpinionGradeForOffice(trento.id), null);
+  assert.equal(resolvePoliticalOffice('PROVINCIALE'), null);
+  assert.equal(getPodiumLevels().includes('PROVINCIALE'), false);
+});

@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect, useParams, useLocation } from "wouter";
@@ -13,6 +14,7 @@ import { RappresentanteCard } from "./components/RappresentanteCard";
 import { LoadingStates } from "./components/LoadingStates";
 import { OpinioniIncompleteAlert } from "./components/OpinioniIncompleteAlert";
 import { getTitolo } from "./utils/rappresentanteUtils";
+import { provincialOfficeFromCategory, PROVINCIAL_UI_RELEASED } from "@/lib/provincialSelection";
 
 export default function ScegliRappresentante() {
   const { categoria } = useParams<{ categoria: string }>();
@@ -35,6 +37,7 @@ export default function ScegliRappresentante() {
     selezionando,
     opinioniDialogData,
     selezionaRappresentante,
+    annullaSelezioneProvinciale,
     openOpinioniDialog,
     closeOpinioniDialog
   } = useRappresentantiActions(user, categoria || '', fcmToken);
@@ -54,6 +57,10 @@ export default function ScegliRappresentante() {
 
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
+  }
+  // The direct URL must not bypass the unapproved release gate.
+  if (provincialOfficeFromCategory(categoria || "") && !PROVINCIAL_UI_RELEASED) {
+    return <Redirect to={location.startsWith("/candidati") ? "/candidati" : "/rappresentanti"} />;
   }
 
   // Mostra il loader se auth non è pronto o se sta caricando
@@ -76,6 +83,19 @@ export default function ScegliRappresentante() {
       <div className="min-h-screen flex flex-col page-with-navbar">
         <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
           <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
+          {provincialOfficeFromCategory(categoria || "") && rappresentanteSelezionato && (
+            <div className="flex justify-center my-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={selezionando}
+                onClick={() => annullaSelezioneProvinciale(() => setRappresentanteSelezionato(null))}
+                aria-label="Annulla scelta provinciale"
+              >
+                Annulla scelta provinciale
+              </Button>
+            </div>
+          )}
           
           {opinioniDialogData && (
             <ViewOpinioniDialog

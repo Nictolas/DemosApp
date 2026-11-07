@@ -8,11 +8,13 @@ const {
   getLegacySelectionDescriptors,
   getSelectionFieldContract,
   resolvePoliticalOffice,
+  getMatchingOpinionGradeForOffice,
 } = require('../services/politicalJurisdictionRegistryService');
 const {
   setPoliticalSelection,
   loadPoliticalSelections,
   selectionsByOffice,
+  isPoliticalOfficeVisible,
 } = require('../services/politicalSelectionService');
 
 const router = express.Router();
@@ -212,7 +214,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const { grado_candidatura } = req.query;
     const userId = req.userId;
     
-    console.log('🔍 DEBUG /api/candidati/disponibili - Richiesta ricevuta:', { grado_candidatura, userId });
     
     if (!grado_candidatura) {
       return res.status(400).json({
@@ -221,18 +222,18 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       });
     }
     
+    const office = resolvePoliticalOffice(grado_candidatura);
+    if (!isPoliticalOfficeVisible(office)) {
+      return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
+    }
+
     // Fonte canonica: candidature attive legate a elezione + unità elettorale.
     // Finché la migrazione DB non è applicata, il servizio ricade sul legacy per compatibilità.
     const eligibility = await listEligibleCandidates(pool, userId, grado_candidatura);
     const candidati = eligibility.subjects;
     
-        console.log('🔍 DEBUG - Candidati trovati:', candidati.length);
-        candidati.forEach((candidato, index) => {
-          console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome} (${candidato.ruolo})`);
-        });
     
-    const office = resolvePoliticalOffice(grado_candidatura);
-    const gradoDatabase = office?.opinionGrade || grado_candidatura;
+    const gradoDatabase = getMatchingOpinionGradeForOffice(grado_candidatura) || grado_candidatura;
 
     const matching = await buildPoliticalMatches({
       pool,
@@ -242,12 +243,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     });
     const candidatiMappati = matching.matches.slice(0, 4);
 
-    console.log('🔍 DEBUG - Candidati finali matching:', candidatiMappati.map((candidato) => ({
-      id: candidato.id,
-      score: candidato.matching_score,
-      compatibilita: candidato.compatibilita_percentuale,
-      copertura: `${candidato.copertura_posizioni}/${candidato.copertura_totale}`
-    })));
 
     res.json({
       success: true,
@@ -258,7 +253,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare candidati:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',

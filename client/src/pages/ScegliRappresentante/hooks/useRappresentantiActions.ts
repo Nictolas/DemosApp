@@ -5,6 +5,7 @@ import { OpinioniDialogData } from "../types";
 import { getFieldName } from "../utils/rappresentanteUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { provincialOfficeFromCategory, PROVINCIAL_UI_RELEASED } from "@/lib/provincialSelection";
 
 export const useRappresentantiActions = (user: any, categoria: string, fcmToken: string | null) => {
   const { toast } = useToast();
@@ -16,6 +17,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
   // La stessa UI viene usata per candidati e rappresentanti: la route è la fonte
   // canonica della modalità, senza dipendere da useRoute annidati.
   const isCandidateRoute = location === "/candidati" || location.startsWith("/candidati/");
+  const provincialOffice = provincialOfficeFromCategory(categoria);
 
   const selectionErrorDescription = (error: any) => {
     const apiCode = error?.data?.code || error?.data?.error || "";
@@ -26,6 +28,9 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
     }
     if (apiCode === "CIVIC_IDENTITY_CHECK_UNAVAILABLE") {
       return "La verifica dell'identità è temporaneamente non disponibile. Riprova tra poco.";
+    }
+    if (apiCode === "PROVINCIAL_SELECTION_NOT_RELEASED") {
+      return "La scelta provinciale non è ancora attiva.";
     }
     if (apiCode === "OPINIONI_INCOMPLETE" || apiMessage.includes("OPINIONI_INCOMPLETE")) {
       return "Completa tutte le opinioni di questo livello prima di scegliere.";
@@ -49,7 +54,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
   };
 
   const selezionaRappresentante = async (rappresentanteId: string, onSuccess: (id: string) => void) => {
-    if (!user) return;
+    if (!user || (provincialOffice && !PROVINCIAL_UI_RELEASED)) return;
 
     setSelezionando(true);
     const userId = user.uid || user.id;
@@ -60,11 +65,20 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
     try {
       await apiRequest(
         "PUT",
-        `/api/users/${userId}/seleziona-rappresentante`,
-        {
-          campo: getFieldName(categoria, isCandidateRoute),
-          rappresentanteId,
-        }
+        provincialOffice
+          ? `/api/users/${userId}/political-selection`
+          : `/api/users/${userId}/seleziona-rappresentante`,
+        provincialOffice
+          ? {
+              kind: isCandidateRoute ? "candidate" : "representative",
+              officeId: provincialOffice.officeId,
+              selectedUserId: rappresentanteId,
+              source: "matching",
+            }
+          : {
+              campo: getFieldName(categoria, isCandidateRoute),
+              rappresentanteId,
+            }
       );
     } catch (error: any) {
       console.error("Errore durante il salvataggio della selezione:", error);
@@ -99,7 +113,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
       console.warn("Selezione salvata, ma aggiornamento cache non completato:", error);
     }
 
-    if (fcmToken && !isCandidateRoute) {
+    if (fcmToken && !isCandidateRoute && !provincialOffice) {
       try {
         const topic = `sostenitori_politico_${rappresentanteId}`;
         await apiRequest("POST", "/api/notifications/subscribe-topic", { token: fcmToken, topic });
@@ -120,6 +134,34 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
     setSelezionando(false);
   };
 
+  // Provincial selections use the generic canonical endpoint. Clearing must
+  // remain available after an original mandate/candidacy disappears; no
+  // eligibility, opinion completion or push topic is required for removal.
+  const annullaSelezioneProvinciale = async (onSuccess: () => void) => {
+    if (!user || !provincialOffice || !PROVINCIAL_UI_RELEASED || selezionando) return;
+    setSelezionando(true);
+    try {
+      const userId = user.uid || user.id;
+      await apiRequest("PUT", `/api/users/${userId}/political-selection`, {
+        kind: isCandidateRoute ? "candidate" : "representative",
+        officeId: provincialOffice.officeId,
+        selectedUserId: null,
+        source: "matching",
+      });
+      onSuccess();
+      await Promise.allSettled([
+        queryClient.invalidateQueries({ queryKey: ["user"] }),
+        queryClient.invalidateQueries({ queryKey: ["rappresentantiData"] }),
+        queryClient.invalidateQueries({ queryKey: ["candidatiData"] }),
+      ]);
+      toast({ title: "Scelta annullata", description: "La selezione provinciale è stata rimossa." });
+    } catch (error: any) {
+      toast({ title: "Errore", description: selectionErrorDescription(error), variant: "destructive" });
+    } finally {
+      setSelezionando(false);
+    }
+  };
+
   const openOpinioniDialog = (data: OpinioniDialogData) => {
     setOpinioniDialogData(data);
   };
@@ -132,6 +174,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
     selezionando,
     opinioniDialogData,
     selezionaRappresentante,
+    annullaSelezioneProvinciale,
     openOpinioniDialog,
     closeOpinioniDialog,
   };
