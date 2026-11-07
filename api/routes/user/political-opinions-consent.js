@@ -48,7 +48,7 @@ router.get('/', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella verifica consenso opinioni politiche:', error);
+    console.error('POLITICAL_CONSENT_READ_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -161,7 +161,7 @@ router.post('/', verifyToken, async (req, res) => {
       success: true
     });
     
-    console.log(`✅ Consenso opinioni politiche concesso per utente: ${userId}`);
+    // Consent outcome is stored in the structured audit, not app stdout.
     
     res.json({
       success: true,
@@ -173,7 +173,7 @@ router.post('/', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel salvataggio consenso opinioni politiche:', error);
+    console.error('POLITICAL_CONSENT_GRANT_FAILED');
     
     // Log dell'errore
     await AuditService.logAction({
@@ -184,7 +184,7 @@ router.post('/', verifyToken, async (req, res) => {
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       success: false,
-      errorMessage: error.message
+      errorMessage: 'POLITICAL_CONSENT_GRANT_FAILED'
     });
     
     res.status(500).json({
@@ -271,12 +271,8 @@ router.put('/revoke', verifyToken, async (req, res) => {
       });
     }
 
-    if (cleanupResult.totalDeleted > 0) {
-      console.log(`✅ ${cleanupResult.totalDeleted} record politici generati dall'utente eliminati durante la revoca`);
-    } else {
-      console.log('ℹ️ Nessun dato politico generato dall\'utente da eliminare durante la revoca');
-    }
-    
+    // Keep cleanup counts in the structured audit, not per-user application logs.
+
     // Log dell'azione
     await AuditService.logAction({
       userId,
@@ -296,7 +292,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
       success: true
     });
     
-    console.log(`✅ Consenso opinioni politiche revocato per utente: ${userId}`);
+    // Consent revocation is stored in the structured audit, not app stdout.
     
     res.json({
       success: true,
@@ -308,7 +304,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella revoca consenso opinioni politiche:', error);
+    console.error('POLITICAL_CONSENT_REVOKE_FAILED');
     
     // Log dell'errore
     await AuditService.logAction({
@@ -319,7 +315,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       success: false,
-      errorMessage: error.message
+      errorMessage: 'POLITICAL_CONSENT_REVOKE_FAILED'
     });
     
     res.status(500).json({
