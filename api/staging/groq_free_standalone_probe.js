@@ -67,6 +67,14 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
       success: value?.success === true,
       verifiedFields: Number.isInteger(value?.verifiedFields) ? value.verifiedFields : 0,
       failedFields: Array.isArray(value?.failedFields) ? value.failedFields : [],
+      ...(caseId === 'T001' ? {
+        safeSenateFinalFlags: {
+          electoralTopicFound: value?.explanationDiagnostics?.electoralTopicFound === true,
+          notFinalLawFound: value?.explanationDiagnostics?.notFinalLawFound === true,
+          absorbedBillFound: value?.explanationDiagnostics?.absorbedBillFound === true,
+          falseFinalityFound: value?.explanationDiagnostics?.falseFinalityFound === true
+        }
+      } : {}),
       ...(caseId === 'T025' ? {
         safeRinvioFlags: {
           postponementFound: value?.explanationDiagnostics?.postponementFound === true,
@@ -129,6 +137,14 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
     samplesRequested,
     samplesCompleted: results.length,
     samplesPassed,
+    ...(caseId === 'T001' ? {
+      t001SampleCategories: results.map(r => SAFE_STATUSES.has(r.status) ? r.status : 'NETWORK_OR_UNKNOWN'),
+      t001SampleScores: results.map(r => Math.max(0, Math.min(10, r.verifiedFields))),
+      t001FlagTallies: Object.fromEntries(
+        ['electoralTopicFound','notFinalLawFound','absorbedBillFound','falseFinalityFound']
+          .map(flag => [flag, results.filter(r => r.safeSenateFinalFlags?.[flag] === true).length])
+      )
+    } : {}),
     ...(caseId === 'T025' ? {
       t025SampleCategories: results.map(r => SAFE_STATUSES.has(r.status) ? r.status : 'NETWORK_OR_UNKNOWN'),
       t025SampleScores: results.map(r => Math.max(0, Math.min(10, r.verifiedFields))),
@@ -193,6 +209,17 @@ function sanitizeCaseResult(result) {
               ? result.t023FlagTallies[flag] : 0])
       )
     } : {}),
+    ...(result?.caseId === 'T001' && Array.isArray(result?.t001SampleCategories) ? {
+      t001SampleCategories: result.t001SampleCategories.slice(0,3).map(status => safe.has(status) ? status : 'NETWORK_OR_UNKNOWN'),
+      t001SampleScores: (Array.isArray(result.t001SampleScores) ? result.t001SampleScores : [])
+        .slice(0,3).map(v => Number.isInteger(v) && v >= 0 && v <= 10 ? v : 0),
+      t001FlagTallies: Object.fromEntries(
+        ['electoralTopicFound','notFinalLawFound','absorbedBillFound','falseFinalityFound']
+          .map(flag => [flag, Number.isInteger(result.t001FlagTallies?.[flag]) &&
+            result.t001FlagTallies[flag] >= 0 && result.t001FlagTallies[flag] <= 3
+            ? result.t001FlagTallies[flag] : 0])
+      )
+    } : {}),
     ...(result?.caseId === 'T025' && Array.isArray(result?.t025SampleCategories) ? {
       t025SampleCategories: result.t025SampleCategories.slice(0,3).map(status => safe.has(status) ? status : 'NETWORK_OR_UNKNOWN'),
       t025SampleScores: (Array.isArray(result.t025SampleScores) ? result.t025SampleScores : [])
@@ -215,6 +242,14 @@ function sanitizeCaseResult(result) {
             result.t024FlagTallies[flag] >= 0 && result.t024FlagTallies[flag] <= 3
             ? result.t024FlagTallies[flag] : 0])
       )
+    } : {}),
+    ...(result?.caseId === 'T001' && result?.explanationDiagnostics ? {
+      explanationDiagnostics: {
+        electoralTopicFound: result.explanationDiagnostics.electoralTopicFound === true,
+        notFinalLawFound: result.explanationDiagnostics.notFinalLawFound === true,
+        absorbedBillFound: result.explanationDiagnostics.absorbedBillFound === true,
+        falseFinalityFound: result.explanationDiagnostics.falseFinalityFound === true
+      }
     } : {}),
     ...(result?.caseId === 'T025' && result?.explanationDiagnostics ? {
       explanationDiagnostics: {
