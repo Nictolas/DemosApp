@@ -466,3 +466,26 @@ test('provincial jurisdiction matching accepts equivalent residence aliases but 
     }), false);
   }
 });
+
+test('provincial eligibility accepts Italian ISO3 residence but never a foreign or conflicting province', () => {
+  const trento = 'it.provincial.trento';
+  const bolzano = 'it.provincial.bolzano';
+  const itaResident = { paese_residenza: 'ITA', provincia_residenza: 'TN' };
+  assert.equal(jurisdictionMatchesRepresentative(
+    { country: 'ITA', province: 'TN', level: trento }, trento, itaResident
+  ), true, 'ISO3 Italian country alias is equivalent to IT');
+  assert.equal(jurisdictionMatchesRepresentative(
+    { country: 'ITA', province: 'BZ', level: bolzano }, bolzano,
+    { paese_residenza: 'ITA', provincia_residenza: 'BZ' }
+  ), true);
+  assert.equal(jurisdictionMatchesRepresentative(
+    { country: 'US', province: 'TN', level: trento }, trento, itaResident
+  ), false, 'a foreign mandate country must fail closed');
+  assert.equal(jurisdictionMatchesRepresentative(
+    { country: 'ITA', province: 'BZ', level: trento }, trento, itaResident
+  ), false, 'an ISO3 country match must never bypass the province rule');
+  assert.equal(jurisdictionMatchesRepresentative(
+    { province: 'TN', level: trento }, trento,
+    { paese_residenza: 'DE', provincia_residenza: 'TN' }
+  ), false, 'a foreign resident with the same province code remains ineligible');
+});
