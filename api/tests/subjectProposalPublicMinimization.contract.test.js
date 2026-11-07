@@ -160,6 +160,17 @@ test('public directory SQL omits unnecessary profile PII while preserving visibl
   }
 });
 
+test('generic submission Admin notices lock active recipients during suspension', () => {
+  const route=file('api/routes/subject-proposals.js');
+  const submission=route.slice(route.indexOf("router.post('/', verifyToken"),route.indexOf("router.get('/admin'"));
+  assert.match(submission, /INSERT INTO notifiche_demos\(id_utente,titolo,testo\) SELECT id, 'DEMOS — Nuova proposta', \$1 FROM users WHERE/);
+  assert.match(submission, /AND lower\(status\) = 'a' FOR SHARE/,
+    'the Admin notification query must serialize with a status UPDATE');
+  assert.ok(submission.indexOf("await client.query('COMMIT')") <
+    submission.indexOf("INSERT INTO notifiche_demos"),
+    'notification failure must not roll back the committed nomination');
+});
+
 test('submission and Admin decision commit before fallible private notifications', () => {
   const route = file('api/routes/subject-proposals.js');
   const submission = route.slice(route.indexOf("router.post('/', verifyToken"), route.indexOf("router.get('/admin'"));
