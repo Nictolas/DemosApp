@@ -4,7 +4,7 @@ const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
 const { projectPublicDirectoryMembers } = require('../services/publicDirectoryMemberProjection');
-const {decodeRegisteredCursor,pageRegistered,isPagedRegisteredRequest} = require('../services/registeredDirectoryPage');
+const {decodeRegisteredCursor,pageRegistered,isPagedRegisteredRequest,isValidRegisteredDirectoryFilters} = require('../services/registeredDirectoryPage');
 const router = express.Router();
 require('dotenv').config();
 
@@ -25,6 +25,10 @@ function queryOrganizations(sqlTemplate, values = []) {
 // GET /api/organizzazioni - Lista tutti gli utenti con ruolo "Organizzazione"
 router.get('/', async (req, res) => {
   try {
+    if (!isValidRegisteredDirectoryFilters(req.query)) {
+      res.set('Cache-Control','no-store');
+      return res.status(400).json({success:false,error:'Parametri di ricerca non validi'});
+    }
     const { search, regione, tipologia, exclude_user_id } = req.query;
     const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
     if (membersCursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
