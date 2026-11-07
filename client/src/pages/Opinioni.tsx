@@ -8,7 +8,7 @@ import { OpinioniTopicsMenu } from "@/components/OpinioniTopicsMenu";
 export default function Opinioni() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [view, setView] = React.useState<"geo" | "topics">("geo");
+  const [view, setView] = React.useState<"geo" | "topics">("topics");
 
   if (isAuthLoading) {
     return (
