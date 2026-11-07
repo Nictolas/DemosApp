@@ -628,6 +628,16 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       'keyset pagination must reach every approved row exactly once, even within a millisecond');
     const oldPublication=secondPage.body.proposals.find(p=>p.title.startsWith('Attivista paginazione '));
     assert.ok(oldPublication,'old approved subjects must remain available for emergency unpublish');
+    // Capture the public cursor BEFORE the withdrawal; the previous test
+    // only created a public cursor after unpublishing.
+    const publicBeforeWithdrawal=await req('/api/subject-proposals/approved?category=attivisti');
+    assert.equal(publicBeforeWithdrawal.status,200);
+    assert.match(publicBeforeWithdrawal.cacheControl,/no-store/);
+    assert.ok(publicBeforeWithdrawal.body.next_cursor,
+      'synthetic approved Attivisti directory must span multiple public pages');
+    assert.ok(publicBeforeWithdrawal.body.data.every(p=>p.id!==oldPublication.id),
+      'withdrawn target must be on the page reached by the saved public cursor');
+    const stalePublicCursor=publicBeforeWithdrawal.body.next_cursor;
     const oldWithdraw=await req('/api/subject-proposals/admin/'+oldPublication.id+
       '/withdraw','admin','POST',{note:'Ritiro sintetico di archivio'});
     assert.equal(oldWithdraw.status,200);
@@ -649,6 +659,14 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       ['category','id','reviewed_at','title'],
       'Admin pagination still excludes source, owner and moderation notes');
 
+    const publicWithStaleCursor=await req('/api/subject-proposals/approved?category=attivisti&cursor='+
+      encodeURIComponent(stalePublicCursor));
+    assert.equal(publicWithStaleCursor.status,200);
+    assert.match(publicWithStaleCursor.cacheControl,/no-store/);
+    assert.ok(publicWithStaleCursor.body.data.every(p=>p.id!==oldPublication.id),
+      'public cursor issued before Admin withdrawal must not reveal withdrawn person');
+    assert.ok(publicWithStaleCursor.body.data.every(p=>Object.keys(p).sort().join(',')==='id,title'),
+      'stale public cursor must not expose proposer or source metadata');
     const publicAfterWithdrawal=await req('/api/subject-proposals/approved?category=attivisti');
     assert.equal(publicAfterWithdrawal.status,200);
     assert.match(publicAfterWithdrawal.cacheControl,/no-store/);
