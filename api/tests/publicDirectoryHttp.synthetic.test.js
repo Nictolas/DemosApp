@@ -231,6 +231,8 @@ test('registered profiles paginate at 100 for every public directory, without ex
       for(const bad of ['***','A'.repeat(221),Buffer.from('["bad"]').toString('base64url')]){
         const invalid=await request(url+(url.includes('?')?'&':'?')+'members_cursor='+encodeURIComponent(bad));
         assert.equal(invalid.status,400);
+        assert.match(invalid.headers.get('cache-control') || '',/no-store/,
+          'invalid cursor responses cannot be cached');
         assert.equal(queries.length,beforeInvalid,'reject bad cursor before SQL');
       }
     }
@@ -258,6 +260,32 @@ test('malformed public directory filters return uncached 400 without a SQL read'
     }
     const valid = await request(directory+'?search=Persona&regione=Toscana&tipologia=ambiente');
     assert.equal(valid.status,200,'legitimate searches remain available');
+  }
+});
+
+test('pagination switches cannot bypass bounded public directory requests',async()=>{
+  const paths=['/api/attivisti','/api/organizzazioni','/api/attivisti/tipologia/ambiente'];
+  const invalid=[
+    'members_paged[]=1',
+    'members_paged[foo]=1',
+    'members_paged=1&members_paged=0',
+    'members_paged=arbitrary',
+    'members_paged=true',
+    'search[]=private',
+    'regione[hidden]=private'
+  ];
+  for(const path of paths){
+    for(const query of invalid){
+      const before=queries.length;
+      const response=await request(path+'?'+query);
+      assert.equal(response.status,400,'reject invalid pagination/query: '+path+'?'+query);
+      assert.match(response.headers.get('cache-control')||'',/no-store/);
+      assert.equal(queries.length,before,'must not touch SQL for invalid params');
+    }
+    for(const suffix of ['?members_paged=0','?members_paged=1']){
+      const response=await request(path+suffix);
+      assert.equal(response.status,200,'valid opt-in or legacy mode remains functional');
+    }
   }
 });
 
