@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assessOfficialAnswer, runOfficialCaseQA, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation } = require('../staging/groq_official_case_qa');
+const { assessOfficialAnswer, runOfficialCaseQA, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation, diagnoseConditionalElectoralAmendment } = require('../staging/groq_official_case_qa');
 
 test('amendment explanation diagnosis requires both the proposed duration and its rejection', () => {
   assert.deepEqual(diagnoseAmendmentExplanation('L’emendamento di 18 mesi è stato respinto.'), { timingFound: true, rejectedFound: true });
@@ -173,6 +173,32 @@ test('T018 Senate confidence vote and conversion law preserve distinct voting, p
   assert.deepEqual(assessOfficialAnswer({ ...correct, esito: 'APPROVATO NON DEFINITIVAMENTE' }, 'T018').failedFields, ['esito']);
   assert.deepEqual(assessOfficialAnswer({ ...correct, spiegazione: 'Il Senato ha respinto la fiducia sulla pubblica amministrazione.' }, 'T018').failedFields, ['spiegazione']);
   assert.deepEqual(assessOfficialAnswer({ ...correct, spiegazione: 'Il Senato ha approvato il testo.' }, 'T018').failedFields, ['spiegazione']);
+});
+
+test('T013 Giorgis conditional electoral application is neither T010 nor T009', () => {
+  const correct = {
+    atto: 'Em. 9.0.1', data_voto: '14/09/2026',
+    favorevoli: 48, contrari: 90, astenuti: 2,
+    esito: 'RESPINTO', numero_legge: null,
+    data_pubblicazione: null, data_entrata_in_vigore: null,
+    spiegazione: 'Il Senato ha respinto la proposta: la legge avrebbe potuto applicarsi dalla legislatura immediatamente successiva con una maggioranza dei due terzi, altrimenti dalla seconda legislatura successiva.'
+  };
+  const flags = { thresholdFound: true, immediateLegislatureFound: true,
+    laterLegislatureFound: true, rejectedFound: true, confusedWith18Months: false };
+  assert.deepEqual(diagnoseConditionalElectoralAmendment(correct.spiegazione), flags);
+  assert.deepEqual(assessOfficialAnswer(correct, 'T013'), {
+    success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: flags
+  });
+  assert.deepEqual(assessOfficialAnswer({ ...correct, contrari: 91 }, 'T013').failedFields, ['contrari']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, numero_legge: 180 }, 'T013').failedFields, ['numero_legge']);
+  const confused = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Il Senato ha respinto il rinvio di 18 mesi della nuova legge elettorale.' }, 'T013');
+  assert.deepEqual(confused.failedFields, ['spiegazione']);
+  assert.equal(confused.explanationDiagnostics.confusedWith18Months, true);
+  const unconditional = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Il Senato ha respinto la proposta di applicarla dalla seconda legislatura.' }, 'T013');
+  assert.deepEqual(unconditional.failedFields, ['spiegazione']);
+  assert.equal(unconditional.explanationDiagnostics.thresholdFound, false);
 });
 
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
