@@ -45,8 +45,8 @@ function harness({idType='uuid',userColumn='userid',dateColumn='timestamp',userE
       assert.equal(params[0],user);
       return {rows:[]};
     }
-    if(sql.includes('SELECT id FROM grazia_carcerati WHERE attivo = true'))
-      return {rows:[{id:42}]};
+    if(sql.includes('SELECT id, nome FROM grazia_carcerati WHERE attivo = true'))
+      return {rows:[{id:42,nome:subject}]};
     if(sql.includes('FOR SHARE'))return {rows:[{id:42}]};
     if(sql==='BEGIN'||sql==='COMMIT'||sql==='ROLLBACK')return {rows:[],rowCount:0};
     if(sql.startsWith('DELETE FROM voti_grazia')){
@@ -195,7 +195,7 @@ test('Grazia vote checks personal state and cooldown inside the same serialized 
   const accountCheck=idx("FROM users WHERE id::text=$1 AND status='a' FOR SHARE");
   const lock=idx('pg_advisory_xact_lock');
   const privateRead=idx('FROM voti_grazia');
-  const approved=idx('SELECT id FROM grazia_carcerati WHERE attivo = true');
+  const approved=idx('SELECT id, nome FROM grazia_carcerati WHERE attivo = true');
   const deletion=idx('DELETE FROM voti_grazia');
   const commit=idx('COMMIT');
   assert.ok(begin>=0 && accountCheck>begin && lock>accountCheck && privateRead>lock && approved>privateRead &&
@@ -203,9 +203,11 @@ test('Grazia vote checks personal state and cooldown inside the same serialized 
   assert.equal(state.accountChecks,1);
   assert.equal(state.locks,1);
   assert.equal(state.queries.find(q=>q.sql.includes('FROM voti_grazia')).source,'transaction');
-  assert.equal(state.queries.find(q=>q.sql.includes('SELECT id FROM grazia_carcerati WHERE attivo = true')).source,'transaction');
+  assert.equal(state.queries.find(q=>q.sql.includes('SELECT id, nome FROM grazia_carcerati WHERE attivo = true')).source,'transaction');
   assert.equal(state.cooldown,1);
   assert.equal(state.writes.filter(x=>x.kind==='insert').length,1);
+  assert.equal(state.writes.find(x=>x.kind==='insert').params[2],subject,
+    'the vote must persist the approved catalogue name returned by SQL');
 });
 
 test('deleted account cannot write a Grazia vote or cooldown from a stale authenticated request',async()=>{
