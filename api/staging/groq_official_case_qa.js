@@ -111,14 +111,10 @@ const LIABILITY_AMENDMENT_EVIDENCE = [
 // Gazzetta Ufficiale: https://www.gazzettaufficiale.it/eli/id/2026/10/06/26G00194/sg
 // This is a confidence vote ON the final conversion article: distinguish the vote date from promulgation/publication.
 const CONFIDENCE_PA_EVIDENCE = [
-  'Senato della Repubblica, XIX legislatura, seduta 460 del 30/09/2026.',
-  'Votazione nominale con appello sulla questione di fiducia posta dal Governo sull’articolo unico del DDL S.2047,',
-  'conversione del decreto-legge 7 agosto 2026 n.144, già approvato dalla Camera come C.3083.',
-  'La materia riguarda la funzionalità della pubblica amministrazione, gli enti territoriali e la protezione civile.',
-  'Voto sulla fiducia e sull’articolo unico: 95 favorevoli, 53 contrari, 2 astenuti, 150 votanti, 151 presenti.',
-  'Il Senato approva definitivamente la conversione il 30/09/2026; la fiducia è approvata.',
-  'Dopo il voto: legge 5 ottobre 2026 n.174, pubblicata sulla GU n.232 del 06/10/2026,',
-  'entrata in vigore il 07/10/2026 secondo il testo della legge. Le tre date non coincidono.'
+  'Senato seduta 460 del 30/09/2026: voto nominale sulla fiducia del Governo posta sull’articolo unico S.2047, conversione DL 144/2026 già approvata dalla Camera (C.3083).',
+  'Materie: pubblica amministrazione, enti territoriali e protezione civile.',
+  'Voto: presenti 151, votanti 150, 95 favorevoli, 53 contrari, 2 astenuti. Fiducia APPROVATA e conversione APPROVATA DEFINITIVAMENTE.',
+  'Legge n.174 del 05/10/2026, GU 06/10/2026, entrata in vigore 07/10/2026: distinguere voto, legge, pubblicazione ed efficacia.'
 ].join(' ');
 
 function diagnoseLiabilityAmendmentExplanation(value) {
@@ -402,7 +398,7 @@ async function runOfficialCaseQA({
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
           'Per esito, usa esclusivamente una delle quattro stringhe ammesse in base alla fonte, senza presumere la definitività. ' +
-          'Spiegazione: massimo tre frasi, concise; indica l\'ambito materiale specifico dell\'atto con un termine distintivo presente nella fonte e l\'esito del voto del ramo indicato. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta prevede condizioni e due alternative temporali, indica quando si applica la prima e quando la seconda, riportando eventuali soglie e senza sostituire la proposta con altri emendamenti. Non limitarti a riportare il numero del provvedimento; ' +
+          'Spiegazione: massimo tre frasi, concise; indica l\'ambito materiale specifico dell\'atto con un termine distintivo presente nella fonte e l\'esito del voto del ramo indicato. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta prevede condizioni e due alternative temporali, indica quando si applica la prima e quando la seconda, riportando eventuali soglie e senza sostituire la proposta con altri emendamenti. Se la votazione è sulla fiducia, distingui la fiducia dall'approvazione dell'atto e indica la materia specifica. Non limitarti a riportare il numero del provvedimento; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
       ],
       response_format: { type: 'json_object' },
