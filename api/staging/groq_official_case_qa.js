@@ -122,12 +122,10 @@ const CONFIDENCE_PA_EVIDENCE = [
 // https://www.senato.it/show-doc?id=1520856&idoggetto=0&leg=19&part=doc_dc-allegatoa_aa&tipodoc=Resaula
 // The joint discussion of S.61 / S.1822 was absorbed into the parent S.1971.
 const ARTICLE_9_EVIDENCE = [
-  'Senato XIX legislatura, seduta 453 del 14/09/2026. Voto elettronico sull’ARTICOLO 9 del DDL elettorale S.1971, con S.61 abbinato e poi assorbito.',
-  'Presenti 157, votanti 145, favorevoli 91, contrari 52, astenuti 2. Articolo 9 APPROVATO.',
-  'Rubrica: Clausola di invarianza finanziaria. Le amministrazioni attuano la legge con risorse umane, strumentali e finanziarie già disponibili;',
-  'non sono previsti nuovi o maggiori oneri per la finanza pubblica (salvo quanto previsto dall’articolo 7, commi 3 e 4).',
-  'Il voto è sull’articolo del DDL e NON è la votazione finale sul testo, né prova che il 14/09 esistesse una legge promulgata.',
-  'Non attribuire all’articolo numero di legge, data di pubblicazione o di entrata in vigore ricavati da una fase legislativa successiva.'
+  'Senato XIX, seduta 453, 14/09/2026. Articolo 9 DDL S.1971, con S.61 abbinato.',
+  'Voto sull’articolo: 157 presenti, 145 votanti, 91 favorevoli, 52 contrari, 2 astenuti. Articolo APPROVATO, non voto finale sulla legge.',
+  'Rubrica art.9: Clausola di invarianza finanziaria. Attuazione con risorse umane, strumentali e finanziarie esistenti, senza nuovi o maggiori oneri pubblici, salvo art.7 commi 3 e 4.',
+  'Il voto sull’articolo non conferisce numero di legge, data di pubblicazione o efficacia.'
 ].join(' ');
 
 function diagnoseArticleNineExplanation(value) {
