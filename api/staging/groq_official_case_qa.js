@@ -133,7 +133,7 @@ async function runOfficialCaseQA({
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
           'Per esito, usa esclusivamente una delle quattro stringhe ammesse in base alla fonte, senza presumere la definitività. ' +
-          'Spiegazione: massimo due frasi, descrivi solo oggetto e voto del ramo indicato; ' +
+          'Spiegazione: massimo due frasi; indica l\'ambito materiale specifico dell\'atto con un termine distintivo presente nella fonte e l\'esito del voto del ramo indicato. Non limitarti a riportare il numero del provvedimento; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
       ],
       response_format: { type: 'json_object' },
