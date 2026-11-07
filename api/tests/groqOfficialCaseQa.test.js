@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assessOfficialAnswer, runOfficialCaseQA, diagnoseSenateExplanation, diagnoseAmendmentExplanation } = require('../staging/groq_official_case_qa');
+const { assessOfficialAnswer, runOfficialCaseQA, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation } = require('../staging/groq_official_case_qa');
 
 test('amendment explanation diagnosis requires both the proposed duration and its rejection', () => {
   assert.deepEqual(diagnoseAmendmentExplanation('L’emendamento di 18 mesi è stato respinto.'), { timingFound: true, rejectedFound: true });
@@ -114,6 +114,26 @@ test('T006 definitive Senate archive bill is not yet a published law', () => {
     { success: false, verifiedFields: 9, failedFields: ['esito'] });
   assert.deepEqual(assessOfficialAnswer({ ...correct, spiegazione: 'Approvato un provvedimento.' }, 'T006'),
     { success: false, verifiedFields: 9, failedFields: ['spiegazione'] });
+});
+
+test('T012 rejected S.2023 ex-ILVA amendment requires accurate subject and vote outcome', () => {
+  const correct = {
+    atto: 'Em. 1.13', data_voto: '07/10/2026',
+    favorevoli: 45, contrari: 75, astenuti: 1, esito: 'RESPINTO',
+    numero_legge: null, data_pubblicazione: null, data_entrata_in_vigore: null,
+    spiegazione: 'Il Senato ha respinto l’emendamento ex ILVA: proponeva un accordo per la chiusura dell’area a caldo.'
+  };
+  const flags = { hotAreaFound: true, ilvaOrProgrammeFound: true, rejectedFound: true };
+  assert.deepEqual(assessOfficialAnswer(correct, 'T012'),
+    { success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: flags });
+  assert.deepEqual(assessOfficialAnswer({ ...correct, favorevoli: 47 }, 'T012').failedFields, ['favorevoli']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T012').failedFields, ['esito']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, numero_legge: 196 }, 'T012').failedFields, ['numero_legge']);
+  const missing = assessOfficialAnswer({ ...correct, spiegazione: 'Il Senato ha respinto una proposta ex ILVA.' }, 'T012');
+  assert.deepEqual(missing.failedFields, ['spiegazione']);
+  assert.deepEqual(diagnoseIlvaAmendmentExplanation(correct.spiegazione), flags);
+  assert.deepEqual(diagnoseIlvaAmendmentExplanation('Il Senato ha approvato l’emendamento per l’area a caldo.'),
+    { hotAreaFound: true, ilvaOrProgrammeFound: false, rejectedFound: false });
 });
 
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
