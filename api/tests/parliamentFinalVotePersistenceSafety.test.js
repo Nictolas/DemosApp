@@ -141,6 +141,27 @@ test('the persisted official text takes precedence over a stale caller document'
   assert.doesNotMatch(h.providerPrompt, /Documento ufficiale sintetico/);
 });
 
+test('legacy cached vote explanation is hidden if the stored source disappeared', async () => {
+  for (const document of [null, '', 'Solo una descrizione generica']) {
+    const h = harness();
+    h.row.spiegazione = 'Vecchia spiegazione non verificabile';
+    h.row.descrizione_votazione = document;
+    assert.equal(await h.generate(), null, 'A cached explanation requires persisted evidence');
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.updateCalls, 0);
+    assert.equal(h.row.spiegazione, 'Vecchia spiegazione non verificabile',
+      'Read-only safety gate must not mutate existing database rows');
+  }
+});
+
+test('cached vote explanation remains readable when stored source is sufficient', async () => {
+  const h = harness();
+  h.row.spiegazione = 'Spiegazione già verificata';
+  assert.equal(await h.generate(), 'Spiegazione già verificata');
+  assert.equal(h.providerCalls, 0);
+  assert.equal(h.updateCalls, 0);
+});
+
 test('missing or insufficient persisted evidence never consumes Groq Free quota', async () => {
   for (const document of [null, '', 'Solo un titolo generico']) {
     const h = harness();
