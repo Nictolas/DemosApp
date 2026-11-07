@@ -180,18 +180,19 @@ async function generaESalvaSpiegazione(politicoNome, votazione, descrizioneVotaz
   // Do not consume Free quota when this politician has no row for that vote.
   if (existingResult.rows.length === 0) return null;
 
-  // Se esiste già una spiegazione per questa votazione e non è forzata la rigenerazione, non rigenerarla
+  // La cache non dimostra la provenienza documentale: anche una spiegazione
+  // già persistita deve avere una fonte sufficiente associata alla riga.
+  // Non usare una descrizione passata dal chiamante, potenzialmente obsoleta.
+  const documentSnapshot = existingResult.rows[0].descrizione_votazione ?? null;
+  if (!hasDocumentaryContext(documentSnapshot)) {
+    console.warn('Spiegazione rappresentante non disponibile: documento persistito insufficiente');
+    return null;
+  }
+
+  // Riutilizza il testo esistente soltanto dopo aver verificato la fonte persistita.
   if (!forceRegenerate && existingResult.rows[0].spiegazione && existingResult.rows[0].spiegazione.trim() !== '') {
     console.log('Spiegazione già esistente per la votazione richiesta');
     return existingResult.rows[0].spiegazione;
-  }
-
-  // Il documento del chiamante può essere obsoleto o non verificato.
-  // Usa solo lo snapshot persistito associato alla riga precisa.
-  const documentSnapshot = existingResult.rows[0].descrizione_votazione ?? null;
-  if (!hasDocumentaryContext(documentSnapshot)) {
-    console.warn('Spiegazione rappresentante non generata: documento persistito insufficiente');
-    return null;
   }
 
   const spiegazione = await generaSpiegazione(votazione, documentSnapshot, camera, voto);
@@ -353,23 +354,23 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
       return null;
     }
 
-    // Se esiste già una spiegazione, non rigenerarla
+    // Anche la cache deve avere una fonte documentale persistita sufficiente.
+    // Altrimenti una spiegazione legacy non verificabile potrebbe essere mostrata.
+    // Non fidarsi del documento passato dal chiamante.
+    const documentSnapshot = existingResult.rows[0].descrizione_votazione ?? null;
+    if (!hasDocumentaryContext(documentSnapshot)) {
+      console.warn('Spiegazione non disponibile: documento persistito insufficiente');
+      return null;
+    }
+
+    // Solo dopo il controllo della fonte, riutilizza la spiegazione già salvata.
     if (existingResult.rows[0].spiegazione && existingResult.rows[0].spiegazione.trim() !== '') {
       console.log('Spiegazione parlamentare già esistente, generazione saltata');
       return existingResult.rows[0].spiegazione;
     }
 
-    // Genera nuova spiegazione (il voto non serve per la spiegazione della votazione stessa)
-    // Passa 'N/A' invece di null per evitare problemi nel prompt
-    // Prefer the official text stored with this vote over a possibly stale caller copy.
-    // Keep the database snapshot so an in-flight generation cannot save on new evidence.
-    const documentSnapshot = existingResult.rows[0].descrizione_votazione ?? null;
-    // A caller-supplied document cannot be checked against concurrent changes
-    // to the stored voting record. Require sufficient persisted evidence.
-    if (!hasDocumentaryContext(documentSnapshot)) {
-      console.warn('Spiegazione non generata: documento persistito insufficiente');
-      return null;
-    }
+    // Una sola generazione Groq Free con documento persistito verificato.
+    // Mantieni lo snapshot per il compare-and-swap al momento del salvataggio.
     const spiegazione = await generaSpiegazione(titoloVotazione, documentSnapshot, camera, 'N/A');
   
     if (spiegazione) {
