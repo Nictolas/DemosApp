@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assessOfficialAnswer, runOfficialCaseQA, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation } = require('../staging/groq_official_case_qa');
+const { assessOfficialAnswer, runOfficialCaseQA, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation } = require('../staging/groq_official_case_qa');
 
 test('amendment explanation diagnosis requires both the proposed duration and its rejection', () => {
   assert.deepEqual(diagnoseAmendmentExplanation('L’emendamento di 18 mesi è stato respinto.'), { timingFound: true, rejectedFound: true });
@@ -226,6 +226,27 @@ test('T023 article 9 financial neutrality was approved as an article, not an ena
     spiegazione: 'Il Senato ha approvato la legge già in vigore.' }, 'T023').failedFields, ['spiegazione']);
   assert.deepEqual(assessOfficialAnswer({ ...correct,
     spiegazione: 'Il Senato ha approvato l’articolo 9 ma non ne descrive il contenuto.' }, 'T023').failedFields, ['spiegazione']);
+});
+
+test('T024 coordination De Priamo has distinct tally and formal references, not final DDL approval', () => {
+  const correct = {
+    atto: 'Coord. 1', data_voto: '15/09/2026',
+    favorevoli: 106, contrari: 71, astenuti: 2,
+    esito: 'APPROVATO NON DEFINITIVAMENTE',
+    numero_legge: null, data_pubblicazione: null, data_entrata_in_vigore: null,
+    spiegazione: 'Il Senato ha approvato il coordinamento formale De Priamo che corregge i rinvii normativi degli articoli 1, 2 e 8.'
+  };
+  const flags = { coordinationFound: true, referencesFound: true,
+    approvedFound: true, falseFinalityFound: false };
+  assert.deepEqual(assessOfficialAnswer(correct, 'T024'), {
+    success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: flags
+  });
+  assert.deepEqual(diagnoseCoordinationExplanation(correct.spiegazione), flags);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, favorevoli: 113 }, 'T024').failedFields, ['favorevoli']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T024').failedFields, ['esito']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, numero_legge: 180 }, 'T024').failedFields, ['numero_legge']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct,
+    spiegazione: 'Il Senato ha approvato definitivamente il disegno di legge elettorale.' }, 'T024').failedFields, ['spiegazione']);
 });
 
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
