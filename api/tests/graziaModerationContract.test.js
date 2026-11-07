@@ -21,7 +21,8 @@ test('only approved Grazia subjects are publicly ranked and votable', () => {
   const source = read('api/routes/grazia.js');
   assert.match(source, /FROM grazia_carcerati c/);
   assert.match(source, /WHERE c\.attivo = true GROUP BY/);
-  assert.match(source, /SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER\(BTRIM\(nome\)\)/);
+  assert.match(source, /SELECT id, nome FROM grazia_carcerati WHERE attivo = true AND lower\(btrim\(regexp_replace\(normalize\(nome, NFC\)/);
+  assert.match(source, /LEFT JOIN voti_grazia v ON lower\(btrim\(regexp_replace\(normalize\(v\.nome, NFC\)/);
   assert.match(source, /return res\.status\(422\)\.json\(\{ success: false, error: 'Soggetto non approvato/);
 });
 
@@ -94,11 +95,13 @@ test('Grazia voting locks the approved catalogue row inside its own transaction'
   const route=read('api/routes/grazia.js');
   const voting=route.split("router.post('/vota'")[1].split('// Grazia keeps one canonical queue')[0];
   const begin=voting.indexOf("await client.query('BEGIN')");
-  const lock=voting.indexOf("'SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER(BTRIM(nome)) = LOWER($1) FOR SHARE'");
+  const lock=voting.indexOf('SELECT id, nome FROM grazia_carcerati WHERE attivo = true AND lower(btrim(regexp_replace(normalize(nome, NFC)');
   const deletion=voting.indexOf("DELETE FROM voti_grazia");
   assert.ok(begin>=0 && lock>begin && deletion>lock,
     'a candidate must remain locked from its recheck through deleting/inserting preferences');
   assert.match(voting,/if \(!stillActive\.rows\.length\) \{\s*await client\.query\('ROLLBACK'\);\s*return res\.status\(422\)/);
+  assert.match(voting,/requestedVotes\[0\] = stillActive\.rows\[0\]\.nome/,
+    'new preferences must use the approved catalogue display name');
   assert.doesNotMatch(voting.slice(lock,deletion),/await client\.query\('COMMIT'\)/);
 });
 
