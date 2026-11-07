@@ -8,6 +8,7 @@ const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 
 const router = express.Router();
 // Apply the same display-safety rule to nomination labels and private vote input.
@@ -373,6 +374,21 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
       if (!owner.rows.length) {
         await client.query('ROLLBACK');
         return res.status(401).json({ success: false, error: 'Utente non trovato' });
+      }
+
+      // A request can pass the middleware consent check just BEFORE a
+      // concurrent revoke transaction. The users-row FOR SHARE lock above
+      // serializes with revoke's UPDATE users; re-read the authoritative
+      // consent AFTER acquiring that lock, on the same transaction client.
+      // Otherwise the revoke cleanup could delete votes and a stale POST
+      // could then create a new personal vote without active consent.
+      const currentConsent = await getPoliticalConsentState(client, userId);
+      if (!currentConsent.exists || !currentConsent.granted) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          success: false, error: 'Consenso politico non attivo',
+          code: 'POLITICAL_CONSENT_REQUIRED', consent_required: true
+        });
       }
 
       await client.query(
