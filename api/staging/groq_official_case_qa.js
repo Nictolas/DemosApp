@@ -7,7 +7,7 @@
 const { resolveFreeGroqModel, isGroqConfigured } = require('../services/parliamentFreeAiPolicy');
 const { requestFreeGroq, classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
 
-const CASE_ID = 'T008';
+const CASE_ID = process.env.GROQ_QA_CASE_ID === 'T002' ? 'T002' : 'T008';
 const EVIDENCE = [
   'Camera dei deputati, XIX legislatura, seduta 729 del 20/10/2026.',
   'Votazione finale A.C. 3131: 125 favorevoli, 43 contrari, 52 astenuti, 168 votanti, 220 presenti.',
@@ -17,9 +17,33 @@ const EVIDENCE = [
   'Gazzetta Ufficiale: legge n. 196 del 23/10/2026, pubblicata il 26/10/2026, in vigore dal 27/10/2026.'
 ].join(' ');
 
+const SENATE_EVIDENCE = [
+  'Senato della Repubblica, XIX legislatura, seduta 463 del 07/10/2026.',
+  'Votazione finale S.2023: 73 favorevoli, 49 contrari, 3 astenuti, 125 votanti, 126 presenti.',
+  'Esito: approvato con modificazioni, non definitivamente; il provvedimento prosegue alla Camera come C.3131.',
+  'Oggetto: conversione del decreto-legge 28 agosto 2026 n.154 sulla continuità operativa di impianti strategici.',
+  'La Camera approverà definitivamente il successivo 20/10/2026: questa NON è la data del voto del Senato.'
+].join(' ');
+
 function assessOfficialAnswer(answer) {
   if (!answer || typeof answer !== 'object' || Array.isArray(answer)) {
     return { success: false, verifiedFields: 0 };
+  }
+  if (CASE_ID === 'T002') {
+    const checks = [
+      /^S\.?\s*2023$/i.test(String(answer.atto || '')),
+      String(answer.data_voto || '') === '07/10/2026',
+      Number(answer.favorevoli) === 73,
+      Number(answer.contrari) === 49,
+      Number(answer.astenuti) === 3,
+      String(answer.esito || '') === 'APPROVATO NON DEFINITIVAMENTE',
+      answer.numero_legge == null,
+      answer.data_pubblicazione == null,
+      answer.data_entrata_in_vigore == null,
+      /impiant|continuit/i.test(String(answer.spiegazione || '')) && !/approvat[oa] definitivamente/i.test(String(answer.spiegazione || ''))
+    ];
+    const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
+    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]) };
   }
   const checks = [
     String(answer.atto || '').replace(/[^0-9]/g, '') === '3131',
@@ -65,14 +89,14 @@ async function runOfficialCaseQA({
       model,
       messages: [
         { role: 'system', content: 'Sei un verificatore di dati parlamentari. Usa ESCLUSIVAMENTE la fonte fornita. Non inventare fatti. Rispondi solo con un oggetto JSON conforme alle chiavi richieste.' },
-        { role: 'user', content: 'FONTE UFFICIALE: ' + EVIDENCE +
+        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : EVIDENCE) +
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
-          'atto (formato C.3131), data_voto, favorevoli, contrari, astenuti, esito, ' +
+          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
           'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
-          'Se la fonte afferma che la Camera approva definitivamente, restituisci esattamente APPROVATO DEFINITIVAMENTE. ' +
-          'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. ' +
+          'Per il voto del Senato S.2023 del 07/10 restituisci APPROVATO NON DEFINITIVAMENTE; per C.3131 Camera del 20/10 restituisci APPROVATO DEFINITIVAMENTE. ' +
+          'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Per S.2023 i tre campi relativi alla legge successiva devono essere null: non attribuire al voto del Senato una promulgazione futura. ' +
           'Per esito, riporta esplicitamente la definitività indicata dalla fonte: usa esattamente APPROVATO DEFINITIVAMENTE, non solo APPROVATO. ' +
-          'Spiegazione: massimo due frasi, descrivi solo oggetto della legge e cosa ha votato la Camera; ' +
+          'Spiegazione: massimo due frasi, descrivi solo oggetto e voto del ramo indicato; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
       ],
       response_format: { type: 'json_object' },
