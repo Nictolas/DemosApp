@@ -50,6 +50,15 @@ test('Grazia frontend never pretends an unsaved proposal succeeded or solicits s
   assert.match(admin, /queryKey: \["graziaRequests"\]/);
 });
 
+test('personal Grazia GET requires active consent in its existing vote query', () => {
+  const source=read('api/routes/grazia.js');
+  const personal=source.slice(source.indexOf('const mieiVotiQuery ='),source.indexOf('const mieiVotiResult ='));
+  assert.match(personal,/LEFT JOIN user_consents uc ON uc.user_id = u.id/);
+  assert.match(personal,/WHERE u.id::text = \$2 AND u.status = 'a'/);
+  assert.match(personal,/COALESCE\(uc.political_opinions_consent,\s*u.political_opinions_consent, false\) = TRUE/);
+  assert.match(personal,/LEFT JOIN LATERAL/);
+});
+
 test('Grazia personal votes and third-party proposals never reach HTTP cache or raw SQL error payloads', () => {
   const source = read('api/routes/grazia.js');
   assert.match(source, /const personalNoStore/);
