@@ -83,14 +83,12 @@ const ARCHIVE_EVIDENCE = [
 // Original amendment text: https://www.senato.it/show-doc?id=1523600&idoggetto=1517749&leg=19&tipodoc=EMEND
 // The vote is on amendment 1.13 to S.2023, not on the entire law.
 const ILVA_AMENDMENT_EVIDENCE = [
-  'Senato della Repubblica, XIX legislatura, seduta 463 del 07/10/2026.',
-  'Votazione elettronica sull’emendamento 1.13 di Turco, Sabrina Licheri, Bevilacqua e Naturale al disegno S.2023, relativo al decreto-legge 154/2026 sugli impianti strategici.',
-  'Presenti 122, votanti 121, favorevoli 45, contrari 75, astenuti 1. Esito: RESPINTO.',
-  'Testo originale emendamento 1.13: accordo di programma entro trenta giorni dalla legge di conversione per il risanamento ambientale e sanitario delle aree industriali ex ILVA.',
-  'Tra le misure proposte: chiusura definitiva dell’area a caldo, salvaguardia dei posti di lavoro e bonifica; altre misure per lavoratori e territorio.',
-  'L’emendamento NON è stato approvato, la chiusura dell’area a caldo non è stata disposta da questo voto.',
-  'Non confondere l’esito di questo emendamento con la successiva approvazione del disegno di legge S.2023/C.3131.',
-  'Non assegnare all’emendamento respinto un numero di legge, una data di pubblicazione o una data di entrata in vigore.'
+  'Senato XIX legislatura, seduta 463, 07/10/2026. Emendamento 1.13 Turco e altri al ddl S.2023 (decreto-legge 154/2026).',
+  'Voto elettronico: presenti 122, votanti 121, 45 favorevoli, 75 contrari, 1 astenuto. Esito: RESPINTO.',
+  'Testo emendamento: accordo di programma entro 30 giorni per risanare le aree industriali ex ILVA,',
+  'con chiusura dell’area a caldo, tutela occupazionale e bonifica.',
+  'La proposta respinta non ha disposto la chiusura né creato una legge; l’intero ddl ha un iter distinto.',
+  'Numero legge, pubblicazione e entrata in vigore non si applicano a questo emendamento.'
 ].join(' ');
 
 function diagnoseIlvaAmendmentExplanation(value) {
