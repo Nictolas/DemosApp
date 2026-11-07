@@ -131,11 +131,11 @@ const ARTICLE_9_EVIDENCE = [
 // Official electronic votes: https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=55212&tab=votazioni
 // Official coordination text: https://www.senato.it/show-doc?id=1520971&idoggetto=0&leg=19&part=doc_dc-allegatoa_aa&tipodoc=Resaula
 const COORDINATION_EVIDENCE = [
-  'Senato XIX, seduta 454, 15/09/2026: voto sulla proposta Coord. 1 (De Priamo) relativa al ddl elettorale S.1971; S.61 e S.1822 furono poi assorbiti.',
-  'Presenti 180, votanti 179, 106 favorevoli, 71 contrari, 2 astenuti. Coordinamento formale APPROVATO.',
-  'Il testo corregge rinvii interni e riferimenti normativi: articolo 1 ai periodi dell’articolo 18-bis, ulteriori correzioni agli articoli 1, 2 e 8.',
-  'Il voto sulla proposta di coordinamento NON coincide con la distinta votazione finale del ddl nella stessa seduta (113 favorevoli, 71 contrari, 2 astenuti).',
-  'Il coordinamento approvato non è autonomamente una legge promulgata: nessun numero legge, pubblicazione o data di efficacia propri.'
+  'Senato seduta 454 del 15/09/2026: Coord. 1 De Priamo sul DDL elettorale S.1971, con S.61 e S.1822 abbinati.',
+  'Voto su coordinamento: presenti 180, votanti 179, favorevoli 106, contrari 71, astenuti 2. APPROVATO.',
+  'Corregge rinvii normativi e riferimenti negli articoli 1, 2 e 8, tra cui richiami ai periodi dell’articolo 18-bis.',
+  'Voto NON finale sul DDL: distinta votazione finale 113 favorevoli, 71 contrari, 2 astenuti.',
+  'Coord. 1 non è una legge promulgata: nessun numero legge né data di pubblicazione/efficacia propri.'
 ].join(' ');
 
 function diagnoseCoordinationExplanation(value) {
@@ -144,6 +144,9 @@ function diagnoseCoordinationExplanation(value) {
     coordinationFound: /coordinament|correzion|rettific/i.test(explanation),
     referencesFound: /rinvi|riferiment|richiam|articol[oi]\s+(?:1|2|8)|18-bis/i.test(explanation),
     approvedFound: /approvat|accolt/i.test(explanation),
+    finalityPhraseFound: /approvat[oa]\s+definitivament/i.test(explanation),
+    negatedFinalityFound: /(?:non|senza).{0,42}approvat[oa]\s+definitivament/i.test(explanation),
+    lawStateFound: /legge\s+(?:già\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(explanation),
     falseFinalityFound: /approvat[oa]\s+definitivament|legge\s+(?:già\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(explanation)
   };
 }
