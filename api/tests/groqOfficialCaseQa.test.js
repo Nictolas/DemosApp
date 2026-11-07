@@ -237,7 +237,8 @@ test('T024 coordination De Priamo has distinct tally and formal references, not 
     spiegazione: 'Il Senato ha approvato il coordinamento formale De Priamo che corregge i rinvii normativi degli articoli 1, 2 e 8.'
   };
   const flags = { coordinationFound: true, referencesFound: true,
-    approvedFound: true, falseFinalityFound: false };
+    approvedFound: true, finalityPhraseFound: false, negatedFinalityFound: false,
+    lawStateFound: false, falseFinalityFound: false };
   assert.deepEqual(assessOfficialAnswer(correct, 'T024'), {
     success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: flags,
     actDiagnostics: {
@@ -245,6 +246,15 @@ test('T024 coordination De Priamo has distinct tally and formal references, not 
     }
   });
   assert.deepEqual(diagnoseCoordinationExplanation(correct.spiegazione), flags);
+  const negative = diagnoseCoordinationExplanation(
+    'Il Senato ha approvato il coordinamento dei riferimenti ma non ha approvato definitivamente il DDL.');
+  assert.equal(negative.finalityPhraseFound, true);
+  assert.equal(negative.negatedFinalityFound, true);
+  assert.equal(negative.lawStateFound, false);
+  const affirmative = diagnoseCoordinationExplanation(
+    'Il Senato ha approvato definitivamente il testo di legge.');
+  assert.equal(affirmative.finalityPhraseFound, true);
+  assert.equal(affirmative.negatedFinalityFound, false);
   assert.deepEqual(assessOfficialAnswer({ ...correct, atto: 'Coord. n. 1' }, 'T024').failedFields, []);
   assert.deepEqual(assessOfficialAnswer({ ...correct, atto: 'S.1971 — Coord. 1' }, 'T024').failedFields, []);
   assert.deepEqual(assessOfficialAnswer({ ...correct, atto: 'S.1971' }, 'T024').failedFields, ['atto']);
