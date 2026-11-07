@@ -6,7 +6,7 @@ const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPo
 const { buildGroundedAnalysisMessages, parseGroundedAnalysisResponse } = require('./parliamentGroundedAnalysis');
 const { requestFreeGroq, classifyFreeGroqError } = require('./parliamentFreeGroqBudget');
 const { createSingleflight } = require('./parliamentAiSingleflight');
-const { estraiNumeroLegge, canSearchActTitle } = require('./parliamentActIdentifier');
+const { estraiNumeroLegge, canSearchActTitle, estraiTipoAtto } = require('./parliamentActIdentifier');
 const singleflightAnalisi = createSingleflight();
 const { getPool } = require('../config/database');
 
@@ -33,24 +33,6 @@ if (isGroqConfigured()) {
   }
 } else {
   console.warn('Analisi AI parlamentare non disponibile: chiave Groq Free mancante; nessun fallback a pagamento');
-}
-
-/**
- * Estrae il tipo di atto dal titolo
- * Esempi: "DDL", "Mozione", "Decreto", "ODG", ecc.
- */
-function estraiTipoAtto(titolo) {
-  if (!titolo) return null;
-  
-  const tipi = ['DDL', 'Mozione', 'Decreto', 'ODG', 'EM', 'Emendamento', 'Disegno di legge', 'Proposta di legge'];
-  
-  for (const tipo of tipi) {
-    if (titolo.toUpperCase().includes(tipo.toUpperCase())) {
-      return tipo;
-    }
-  }
-  
-  return null;
 }
 
 /**
