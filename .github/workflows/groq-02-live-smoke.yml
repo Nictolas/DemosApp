@@ -29,27 +29,12 @@ jobs:
           import urllib.error
           import urllib.request
 
+          import time
+
           request = urllib.request.Request(
               os.environ["GROQ_PROBE_URL"],
               headers={"Accept": "application/json"}
           )
-          try:
-              with urllib.request.urlopen(request, timeout=65) as response:
-                  http_status = response.status
-                  payload = response.read(1024)
-          except urllib.error.HTTPError as exc:
-              http_status = exc.code
-              payload = exc.read(1024)
-          except Exception:
-              print("Groq Free live probe: NETWORK_UNAVAILABLE")
-              sys.exit(1)
-
-          try:
-              obj = json.loads(payload)
-          except Exception:
-              print("Groq Free live probe: UNRECOGNIZED_RESPONSE")
-              sys.exit(1)
-
           allowed = {
               "OK", "NOT_CONFIGURED", "MODEL_NOT_ALLOWED",
               "FREE_QUOTA_UNAVAILABLE", "EMPTY_OR_TRUNCATED",
@@ -57,13 +42,38 @@ jobs:
               "INVALID_REQUEST", "RATE_LIMIT", "PROVIDER_UNAVAILABLE",
               "NETWORK_OR_UNKNOWN"
           }
-          status = obj.get("status")
-          category = status if status in allowed else "UNKNOWN"
-          print("Groq Free isolated provider result:", category)
-          print("Provider smoke HTTP status:", http_status)
-          if http_status != 200 or category != "OK" or obj.get("success") is not True:
-              sys.exit(1)
-          print("Groq Free live authenticated check passed.")
+          # Render serves /health while its three bounded, Free-only
+          # startup generations are still running. A transient unknown
+          # status must not be mistaken for a completed provider failure.
+          for attempt in range(16):
+              try:
+                  with urllib.request.urlopen(request, timeout=12) as response:
+                      http_status = response.status
+                      payload = response.read(1024)
+              except urllib.error.HTTPError as exc:
+                  http_status = exc.code
+                  payload = exc.read(1024)
+              except Exception:
+                  print("Groq Free live probe: NETWORK_UNAVAILABLE")
+                  sys.exit(1)
+
+              try:
+                  obj = json.loads(payload)
+              except Exception:
+                  print("Groq Free live probe: UNRECOGNIZED_RESPONSE")
+                  sys.exit(1)
+
+              status = obj.get("status")
+              category = status if status in allowed else "UNKNOWN"
+              if category == "UNKNOWN" and attempt < 15:
+                  time.sleep(5)
+                  continue
+              print("Groq Free isolated provider result:", category)
+              print("Provider smoke HTTP status:", http_status)
+              if http_status != 200 or category != "OK" or obj.get("success") is not True:
+                  sys.exit(1)
+              print("Groq Free live authenticated check passed.")
+              break
           PY
       - name: Check three independent source-grounded analyses for the selected official case
         if: always()
