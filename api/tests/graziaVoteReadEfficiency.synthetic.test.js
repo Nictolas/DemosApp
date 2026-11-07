@@ -63,8 +63,14 @@ function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=fa
       sendCooldownError:()=>false,
     },
     jsonwebtoken:{verify:(token,secret)=>{
+      // Legacy verifier accepted other signed token types and raw tokens.
       assert.equal(secret,'synthetic-secret');
       if(!token.startsWith('synthetic-'))throw Error('bad token');
+      return {userId:token.slice('synthetic-'.length)};
+    }},
+    '../utils/jwt':{verifyAccessToken:(token)=>{
+      // Isolated equivalent of JWT type/issuer/audience validation.
+      if(!/^synthetic-(a|b|no-votes)$/.test(token))throw Error('not an access JWT');
       return {userId:token.slice('synthetic-'.length)};
     }}
   };
@@ -77,10 +83,13 @@ function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=fa
     process:{env:{JWT_SECRET:'synthetic-secret'}},
     Buffer,URL,console,
   },{filename:'grazia.js'});
-  async function get(user) {
+  async function get(user, authorizationOverride) {
     const fns=handlers.get('/');
     assert.ok(fns?.length===2);
-    const req={headers:user?{authorization:'Bearer synthetic-'+user}:{}};
+    const headers=authorizationOverride===undefined
+      ? (user?{authorization:'Bearer synthetic-'+user}:{})
+      : {authorization:authorizationOverride};
+    const req={headers};
     const res={
       code:200,headers:{},body:null,
       set(name,value){this.headers[name]=value;return this;},
@@ -127,6 +136,28 @@ test('concurrent authenticated requests share a single column lookup, never user
   await x.get('a');
   assert.deepEqual(x.counts(),{metadata:1,votes:3,total:7});
   assert.equal(x.queries.some(y=>y.sql.includes('SELECT MAX(')),false,'no additional MAX database query');
+});
+
+test('Grazia GET never reads personal votes for refresh, pending, raw or malformed auth headers',async()=>{
+  const x=makeHarness();
+  const valid=await x.get('a');
+  assert.deepEqual(Array.from(valid.mieiVoti),['Risposta a B','Risposta a A']);
+  assert.equal(x.counts().votes,1);
+  for (const authorization of [
+    'synthetic-a',
+    'Basic synthetic-a',
+    'Bearer synthetic-refresh-a',
+    'Bearer synthetic-oauth-pending-a',
+    'Bearer ',
+    'Bearer synthetic-a suffix'
+  ]) {
+    const result=await x.get(null,authorization);
+    assert.equal(result.success,true,'public feed stays available');
+    assert.deepEqual(Array.from(result.mieiVoti),[],'no private vote for '+authorization);
+    assert.equal(result.blocco.isBlocked,false);
+  }
+  assert.equal(x.counts().votes,1,'invalid auth must not trigger any personal vote query');
+  assert.equal(x.cooldown.length,1,'invalid auth must not read personal cooldown state');
 });
 
 test('empty votes pass null fallback, without a separate MAX query',async()=>{
