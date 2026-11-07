@@ -33,6 +33,13 @@ function canSearchActTitle(numeroLegge, titolo, camera) {
   if (!canSearchItalianBills(numeroLegge, camera) || typeof titolo !== 'string') {
     return false;
   }
+  // A caller-provided number must also agree with every explicitly labelled
+  // generic bill number in the title. Without this check, "DDL 456" could
+  // authorize a lookup for DDL 123 when no S./C. label was present.
+  const genericReferences = [...titolo.matchAll(
+    /\b(?:disegno\s+di\s+legge|proposta\s+di\s+legge|ddl)\s*(?:n(?:umero)?\.?\s*)?(\d{1,5})\b/gi
+  )].map(match => match[1]);
+  if (genericReferences.some(number => number !== numeroLegge)) return false;
   // A generic DDL number cannot override an explicit chamber reference.
   // Inspect *all* S./C. identifiers, not just the first one: otherwise
   // "DDL 123, S. 999" could silently fetch the unrelated Senate DDL 123.
