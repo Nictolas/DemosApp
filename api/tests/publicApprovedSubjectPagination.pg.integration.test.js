@@ -39,6 +39,8 @@ test('105 approved nominations/category: microsecond cursor, no duplicates, with
  assert.equal(url.pathname,'/demos_civic_ci');
  const client=new Client({connectionString:raw});
  await client.connect();
+ const previousPublicationFlag=process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED;
+ process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED='true';
  try{
   const identity=await client.query("SELECT current_database() db,current_user usr,current_setting('server_version_num')::int version");
   assert.equal(identity.rows[0].db,'demos_civic_ci');
@@ -100,6 +102,8 @@ test('105 approved nominations/category: microsecond cursor, no duplicates, with
   assert.equal(parseCursor(Buffer.from(JSON.stringify(['1','badid'])).toString('base64url')),false);
   assert.equal(await readApprovedPage(client,'attivisti','bad*!'),null);
  }finally{
+  if(previousPublicationFlag==null)delete process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED;
+  else process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED=previousPublicationFlag;
   await client.query('RESET search_path').catch(()=>{});
   await client.query('DROP SCHEMA IF EXISTS public_page_it CASCADE').catch(()=>{});
   await client.end();
