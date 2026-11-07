@@ -262,6 +262,23 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
         'one private vote query per authenticated GET, not per anonymous request');
       assert.equal(seenSQL.filter(sql=>sql.includes('SELECT MAX(timestamp)')).length,0,
         'no second timestamp aggregate query');
+      // A revoked consent must hide historic private rows even before
+      // asynchronous/historic cleanup. Disposable PG17 fixture only.
+      await pool.query(
+        'INSERT INTO user_consents(user_id,political_opinions_consent) VALUES ($1,false) ON CONFLICT (user_id) DO UPDATE SET political_opinions_consent=false',[B]);
+      try {
+        const revokedRead=await req('/api/grazia','b');
+        assert.equal(revokedRead.status,200,'public catalogue remains readable');
+        assert.deepEqual(revokedRead.json.mieiVoti,[],
+          'private historic row must be hidden when consent is revoked');
+        assert.equal(revokedRead.json.blocco.isBlocked,false);
+        assert.equal(revokedRead.json.blocco.unlockDate,null);
+        assert.equal((await pool.query('SELECT count(*)::integer n FROM voti_grazia WHERE userid=$1',[B])).rows[0].n,1,
+          'GET guard must hide rather than mutate historic private data');
+      } finally {
+        await pool.query('DELETE FROM user_consents WHERE user_id=$1',[B]);
+      }
+
     }finally{
       pool.query=trackedQuery;
       await pool.query('DELETE FROM voti_grazia WHERE userid=$1 AND nome=$2',[A,voteFixture]);
