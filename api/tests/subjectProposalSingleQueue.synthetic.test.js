@@ -145,6 +145,9 @@ test('generic nominations reject hidden or directional control characters withou
     'Nome\u2066 isolato',
     'Nome\u200b invisibile',
     'Nome\u061c direzionale',
+    'Nome\u00ad soft-hyphen',
+    'Nome\u034f invisible joiner',
+    'Nome\u180e invisible separator',
     'Nome\u0000 incorporato'
   ]) {
     const app = harness();
