@@ -313,13 +313,19 @@ test('both explanation handlers return a safe 503 without provider secrets', asy
     throw new Error('unexpected require ' + name);
   };
   const pool = { query: async () => ({ rows: [{
-    id: 3, titolo_votazione: isFinal ? 'Votazione finale DDL test' : 'Articolo 1 DDL test', descrizione_votazione: 'Fatti pubblici documentati',
+    id: 3, titolo_votazione: isFinal ? 'Votazione finale DDL test' : 'Articolo 1 DDL test', descrizione_votazione: 'Fatti pubblici documentati con fonte parlamentare sintetica. '.repeat(5),
     camera: 'Camera', spiegazione: null, votazione_id: 3
   }] }) };
   vm.runInNewContext(source.slice(start, end), {
     router: { post: (route, _auth, _admin, handler) => registered.set(route, handler) },
     verifyToken() {}, requireAdmin() {}, pool,
-    require: fakeRequire, isConfirmedFinalParliamentVote: require('../services/parliamentFinalVotePolicy').isConfirmedFinalParliamentVote, console: safeConsole, Date, parseInt, isNaN, decodeURIComponent
+    require: fakeRequire, isConfirmedFinalParliamentVote: require('../services/parliamentFinalVotePolicy').isConfirmedFinalParliamentVote,
+    hasDocumentaryContext: require('../services/parliamentGroundedAnalysis').hasDocumentaryContext,
+    documentedExplanation: (explanation, document) => (
+      typeof explanation === 'string' && explanation.trim() &&
+      require('../services/parliamentGroundedAnalysis').hasDocumentaryContext(document) ? explanation : null
+    ),
+    console: safeConsole, Date, parseInt, isNaN, decodeURIComponent
   });
   for (const [route, params] of [
     ['/votazione/:votazione_id/spiegazione', { votazione_id: '3' }],
