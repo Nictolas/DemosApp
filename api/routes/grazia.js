@@ -331,12 +331,13 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
     try {
       await client.query('BEGIN');
 
-      // Serialize personal vote writes against account deletion too.
-      // Erasure locks and deletes the same users row inside its transaction.
-      // A late request must wait and reject when the account is gone, instead
-      // of restoring an orphan vote/cooldown after personal data was erased.
+      // Serialize personal vote writes with account deletion AND suspension.
+      // FOR SHARE conflicts with both deletion and a status UPDATE, unlike
+      // FOR KEY SHARE. Recheck status='a' under the existing transaction lock
+      // so a still-valid/cached JWT cannot write personal votes or cooldown
+      // after an account becomes inactive; no extra SQL round trip.
       const owner = await client.query(
-        'SELECT id FROM users WHERE id::text=$1 FOR KEY SHARE',
+        "SELECT id FROM users WHERE id::text=$1 AND status='a' FOR SHARE",
         [String(userId)]
       );
       if (!owner.rows.length) {
