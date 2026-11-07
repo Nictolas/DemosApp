@@ -292,10 +292,10 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     // preserve row identity and avoid consuming cooldown or changing timestamps.
     const beforeSameVote=await pool.query(
       'SELECT id,nome,timestamp FROM voti_grazia WHERE userid=$1',[B]);
-    const sameVote=await req('/api/grazia/vota','b','POST',
+    const sameCaseVote=await req('/api/grazia/vota','b','POST',
       {voti:[legacyCanonicalName.toUpperCase()]});
-    assert.equal(sameVote.status,200,'case-equivalent vote remains a valid no-op');
-    assert.equal(sameVote.json.message,'Preferenza Grazia già aggiornata',
+    assert.equal(sameCaseVote.status,200,'case-equivalent vote remains a valid no-op');
+    assert.equal(sameCaseVote.json.message,'Preferenza Grazia già aggiornata',
       'case-only re-submission must not consume a cooldown');
     const afterSameVote=await pool.query(
       'SELECT id,nome,timestamp FROM voti_grazia WHERE userid=$1',[B]);
