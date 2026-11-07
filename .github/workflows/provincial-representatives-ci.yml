@@ -39,6 +39,8 @@ on:
       - 'api/tests/provincialOpinionMatching.contract.test.js'
       - 'api/tests/provincialReadRelease.http.test.js'
       - 'api/qa/provincial_staging_prerequisites_readonly.sql'
+      - 'api/qa/provincial_empty_legacy_schema_upgrade_CANDIDATE.sql'
+      - 'api/tests/provincialEmptyLegacySchema.pg.test.js'
       - 'api/tests/provincialStagingSchemaGate.contract.test.js'
       - 'api/tests/provincialFrontendWiring.smoke.test.js'
       - 'api/tests/provincialCandidateLogPrivacy.http.test.js'
@@ -202,3 +204,44 @@ jobs:
         env:
           VITE_DEMOS_PROVINCIAL_SELECTIONS_GO: 'false'
         run: npm run build --prefix client
+
+  empty-legacy-postgres17:
+    name: Empty legacy key conversion — isolated PostgreSQL 17 only
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-fixture-only
+          POSTGRES_DB: provincial_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d provincial_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Read-only checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API test dependency without scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Rehearse schema guard and independent offices
+        env:
+          PROVINCIAL_SCHEMA_CI: 'true'
+          PGHOST: '127.0.0.1'
+          PGPORT: '5432'
+          PGDATABASE: provincial_ci
+          PGUSER: postgres
+          PGPASSWORD: ci-fixture-only
+        run: node --test api/tests/provincialEmptyLegacySchema.pg.test.js
