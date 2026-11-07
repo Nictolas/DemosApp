@@ -241,7 +241,13 @@ router.get('/', personalNoStore, async (req, res) => {
 router.get('/richieste', personalNoStore, verifyToken, requireAdmin, async (req, res) => {
   // Keep the existing array response for older clients. The new Admin panel
   // requests ?paged=1 and uses opaque cursors to reach all pending proposals.
-  const paged = req.query.paged === '1';
+  // Reject malformed pagination modes rather than silently falling back to
+  // the legacy Admin listing. Omitted/0/1 remain backward-compatible.
+  const pageMode = req.query.paged;
+  if (pageMode !== undefined && pageMode !== '0' && pageMode !== '1') {
+    return res.status(400).json({success:false,error:'Modalità paginazione non valida'});
+  }
+  const paged = pageMode === '1';
   const cursor = paged ? parseGraziaAdminCursor(req.query.cursor) : null;
   if (cursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
   try {
