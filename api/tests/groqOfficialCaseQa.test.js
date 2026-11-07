@@ -239,9 +239,15 @@ test('T024 coordination De Priamo has distinct tally and formal references, not 
   const flags = { coordinationFound: true, referencesFound: true,
     approvedFound: true, falseFinalityFound: false };
   assert.deepEqual(assessOfficialAnswer(correct, 'T024'), {
-    success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: flags
+    success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: flags,
+    actDiagnostics: {
+      coordinationMarkerFound: true, correctItemNumberFound: true, genericBillOnly: false
+    }
   });
   assert.deepEqual(diagnoseCoordinationExplanation(correct.spiegazione), flags);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, atto: 'Coord. n. 1' }, 'T024').failedFields, []);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, atto: 'S.1971 — Coord. 1' }, 'T024').failedFields, []);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, atto: 'S.1971' }, 'T024').failedFields, ['atto']);
   assert.deepEqual(assessOfficialAnswer({ ...correct, favorevoli: 113 }, 'T024').failedFields, ['favorevoli']);
   assert.deepEqual(assessOfficialAnswer({ ...correct, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T024').failedFields, ['esito']);
   assert.deepEqual(assessOfficialAnswer({ ...correct, numero_legge: 180 }, 'T024').failedFields, ['numero_legge']);
