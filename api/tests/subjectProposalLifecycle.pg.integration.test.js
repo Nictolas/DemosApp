@@ -140,7 +140,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       for(const [url,who] of malformedCategories){
         const bad=await req(url,who);
         assert.equal(bad.status,400,'malformed category must not become valid: '+url);
-        assert.match(bad.cacheControl||'',/private,\\s*no-store/,
+        assert.match(bad.cacheControl||'',/private,\s*no-store/,
           'all malformed category responses must be uncacheable');
         assert.equal(bad.body?.success,false);
       }
