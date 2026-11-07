@@ -157,6 +157,22 @@ jobs:
                   for flag in sorted(safe_t023):
                       count = flags.get(flag)
                       print('T023', flag, 'count:', count if type(count) is int and 0 <= count <= 3 else 'UNKNOWN')
+          if case_id == 'T024':
+              allowed_flags = {'coordinationFound','referencesFound','approvedFound','falseFinalityFound',
+                               'coordinationMarkerFound','correctItemNumberFound','genericBillOnly'}
+              cats = result.get('t024SampleCategories', [])
+              scores = result.get('t024SampleScores', [])
+              flags = result.get('t024FlagTallies', {})
+              if isinstance(cats, list):
+                  print('T024 sample status categories:', ','.join(
+                      x if x in safe_statuses else 'UNKNOWN' for x in cats[:3]))
+              if isinstance(scores, list):
+                  print('T024 per-sample verified fields:', ','.join(
+                      str(x) for x in scores[:3] if type(x) is int and 0 <= x <= 10))
+              if isinstance(flags, dict):
+                  for flag in sorted(allowed_flags):
+                      count = flags.get(flag)
+                      print('T024', flag, 'count:', count if type(count) is int and 0 <= count <= 3 else 'UNKNOWN')
           if (code != 200 or category != 'OK' or verified != 10 or
               case_id not in official_cases or result.get('success') is not True or
               requested != 3 or completed != 3 or passed != 3):
