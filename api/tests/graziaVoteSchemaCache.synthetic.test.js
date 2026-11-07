@@ -8,7 +8,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../routes/grazia.js'),'utf8');
 
-function harness({idType='uuid',userColumn='userid',dateColumn='timestamp',userExists=true}={}){
+function harness({idType='uuid',userColumn='userid',dateColumn='timestamp',userExists=true,accountActive=true}={}){
   const state={columns:{idType,userColumn,dateColumn},metadata:0,read:0,writes:[],connects:0,
     privateInputs:[],cooldown:0,locks:0,accountChecks:0,queries:[]};
   const handlers=new Map();
@@ -22,11 +22,11 @@ function harness({idType='uuid',userColumn='userid',dateColumn='timestamp',userE
   async function query(statement,params=[],source='pool'){
     const sql=String(statement);
     state.queries.push({sql,params,source});
-    if(sql.includes('FROM users WHERE id::text=$1 FOR KEY SHARE')){
+    if(sql.includes("FROM users WHERE id::text=$1 AND status='a' FOR SHARE")){
       state.accountChecks++;
       assert.equal(source,'transaction');
       assert.equal(params[0],user);
-      return {rows:userExists?[{id:user}]:[]};
+      return {rows:userExists&&accountActive?[{id:user}]:[]};
     }
     if(sql.includes('pg_advisory_xact_lock')){
       state.locks++;
@@ -192,10 +192,10 @@ test('Grazia vote checks personal state and cooldown inside the same serialized 
   assert.equal(res.statusCode,200);
   const idx=needle=>state.queries.findIndex(q=>q.sql.includes(needle));
   const begin=idx('BEGIN');
-  const accountCheck=idx('FROM users WHERE id::text=$1 FOR KEY SHARE');
+  const accountCheck=idx("FROM users WHERE id::text=$1 AND status='a' FOR SHARE");
   const lock=idx('pg_advisory_xact_lock');
   const privateRead=idx('FROM voti_grazia');
-  const approved=idx('FOR SHARE');
+  const approved=idx('SELECT id FROM grazia_carcerati WHERE attivo = true');
   const deletion=idx('DELETE FROM voti_grazia');
   const commit=idx('COMMIT');
   assert.ok(begin>=0 && accountCheck>begin && lock>accountCheck && privateRead>lock && approved>privateRead &&
@@ -203,7 +203,7 @@ test('Grazia vote checks personal state and cooldown inside the same serialized 
   assert.equal(state.accountChecks,1);
   assert.equal(state.locks,1);
   assert.equal(state.queries.find(q=>q.sql.includes('FROM voti_grazia')).source,'transaction');
-  assert.equal(state.queries.find(q=>q.sql.includes('FOR SHARE')).source,'transaction');
+  assert.equal(state.queries.find(q=>q.sql.includes('SELECT id FROM grazia_carcerati WHERE attivo = true')).source,'transaction');
   assert.equal(state.cooldown,1);
   assert.equal(state.writes.filter(x=>x.kind==='insert').length,1);
 });
@@ -220,6 +220,24 @@ test('deleted account cannot write a Grazia vote or cooldown from a stale authen
   assert.equal(state.cooldown,0);
   assert.equal(state.writes.length,0);
   assert.ok(state.queries.some(x=>x.sql==='ROLLBACK'));
+});
+
+test('suspended account with a still-valid JWT cannot create Grazia votes or cooldown',async()=>{
+  const {vote,state}=harness({userExists:true,accountActive:false});
+  const res=await vote();
+  assert.equal(res.statusCode,401);
+  assert.equal(res.body?.error,'Utente non trovato',
+    'avoid revealing account status in this private vote response');
+  assert.match(res.headers['Cache-Control'],/no-store/);
+  assert.equal(state.accountChecks,1);
+  assert.equal(state.locks,0,'no vote advisory lock after suspension');
+  assert.equal(state.read,0,'never read an inactive account\'s prior choices');
+  assert.equal(state.cooldown,0);
+  assert.equal(state.writes.length,0);
+  assert.ok(state.queries.some(q=>q.sql==='ROLLBACK'));
+  const lock=state.queries.find(q=>q.sql.includes('FROM users WHERE id::text=$1'));
+  assert.match(lock.sql,/status='a' FOR SHARE/,
+    'row-level SHARE must serialize writes with a concurrent status UPDATE');
 });
 
 // DSAR privacy regression: an authenticated user's proposal-status endpoint
