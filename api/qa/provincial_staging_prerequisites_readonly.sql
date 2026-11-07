@@ -93,6 +93,21 @@ inventory AS (
                WHERE k.key_position <= i.indnkeyatts
              ) = ARRAY['political_office_id', 'selection_kind', 'user_id']::name[]
          ) ELSE NULL END AS canonical_selection_unique_key_ready,
+         -- Legacy PRIMARY KEY blocks selecting the same person for two offices.
+         -- Adding the canonical conflict key alone would leave that blocker.
+         CASE WHEN r.relation_name = 'political_selections' THEN EXISTS (
+           SELECT 1 FROM pg_catalog.pg_index i
+           WHERE i.indrelid = c.oid AND i.indisunique AND i.indisvalid
+             AND i.indisready AND i.indpred IS NULL AND i.indexprs IS NULL
+             AND i.indnkeyatts = 3
+             AND (
+               SELECT array_agg(a.attname ORDER BY a.attname)
+               FROM unnest(i.indkey) WITH ORDINALITY AS k(attnum, key_position)
+               JOIN pg_catalog.pg_attribute a
+                 ON a.attrelid = i.indrelid AND a.attnum = k.attnum
+               WHERE k.key_position <= i.indnkeyatts
+             ) = ARRAY['selected_user_id', 'selection_kind', 'user_id']::name[]
+         ) ELSE NULL END AS legacy_selection_unique_key_conflict,
          COALESCE(c.relrowsecurity, false) AS rls_enabled,
          CASE WHEN c.oid IS NULL THEN false
            ELSE has_table_privilege('demos_staging_runtime', c.oid, 'SELECT')
@@ -142,6 +157,7 @@ SELECT relation_name, mandatory_for_e2e, purpose,
        relation_oid IS NOT NULL AS exists_in_public,
        missing_columns,
        canonical_selection_unique_key_ready,
+       legacy_selection_unique_key_conflict,
        runtime_can_select, rls_enabled, runtime_read_policy_declared,
        runtime_can_insert, runtime_can_update, runtime_can_delete,
        selection_insert_policy_declared, selection_update_policy_declared,
@@ -152,6 +168,9 @@ SELECT relation_name, mandatory_for_e2e, purpose,
                      THEN 'BLOCKED_MISSING_RELATION'
                      ELSE 'OPTIONAL_SCHEMA_ABSENT' END
          WHEN cardinality(missing_columns) > 0 THEN 'BLOCKED_MISSING_COLUMNS'
+         WHEN relation_name = 'political_selections'
+          AND legacy_selection_unique_key_conflict
+          THEN 'BLOCKED_LEGACY_SELECTION_UNIQUE_KEY_CONFLICT'
          WHEN relation_name = 'political_selections'
           AND NOT canonical_selection_unique_key_ready
           THEN 'BLOCKED_CANONICAL_CONFLICT_KEY_MISSING'
