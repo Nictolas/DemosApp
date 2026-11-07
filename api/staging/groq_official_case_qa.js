@@ -352,8 +352,14 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
   }
   if (caseId === 'T024') {
     const flags = diagnoseCoordinationExplanation(answer.spiegazione);
+    const actText = String(answer.atto || '').trim();
+    const actDiagnostics = {
+      coordinationMarkerFound: /coord|coordinament/i.test(actText),
+      correctItemNumberFound: /(?:^|\D)1(?:\D|$)/.test(actText),
+      genericBillOnly: /^(?:S\.?\s*)?(?:1971|61)$/.test(actText)
+    };
     const checks = [
-      /^(?:COORD(?:INAMENTO)?\.?\s*)?1$/i.test(String(answer.atto || '').trim()),
+      /^(?:(?:S\.?\s*(?:1971|61))\s*[-—–:]\s*)?(?:PROPOSTA\s+DI\s+)?COORD(?:INAMENTO)?\.?\s*(?:N\.?\s*)?1(?:\s*\(?DE\s+PRIAMO\)?)?$/i.test(actText),
       String(answer.data_voto || '') === '15/09/2026',
       Number(answer.favorevoli) === 106,
       Number(answer.contrari) === 71,
@@ -367,7 +373,7 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito',
       'numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
     return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length,
-      failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: flags };
+      failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: flags, actDiagnostics };
   }
   if (caseId === 'T023') {
     const flags = diagnoseArticleNineExplanation(answer.spiegazione);
@@ -476,7 +482,7 @@ async function runOfficialCaseQA({
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
           'Per esito, usa esclusivamente una delle quattro stringhe ammesse in base alla fonte, senza presumere la definitività. ' +
-          'Spiegazione: massimo tre frasi, concise; indica l\'ambito materiale specifico dell\'atto con un termine distintivo presente nella fonte e l\'esito del voto del ramo indicato. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta prevede condizioni e due alternative temporali, indica quando si applica la prima e quando la seconda, riportando eventuali soglie e senza sostituire la proposta con altri emendamenti. Se la votazione è sulla fiducia, distingui la fiducia dall\'approvazione dell\'atto e indica la materia specifica. Non limitarti a riportare il numero del provvedimento; ' +
+          'Spiegazione: massimo tre frasi, concise; indica l\'ambito materiale specifico dell\'atto con un termine distintivo presente nella fonte e l\'esito del voto del ramo indicato. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta prevede condizioni e due alternative temporali, indica quando si applica la prima e quando la seconda, riportando eventuali soglie e senza sostituire la proposta con altri emendamenti. Se la votazione è sulla fiducia, distingui la fiducia dall\'approvazione dell\'atto e indica la materia specifica. Se è una proposta di coordinamento formale, descrivi quali riferimenti del testo corregge, senza confonderla con il successivo voto finale sul disegno di legge. Non limitarti a riportare il numero del provvedimento; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
       ],
       response_format: { type: 'json_object' },
