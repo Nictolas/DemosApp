@@ -11,6 +11,9 @@ const {
 } = require('./politicalJurisdictionRegistryService');
 
 const SCHEMA_COMPAT_ERROR_CODES = new Set(['42P01', '42703']);
+// PostgreSQL 42P10: canonical ON CONFLICT target is absent during a phased schema upgrade.
+// Treat it as unavailable only on canonical writes; keep unrelated SQL errors strict.
+const CANONICAL_WRITE_SCHEMA_ERROR_CODES = new Set([...SCHEMA_COMPAT_ERROR_CODES, '42P10']);
 const SELECTION_KINDS = new Set(['candidate', 'representative']);
 
 // Explicit release GO is required before a provincial choice can be written.
@@ -104,7 +107,7 @@ async function writeCanonicalSelection(db, {
     );
     return { available: true, written: true, removed: false };
   } catch (error) {
-    if (!isPoliticalSelectionSchemaError(error)) throw error;
+    if (!CANONICAL_WRITE_SCHEMA_ERROR_CODES.has(error?.code)) throw error;
     return { available: false, written: false, removed: false };
   }
 }
