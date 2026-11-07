@@ -272,8 +272,8 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     // vote input is canonicalized, but its persisted spelling must match the
     // approved catalogue row; existing votes with canonical spelling must
     // still contribute to the public aggregate. All data is disposable PG17.
-    const legacyDisplayName='Persona  legacy   sintetica';
-    const legacyCanonicalName='Persona legacy sintetica';
+    const legacyDisplayName='Pe\u0301rsona  legacy   sintetica';
+    const legacyCanonicalName='Pérsona legacy sintetica';
     await pool.query('INSERT INTO grazia_carcerati(nome,attivo) VALUES($1,true)',[legacyDisplayName]);
     await pool.query('INSERT INTO voti_grazia(userid,nome) VALUES($1,$2)',[A,legacyCanonicalName]);
     const beforeLegacyVote=await req('/api/grazia');
