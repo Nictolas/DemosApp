@@ -4,11 +4,20 @@ const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const PrivacyErasureLedgerService = require('../services/privacyErasureLedgerService');
 const { isConfirmedFinalParliamentVote } = require('../services/parliamentFinalVotePolicy');
+const { hasDocumentaryContext } = require('../services/parliamentGroundedAnalysis');
 
 const router = express.Router();
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
+
+// A cached AI explanation is not evidence: never expose text when its
+// persisted parliamentary document is missing or too short.
+// No additional SQL reads; the routes already select their document.
+function documentedExplanation(explanation, document) {
+  return typeof explanation === 'string' && explanation.trim() &&
+    hasDocumentaryContext(document) ? explanation : null;
+}
 
 // Funzione per assicurarsi che la tabella esista
 async function ensureTableExists() {
@@ -131,7 +140,7 @@ router.get('/', verifyToken, async (req, res) => {
       voto: row.voto,
       data_votazione: row.data_votazione,
       ultimo_aggiornamento: row.ultimo_aggiornamento,
-      spiegazione: row.spiegazione,
+      spiegazione: documentedExplanation(row.spiegazione, row.descrizione_votazione),
       votazione_id: row.votazione_id
     }));
 
@@ -189,7 +198,7 @@ router.get('/votazioni', verifyToken, async (req, res) => {
       descrizione_votazione: row.descrizione_votazione,
       camera: row.camera,
       data_votazione: row.data_votazione,
-      spiegazione: row.spiegazione,
+      spiegazione: documentedExplanation(row.spiegazione, row.descrizione_votazione),
       url_votazione: row.url_votazione,
       numero_seduta: row.numero_seduta,
       tipo_atto: row.tipo_atto,
@@ -272,7 +281,7 @@ router.get('/votazione/:votazione_id', verifyToken, async (req, res) => {
         votazione_id: votazione.votazione_id,
         titolo: votazione.titolo,
         descrizione: votazione.descrizione,
-        spiegazione: votazione.spiegazione,
+        spiegazione: documentedExplanation(votazione.spiegazione, votazione.descrizione),
         camera: votazione.camera,
         data_votazione: votazione.data_votazione,
         politici: politiciResult.rows.map(row => ({
@@ -609,8 +618,17 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
 
     const { titolo_votazione, descrizione_votazione, camera, spiegazione: spiegazioneEsistente } = row;
 
-    // Se esiste già una spiegazione, restituiscila
-    if (spiegazioneEsistente && spiegazioneEsistente.trim() !== '') {
+    // Il cache-hit non supera il controllo di fonte: il documento persistito
+    // deve esistere anche per le spiegazioni già salvate in passato.
+    if (!hasDocumentaryContext(descrizione_votazione)) {
+      return res.status(503).json({
+        success: false,
+        error: 'Spiegazione AI non disponibile',
+        message: 'Spiegazione non disponibile: testo documentale insufficiente. I dati ufficiali restano consultabili.'
+      });
+    }
+
+    if (documentedExplanation(spiegazioneEsistente, descrizione_votazione)) {
       console.log(`[DEBUG] Step 4: Spiegazione già esistente, restituisco quella esistente`);
       return res.json({
         success: true,
@@ -769,8 +787,17 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
     }
     const { votazione_id, titolo_votazione, descrizione_votazione, camera, spiegazione: spiegazioneEsistente } = row;
 
-    // Se esiste già una spiegazione, restituiscila
-    if (spiegazioneEsistente && spiegazioneEsistente.trim() !== '') {
+    // Il cache-hit non supera il controllo di fonte: il documento persistito
+    // deve esistere anche per le spiegazioni già salvate in passato.
+    if (!hasDocumentaryContext(descrizione_votazione)) {
+      return res.status(503).json({
+        success: false,
+        error: 'Spiegazione AI non disponibile',
+        message: 'Spiegazione non disponibile: testo documentale insufficiente. I dati ufficiali restano consultabili.'
+      });
+    }
+
+    if (documentedExplanation(spiegazioneEsistente, descrizione_votazione)) {
       console.log(`[DEBUG] Step 4: Spiegazione già esistente, restituisco quella esistente`);
       return res.json({
         success: true,
