@@ -136,6 +136,25 @@ test('T012 rejected S.2023 ex-ILVA amendment requires accurate subject and vote 
     { hotAreaFound: true, ilvaOrProgrammeFound: false, rejectedFound: false });
 });
 
+test('T011 amendment to S.2023 cannot be confused with identically numbered fuel-bonus amendment to S.2029', () => {
+  const t011 = {
+    atto: 'Em. 1.0.6', data_voto: '07/10/2026', favorevoli: 47, contrari: 74,
+    astenuti: 1, esito: 'RESPINTO', numero_legge: null,
+    data_pubblicazione: null, data_entrata_in_vigore: null,
+    spiegazione: 'Il Senato ha respinto l’emendamento che abrogava norme sulla responsabilità nella gestione di stabilimenti industriali strategici.'
+  };
+  assert.deepEqual(assessOfficialAnswer(t011, 'T011'), {
+    success: true, verifiedFields: 10, failedFields: [],
+    explanationDiagnostics: { liabilitySubjectFound: true, rejectedFound: true, wrongFuelSubjectFound: false }
+  });
+  const wrongSource = assessOfficialAnswer({ ...t011,
+    spiegazione: 'Il Senato ha respinto il bonus carburante da 200 euro per i lavoratori.' }, 'T011');
+  assert.deepEqual(wrongSource.failedFields, ['spiegazione']);
+  assert.equal(wrongSource.explanationDiagnostics.wrongFuelSubjectFound, true);
+  assert.deepEqual(assessOfficialAnswer({ ...t011, contrari: 75 }, 'T011').failedFields, ['contrari']);
+  assert.deepEqual(assessOfficialAnswer({ ...t011, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T011').failedFields, ['esito']);
+});
+
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
   let calls = 0;
   const r = await runOfficialCaseQA({
