@@ -137,6 +137,32 @@ test('Grazia rejects local and private HTTPS sources before writing a request',a
   }
 });
 
+test('Grazia rejects non-rendering name controls before touching PostgreSQL',async()=>{
+  const beforeRequests=requests.length;
+  const beforeQueries=queryCalls;
+  const beforeNotices=notices.length;
+  // These inputs can spoof an otherwise ordinary visible name in moderation.
+  // Legitimate accents and multiline whitespace are tested separately.
+  for(const nome of [
+    'Persona\\u202e nome',
+    'Persona\\u2066 nome',
+    'Persona\\u200b nome',
+    'Persona\\u061c nome',
+    'Persona\\u0000 nome',
+    'Persona\\u007f nome'
+  ].map(s=>s.replace(/\\\\u([0-9a-f]{4})/gi,(_,hex)=>String.fromCharCode(parseInt(hex,16)))) {
+    const response=await request('/api/grazia','a','POST',{
+      nome,urlProva:'https://example.org/fonte-sintetica'
+    });
+    assert.equal(response.status,400,'invisible formatting/control must be rejected');
+    assert.match(response.headers.get('cache-control')||'',/private.*no-store/);
+    assert.equal((await response.json()).success,false);
+  }
+  assert.equal(queryCalls,beforeQueries,'invalid names must not acquire a DB connection');
+  assert.equal(requests.length,beforeRequests,'no private name was persisted');
+  assert.equal(notices.length,beforeNotices,'no Admin notification was created');
+});
+
 test('suspended account with stale cached JWT cannot submit a private Grazia nomination',async()=>{
   const before=requests.length;
   const beforeNotices=notices.length;
