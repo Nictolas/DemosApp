@@ -158,7 +158,7 @@ jobs:
                       count = flags.get(flag)
                       print('T023', flag, 'count:', count if type(count) is int and 0 <= count <= 3 else 'UNKNOWN')
           if case_id == 'T024':
-              allowed_flags = {'coordinationFound','referencesFound','approvedFound','falseFinalityFound',
+              allowed_flags = {'coordinationFound','referencesFound','approvedFound','finalityPhraseFound','negatedFinalityFound','lawStateFound','falseFinalityFound',
                                'coordinationMarkerFound','correctItemNumberFound','genericBillOnly'}
               cats = result.get('t024SampleCategories', [])
               scores = result.get('t024SampleScores', [])
