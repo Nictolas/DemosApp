@@ -171,7 +171,10 @@ test('Grazia vote input rejects hidden and directional control characters before
     'Persona\u2066 isolata',
     'Persona\u200b invisibile',
     'Persona\u007f controllo',
-    'Persona\u061c direzionale'
+    'Persona\u061c direzionale',
+    'Persona\u00ad soft-hyphen',
+    'Persona\u034f grapheme-joiner',
+    'Persona\u180e mongolian-separator'
   ];
   for(const nome of invalid){
     const response=await request('/api/grazia/vota','a','POST',{voti:[nome]});
