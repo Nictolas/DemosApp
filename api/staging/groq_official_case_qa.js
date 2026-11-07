@@ -147,7 +147,7 @@ function diagnoseCoordinationExplanation(value) {
       !/coordinament.{0,30}non\s+(?:è\s+stato\s+)?approvat/i.test(explanation),
     finalityPhraseFound: /approvat[oa]\s+definitivament/i.test(explanation),
     negatedFinalityFound: /(?:non|senza).{0,42}approvat[oa]\s+definitivament/i.test(explanation),
-    lawStateFound: /legge\s+(?:già\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(explanation),
+    lawStateFound: /legge\s+(?:(?:è\s+)?già\s+|è\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(explanation),
     // Ignore explicit local negations; do not treat "non approvato definitivamente"
     // or "legge non promulgata" as affirmative claims about legal finality.
     // A separate affirmative assertion in the same text must still fail closed.
@@ -155,7 +155,7 @@ function diagnoseCoordinationExplanation(value) {
       const withoutNegatedClaims = explanation
         .replace(/\b(?:non|senza)\s+(?:(?:ha|hanno|è|stato|stata|essere|ancora|già)\s+){0,3}approvat[oa]\s+definitivament\w*/gi, '')
         .replace(/\blegge\s+(?:non\s+|mai\s+|non\s+(?:ancora\s+)?)(?:(?:è\s+stata|risulta|è)\s+)?(?:in\s+vigore|promulgat\w*|pubblicat\w*)/gi, '');
-      return /approvat[oa]\s+definitivament|legge\s+(?:già\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(withoutNegatedClaims);
+      return /approvat[oa]\s+definitivament|legge\s+(?:(?:è\s+)?già\s+|è\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(withoutNegatedClaims);
     })()
   };
 }
@@ -165,7 +165,7 @@ function diagnoseArticleNineExplanation(value) {
   return {
     noNewCostsFound: /(?:senza\s+nuov|nessun[oa]?\s+nuov|non\s+(?:comporta|prevede|genera|determina)\s+nuov|invarianz[a-z]*\s+finanziari|nessun[oa]?\s+(?:maggior|ulterior)[a-z]*\s+oner|senza\s+(?:nuov|maggior)[a-z]*\s+oner)/i.test(explanation),
     approvedFound: /approvat|accolt/i.test(explanation),
-    falselyFinalFound: /approvat[oa]\s+definitivament|legge\s+(?:già\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(explanation)
+    falselyFinalFound: /approvat[oa]\s+definitivament|legge\s+(?:(?:è\s+)?già\s+|è\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(explanation)
   };
 }
 
