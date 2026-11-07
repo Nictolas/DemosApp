@@ -68,6 +68,8 @@ async function runOfficialCaseQA({
         { role: 'user', content: 'FONTE UFFICIALE: ' + EVIDENCE +
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
           'atto (formato C.3131), data_voto, favorevoli, contrari, astenuti, esito, ' +
+          'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
+          'Se la fonte afferma che la Camera approva definitivamente, restituisci esattamente APPROVATO DEFINITIVAMENTE. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. ' +
           'Spiegazione: massimo due frasi, descrivi solo oggetto della legge e cosa ha votato la Camera; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
