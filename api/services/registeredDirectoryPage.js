@@ -16,6 +16,10 @@ const ID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const FILTER_KEYS = ['search','regione','tipologia','exclude_user_id'];
 function isValidRegisteredDirectoryFilters(query) {
   if (!query || typeof query !== 'object' || Array.isArray(query)) return false;
+  // A malformed pagination switch must not silently downgrade the request
+  // into the legacy unbounded list. Existing clients use 1; 0 stays legacy.
+  const paged=query.members_paged;
+  if (paged !== undefined && paged !== '0' && paged !== '1') return false;
   for (const key of FILTER_KEYS) {
     const value=query[key];
     if (value === undefined) continue;
