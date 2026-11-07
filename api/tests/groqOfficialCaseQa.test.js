@@ -257,6 +257,20 @@ test('T024 coordination De Priamo has distinct tally and formal references, not 
   assert.equal(negative.finalityPhraseFound, true);
   assert.equal(negative.negatedFinalityFound, true);
   assert.equal(negative.lawStateFound, false);
+  const negativeLaw = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Il Senato ha approvato il coordinamento per correggere i rinvii agli articoli 1, 2 e 8; la legge non è stata promulgata.' }, 'T024');
+  assert.equal(negativeLaw.success, true);
+  assert.equal(negativeLaw.explanationDiagnostics.falseFinalityFound, false);
+  const negatedFinal = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Il Senato ha approvato il coordinamento dei riferimenti all’articolo 1, ma non ha approvato definitivamente la legge.' }, 'T024');
+  assert.equal(negatedFinal.success, true);
+  assert.equal(negatedFinal.explanationDiagnostics.falseFinalityFound, false);
+  const mixed = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Il Senato ha approvato il coordinamento dei rinvii all’articolo 1; non ha approvato definitivamente il DDL, ma la legge è già in vigore.' }, 'T024');
+  assert.deepEqual(mixed.failedFields, ['spiegazione']);
+  const actualFinal = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Il Senato ha approvato definitivamente il coordinamento dei rinvii all’articolo 1.' }, 'T024');
+  assert.deepEqual(actualFinal.failedFields, ['spiegazione']);
   const affirmative = diagnoseCoordinationExplanation(
     'Il Senato ha approvato definitivamente il testo di legge.');
   assert.equal(affirmative.finalityPhraseFound, true);
