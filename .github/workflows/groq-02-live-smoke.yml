@@ -102,6 +102,9 @@ jobs:
           verified = verified if isinstance(verified, int) and 0 <= verified <= 10 else 0
           print('T008 real QA status:', category)
           print('T008 fields matching official sources:', verified, 'of 10')
+          allowed_fields = {'atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'}
+          failed_fields = result.get('failedFields', [])
+          print('T008 mismatched public field names:', ','.join(x for x in failed_fields if x in allowed_fields) if isinstance(failed_fields, list) else 'UNAVAILABLE')
           allowed_fields = {'atto','data_voto','favorevoli','contrari','astenuti','esito',
                             'numero_legge','data_pubblicazione',
                             'data_entrata_in_vigore','spiegazione'}
