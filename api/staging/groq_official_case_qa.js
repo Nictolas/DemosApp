@@ -93,9 +93,9 @@ async function runOfficialCaseQA({
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
           'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
           'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
-          'Per il voto del Senato S.2023 del 07/10 restituisci APPROVATO NON DEFINITIVAMENTE; per C.3131 Camera del 20/10 restituisci APPROVATO DEFINITIVAMENTE. ' +
+          'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Per S.2023 i tre campi relativi alla legge successiva devono essere null: non attribuire al voto del Senato una promulgazione futura. ' +
-          'Per esito, riporta esplicitamente la definitività indicata dalla fonte: usa esattamente APPROVATO DEFINITIVAMENTE, non solo APPROVATO. ' +
+          'Per esito, usa esclusivamente una delle quattro stringhe ammesse in base alla fonte, senza presumere la definitività. ' +
           'Spiegazione: massimo due frasi, descrivi solo oggetto e voto del ramo indicato; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
       ],
