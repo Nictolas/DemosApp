@@ -99,6 +99,23 @@ test('T010 Pirondini rejected amendment is second legislature, not T009 18 month
   assert.equal(assessOfficialAnswer({ ...correct, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T010').success, false);
 });
 
+test('T006 definitive Senate archive bill is not yet a published law', () => {
+  const correct = {
+    atto: 'S.1804', data_voto: '28/10/2026', favorevoli: 75, contrari: 52,
+    astenuti: 0, esito: 'APPROVATO DEFINITIVAMENTE',
+    numero_legge: null, data_pubblicazione: null, data_entrata_in_vigore: null,
+    spiegazione: 'Il Senato ha definitivamente approvato la proposta di ridenominazione dell’Archivio centrale dello Stato in Archivio nazionale, non ancora pubblicata.'
+  };
+  assert.deepEqual(assessOfficialAnswer(correct, 'T006'),
+    { success: true, verifiedFields: 10, failedFields: [] });
+  assert.deepEqual(assessOfficialAnswer({ ...correct, numero_legge: 2026 }, 'T006'),
+    { success: false, verifiedFields: 9, failedFields: ['numero_legge'] });
+  assert.deepEqual(assessOfficialAnswer({ ...correct, esito: 'APPROVATO NON DEFINITIVAMENTE' }, 'T006'),
+    { success: false, verifiedFields: 9, failedFields: ['esito'] });
+  assert.deepEqual(assessOfficialAnswer({ ...correct, spiegazione: 'Approvato un provvedimento.' }, 'T006'),
+    { success: false, verifiedFields: 9, failedFields: ['spiegazione'] });
+});
+
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
   let calls = 0;
   const r = await runOfficialCaseQA({
