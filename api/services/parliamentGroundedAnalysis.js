@@ -84,8 +84,16 @@ function parseGroundedAnalysisResponse(response) {
   // A no-evidence sentinel in any field is not a documented explanation or
   // legislative effect. Fail closed rather than displaying it as real content.
   const noEvidence = /^INFORMAZIONI[\s_-]*INSUFFICIENTI[.!?]*$/iu;
-  if ([spiegazione_generale, effetti_positivi, effetti_negativi]
-    .some(value => noEvidence.test(value.trim()))) return null;
+  // Refuse an isolated no-evidence placeholder even when disguised as an
+  // item inside an otherwise valid effects list. Do not discard meaningful
+  // explanatory prose merely for mentioning insufficient information.
+  const hasPlaceholderItem = value => value.split(/[;\r\n]/u).some(part => {
+    const item = part.trim().replace(/^(?:[-*•]|\d+[.)])\s+/u, '').trim();
+    return noEvidence.test(item);
+  });
+  if (noEvidence.test(spiegazione_generale.trim()) ||
+      hasPlaceholderItem(effetti_positivi) ||
+      hasPlaceholderItem(effetti_negativi)) return null;
   return {
     spiegazione_generale: spiegazione_generale.trim(),
     effetti_positivi: effetti_positivi.trim(),
