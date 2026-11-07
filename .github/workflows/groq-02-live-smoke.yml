@@ -65,7 +65,7 @@ jobs:
               sys.exit(1)
           print("Groq Free live authenticated check passed.")
           PY
-      - name: Check one real documented parliamentary analysis T003
+      - name: Check one real documented parliamentary analysis T009
         env:
           CASE_URL: https://demos-groq-free-linked-qa-hd3y.onrender.com/health/case
         run: |
@@ -85,13 +85,13 @@ jobs:
               code = exc.code
               payload = exc.read(1024)
           except Exception:
-              print('T003 documented QA: NETWORK_UNAVAILABLE')
+              print('T009 documented QA: NETWORK_UNAVAILABLE')
               sys.exit(1)
 
           try:
               result = json.loads(payload)
           except Exception:
-              print('T003 documented QA: INVALID_RESPONSE')
+              print('T009 documented QA: INVALID_RESPONSE')
               sys.exit(1)
           safe_statuses = {'OK','PENDING','NOT_RUN','NOT_CONFIGURED','MODEL_NOT_ALLOWED',
                            'FREE_QUOTA_UNAVAILABLE','EMPTY_OR_TRUNCATED','INVALID_JSON',
@@ -101,24 +101,24 @@ jobs:
           category = status if status in safe_statuses else 'UNKNOWN'
           verified = result.get('verifiedFields')
           verified = verified if isinstance(verified, int) and 0 <= verified <= 10 else 0
-          print('T003 real QA status:', category)
-          print('T003 fields matching official sources:', verified, 'of 10')
+          print('T009 real QA status:', category)
+          print('T009 fields matching official sources:', verified, 'of 10')
           allowed_fields = {'atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'}
           failed_fields = result.get('failedFields', [])
-          print('T003 mismatched public field names:', ','.join(x for x in failed_fields if x in allowed_fields) if isinstance(failed_fields, list) else 'UNAVAILABLE')
+          print('T009 mismatched public field names:', ','.join(x for x in failed_fields if x in allowed_fields) if isinstance(failed_fields, list) else 'UNAVAILABLE')
           allowed_fields = {'atto','data_voto','favorevoli','contrari','astenuti','esito',
                             'numero_legge','data_pubblicazione',
                             'data_entrata_in_vigore','spiegazione'}
           missing = result.get('failedFields', [])
           safe_missing = [item for item in missing if isinstance(item, str) and item in allowed_fields] if isinstance(missing, list) else []
-          print('T003 missing field names (allowlist):', ', '.join(safe_missing) if safe_missing else 'none')
+          print('T009 missing field names (allowlist):', ', '.join(safe_missing) if safe_missing else 'none')
           if isinstance(result.get('explanationDiagnostics'), dict):
               diagnostics = result['explanationDiagnostics']
-              print('T003 explanation topic found:', diagnostics.get('topicFound') is True)
-              print('T003 explanation finality phrase found:', diagnostics.get('definitivePhraseFound') is True)
-          print('T003 HTTP:', code)
+              print('T009 explanation topic found:', diagnostics.get('topicFound') is True)
+              print('T009 explanation finality phrase found:', diagnostics.get('definitivePhraseFound') is True)
+          print('T009 HTTP:', code)
           if (code != 200 or category != 'OK' or verified != 10 or
-              result.get('caseId') != 'T003' or result.get('success') is not True):
+              result.get('caseId') != 'T009' or result.get('success') is not True):
               sys.exit(1)
-          print('T003 source-grounded Groq Free generation PASS')
+          print('T009 source-grounded Groq Free generation PASS')
           PY
