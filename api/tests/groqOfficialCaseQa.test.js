@@ -16,10 +16,10 @@ const CORRECT = {
   spiegazione: 'Conversione del decreto-legge n. 154 sulla continuità operativa di impianti strategici. La Camera ha approvato definitivamente il provvedimento.'
 };
 test('QA rejects incorrect vote counts and mistaken enactment dates', () => {
-  assert.deepEqual(assessOfficialAnswer(CORRECT), { success: true, verifiedFields: 10 });
-  assert.deepEqual(assessOfficialAnswer({ ...CORRECT, favorevoli: 43 }), { success: false, verifiedFields: 9 });
-  assert.deepEqual(assessOfficialAnswer({ ...CORRECT, data_pubblicazione: '20/10/2026' }), { success: false, verifiedFields: 9 });
-  assert.deepEqual(assessOfficialAnswer({ ...CORRECT, esito: 'approvato in prima lettura' }), { success: false, verifiedFields: 9 });
+  assert.deepEqual(assessOfficialAnswer(CORRECT), { success: true, verifiedFields: 10, failedFields: [] });
+  assert.deepEqual(assessOfficialAnswer({ ...CORRECT, favorevoli: 43 }), { success: false, verifiedFields: 9, failedFields: ['favorevoli'] });
+  assert.deepEqual(assessOfficialAnswer({ ...CORRECT, data_pubblicazione: '20/10/2026' }), { success: false, verifiedFields: 9, failedFields: ['data_pubblicazione'] });
+  assert.deepEqual(assessOfficialAnswer({ ...CORRECT, esito: 'approvato in prima lettura' }), { success: false, verifiedFields: 9, failedFields: ['esito'] });
 });
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
   let calls = 0;
@@ -43,7 +43,7 @@ test('real case QA is one bounded provider request with no user data or paid mod
   assert.equal(calls, 1);
   assert.deepEqual(r, {
     caseId: 'T008', status: 'OK', success: true,
-    verifiedFields: 10, latencyMs: 0
+    verifiedFields: 10, failedFields: [], latencyMs: 0
   });
   assert.doesNotMatch(JSON.stringify(r), /mock-key|spiegazione|1234/);
 });
