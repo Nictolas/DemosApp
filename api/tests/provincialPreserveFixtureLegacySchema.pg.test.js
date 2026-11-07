@@ -48,6 +48,13 @@ test('preserve fixture-only legacy choices without inventing an office', async (
     await db.query('ROLLBACK');
     await db.query('DELETE FROM public.political_selections WHERE user_id=$1', [outsider]);
 
+    // A known fixture owner selecting an unknown account is not sufficient.
+    await db.query('UPDATE public.political_selections SET selected_user_id=$1 WHERE user_id=$2', [outsider,alice]);
+    await assert.rejects(db.query(migration), (err) =>
+      err.code === 'P0001' && /PROVINCIAL_NONFIXTURE_LEGACY_ROWS/.test(err.message));
+    await db.query('ROLLBACK');
+    await db.query('UPDATE public.political_selections SET selected_user_id=$1 WHERE user_id=$2', [bob,alice]);
+
     // Even if all user IDs are known, unexpected legacy kinds require review.
     await db.query("UPDATE public.political_selections SET selection_kind='unknown' WHERE user_id=$1", [alice]);
     await assert.rejects(db.query(migration), (err) =>
