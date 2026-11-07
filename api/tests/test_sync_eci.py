@@ -173,6 +173,250 @@ class SyncEciUnitTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "^CIVIC_DATABASE_IDENTITY_UNAVAILABLE$"):
             sync_eci._verify_civic_database_identity(cursor, expected)
 
+    def test_cache_replacement_rejects_missing_identity_without_any_write(self):
+        # No real database is used. A mocked connection proves that even when
+        # civic notifications are OFF, the ECI cache cannot be deleted.
+        from types import ModuleType
+        from unittest.mock import MagicMock
+        import os
+        import sys
+
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cur
+
+        fake_pg = ModuleType("psycopg2")
+        fake_pg.connect = Mock(return_value=conn)
+        fake_extras = ModuleType("psycopg2.extras")
+        fake_extras.execute_values = Mock()
+        records = [
+            ("2026-000011", "Test", 0, "eci-2026-000011", "ONGOING",
+             None, None, "https://example.test")
+        ]
+        for flag in ("false", "true"):
+            cur.reset_mock()
+            with patch.dict(sys.modules, {
+                "psycopg2": fake_pg,
+                "psycopg2.extras": fake_extras,
+            }), patch.dict(os.environ, {
+                "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": flag,
+                "CIVIC_RUNTIME_DATABASE_ID": "",
+            }):
+                with self.assertRaisesRegex(RuntimeError, "CIVIC_DATABASE_IDENTITY_NOT_CONFIGURED"):
+                    sync_eci._replace_cache("postgresql://fixture/eci", records)
+            cur.execute.assert_not_called()
+        self.assertEqual(fake_extras.execute_values.call_count, 0)
+        self.assertEqual(conn.close.call_count, 2)
+
+    def test_cache_replacement_rejects_wrong_identity_before_delete(self):
+        from types import ModuleType
+        from unittest.mock import MagicMock
+        import os
+        import sys
+
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cur
+        cur.fetchall.return_value = [("00000000-0000-4000-8000-000000000540",)]
+        fake_pg = ModuleType("psycopg2")
+        fake_pg.connect = Mock(return_value=conn)
+        fake_extras = ModuleType("psycopg2.extras")
+        fake_extras.execute_values = Mock()
+        with patch.dict(sys.modules, {
+            "psycopg2": fake_pg,
+            "psycopg2.extras": fake_extras,
+        }), patch.dict(os.environ, {
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "false",
+            "CIVIC_RUNTIME_DATABASE_ID": "00000000-0000-4000-8000-000000000539",
+        }):
+            with self.assertRaisesRegex(RuntimeError, "CIVIC_DATABASE_IDENTITY_MISMATCH"):
+                sync_eci._replace_cache("postgresql://fixture/eci", [
+                    ("2026-000011", "Test", 0, "eci-2026-000011", "ONGOING",
+                     None, None, "https://example.test")
+                ])
+        self.assertEqual(cur.execute.call_count, 1)
+        self.assertIn("civic_runtime_identity", cur.execute.call_args.args[0])
+        fake_extras.execute_values.assert_not_called()
+        conn.close.assert_called_once()
+
+    def test_blocked_first_eci_import_suppresses_historical_events(self):
+        """First recovery of a previously empty ECI cache must not push old IDs."""
+        import os
+        import sys
+        from types import ModuleType
+        from unittest.mock import MagicMock
+
+        expected = "00000000-0000-4000-8000-000000000539"
+        records = [(
+            "2026-000011", "Synthetic existing initiative", 12,
+            "eci-2026-000011", "ONGOING", "2027-08-25", None,
+            "https://eci.ec.europa.eu/066/public/",
+        )]
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cur
+        # Verify identity, then see an empty cache on initial recovery.
+        cur.fetchall.side_effect = [[(expected,)], []]
+        # Cache has 1 record; the global delivery guard is blocked.
+        cur.fetchone.side_effect = [(1,), (True, "ROLLOUT_NOT_APPROVED")]
+        fake_pg = ModuleType("psycopg2")
+        fake_pg.connect = Mock(return_value=conn)
+        fake_extras = ModuleType("psycopg2.extras")
+        fake_extras.execute_values = Mock()
+        with patch.dict(sys.modules, {
+            "psycopg2": fake_pg,
+            "psycopg2.extras": fake_extras,
+        }), patch.dict(os.environ, {
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "true",
+            "CIVIC_RUNTIME_DATABASE_ID": expected,
+        }):
+            sync_eci._replace_cache("postgresql://fixture/eci", records)
+
+        statements = [call.args[0] for call in cur.execute.call_args_list]
+        lock_index = next(i for i, sql in enumerate(statements) if "pg_advisory_xact_lock" in sql)
+        read_index = next(i for i, sql in enumerate(statements) if "SELECT id FROM eci" in sql)
+        delete_index = next(i for i, sql in enumerate(statements) if "DELETE FROM eci" in sql)
+        self.assertLess(lock_index, read_index)
+        self.assertLess(read_index, delete_index)
+        self.assertEqual(fake_extras.execute_values.call_count, 2)
+        cache_call, event_call = fake_extras.execute_values.call_args_list
+        self.assertIn("INSERT INTO eci", cache_call.args[1])
+        self.assertIn("INSERT INTO civic_new_initiative_notifications", event_call.args[1])
+        self.assertIn("ON CONFLICT (category, official_id) DO NOTHING", event_call.args[1])
+        self.assertEqual(
+            event_call.args[2], [
+                ("eci", "2026-000011", "Synthetic existing initiative",
+                 "/eci", "suppressed")
+            ]
+        )
+        conn.close.assert_called_once()
+
+    def test_existing_eci_never_requeued_after_guard_unblocked(self):
+        """Refreshing an unchanged official ID is not a second notification."""
+        import os
+        import sys
+        from types import ModuleType
+        from unittest.mock import MagicMock
+
+        expected = "00000000-0000-4000-8000-000000000539"
+        records = [(
+            "2026-000011", "Updated title", 100,
+            "eci-2026-000011", "ONGOING", "2027-08-25", None,
+            "https://eci.ec.europa.eu/066/public/",
+        )]
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cur
+        cur.fetchall.side_effect = [[(expected,)], [("2026-000011",)]]
+        cur.fetchone.side_effect = [(1,), (False, "ROLLOUT_APPROVED")]
+        fake_pg = ModuleType("psycopg2")
+        fake_pg.connect = Mock(return_value=conn)
+        fake_extras = ModuleType("psycopg2.extras")
+        fake_extras.execute_values = Mock()
+        with patch.dict(sys.modules, {
+            "psycopg2": fake_pg,
+            "psycopg2.extras": fake_extras,
+        }), patch.dict(os.environ, {
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "true",
+            "CIVIC_RUNTIME_DATABASE_ID": expected,
+        }):
+            sync_eci._replace_cache("postgresql://fixture/eci", records)
+
+        # The cache is refreshed, but there is no second outbox INSERT.
+        fake_extras.execute_values.assert_called_once()
+        self.assertIn("INSERT INTO eci", fake_extras.execute_values.call_args.args[1])
+        self.assertNotIn("civic_new_initiative_notifications",
+            fake_extras.execute_values.call_args.args[1])
+        conn.close.assert_called_once()
+
+    def test_transaction_lock_precedes_delete_with_events_disabled(self):
+        """Even cache-only syncs must serialize before destructive writes."""
+        import os
+        import sys
+        from types import ModuleType
+        from unittest.mock import MagicMock
+
+        expected = "00000000-0000-4000-8000-000000000539"
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cur
+        cur.fetchall.return_value = [(expected,)]
+        cur.fetchone.return_value = (1,)
+        fake_pg = ModuleType("psycopg2")
+        fake_pg.connect = Mock(return_value=conn)
+        fake_extras = ModuleType("psycopg2.extras")
+        fake_extras.execute_values = Mock()
+        records = [(
+            "2026-000011", "Existing title", 1,
+            "eci-2026-000011", "ONGOING", None, None,
+            "https://eci.ec.europa.eu/public/",
+        )]
+        with patch.dict(sys.modules, {
+            "psycopg2": fake_pg,
+            "psycopg2.extras": fake_extras,
+        }), patch.dict(os.environ, {
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "false",
+            "CIVIC_RUNTIME_DATABASE_ID": expected,
+        }):
+            sync_eci._replace_cache("postgresql://fixture/eci", records)
+
+        statements = [call.args[0] for call in cur.execute.call_args_list]
+        self.assertIn("civic_runtime_identity", statements[0])
+        self.assertIn("pg_advisory_xact_lock", statements[1])
+        self.assertIn("DELETE FROM eci", statements[2])
+        self.assertFalse(any("SELECT id FROM eci" in sql for sql in statements))
+        fake_extras.execute_values.assert_called_once()
+        self.assertIn("INSERT INTO eci", fake_extras.execute_values.call_args.args[1])
+        conn.close.assert_called_once()
+
+    def test_transaction_lock_failure_aborts_without_cache_mutation(self):
+        """On lock failure neither the cache nor outbox may be touched."""
+        import os
+        import sys
+        from types import ModuleType
+        from unittest.mock import MagicMock
+
+        expected = "00000000-0000-4000-8000-000000000539"
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cur
+        cur.fetchall.return_value = [(expected,)]
+
+        def reject_lock(sql, *args):
+            if "pg_advisory_xact_lock" in sql:
+                raise RuntimeError("simulated lock failure")
+
+        cur.execute.side_effect = reject_lock
+        fake_pg = ModuleType("psycopg2")
+        fake_pg.connect = Mock(return_value=conn)
+        fake_extras = ModuleType("psycopg2.extras")
+        fake_extras.execute_values = Mock()
+        records = [(
+            "2026-000011", "Existing title", 1,
+            "eci-2026-000011", "ONGOING", None, None,
+            "https://eci.ec.europa.eu/public/",
+        )]
+        with patch.dict(sys.modules, {
+            "psycopg2": fake_pg,
+            "psycopg2.extras": fake_extras,
+        }), patch.dict(os.environ, {
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "true",
+            "CIVIC_RUNTIME_DATABASE_ID": expected,
+        }):
+            with self.assertRaisesRegex(RuntimeError, "simulated lock failure"):
+                sync_eci._replace_cache("postgresql://fixture/eci", records)
+
+        statements = [call.args[0] for call in cur.execute.call_args_list]
+        self.assertEqual(len(statements), 2)
+        self.assertIn("civic_runtime_identity", statements[0])
+        self.assertIn("pg_advisory_xact_lock", statements[1])
+        self.assertFalse(any("DELETE FROM eci" in sql for sql in statements))
+        fake_extras.execute_values.assert_not_called()
+        conn.__exit__.assert_called_once()
+        conn.close.assert_called_once()
+
     def test_main_returns_nonzero_on_sync_failure(self):
         with patch.object(sync_eci, "sync", side_effect=RuntimeError("boom")):
             self.assertEqual(sync_eci.main(["--dry-run"]), 1)
