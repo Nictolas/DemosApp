@@ -76,3 +76,17 @@ test('AI law source discovery must never attach hardcoded decree 175/2025 to DDL
   assert.match(file, /estraiNumeroLegge/);
   assert.doesNotMatch(file, /urlOpenpolis|Descrizione da Openpolis:/);
 });
+
+test('mixed chamber references must match the requested chamber and act number', () => {
+  // A generic DDL identifier must not cause a false association with an
+  // unrelated explicitly labelled parliamentary act.
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 999', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123, C. 999', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 999', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 123 e C. 456', 'Senato'), true);
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 123 e C. 456', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 999 e C. 123', 'Camera'), true);
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 999 e C. 123', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'S. 123 e S. 999', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123', 'Senato'), true);
+});
