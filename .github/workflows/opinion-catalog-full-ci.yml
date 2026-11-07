@@ -11,6 +11,18 @@ on:
       - 'api/tests/opinionCatalog*.test.js'
       - 'api/config/publicCachePolicy.js'
       - 'client/src/pages/GestisciOpinioni/**'
+      - 'client/src/pages/VotiPolitici.tsx' # required catalog-contract for UI-only fix
+      - 'client/src/pages/VotiPoliticiFinali.tsx'
+      - 'client/src/pages/Profilo/components/PoliticalCompassPreview.tsx' # required catalog-contract for compass UI changes
+      - 'client/src/App.tsx' # required contract for front routing change
+      - 'client/public/app-ads.txt'
+      - 'client/android/app/build.gradle' # Android version bump must satisfy required catalog-contract on PRs
+      - '.github/workflows/android-alpha-validation.yml' # CI guard PRs must satisfy required catalog-contract
+      - 'scripts/check-ads-free-aab.py'
+      - 'scripts/test_ads_free_aab_guard.py'
+      - 'client/src/pages/PrivacyPolicy.tsx'
+      - 'client/src/pages/CookiePolicy.tsx'
+      - 'client/tests/privacyDisclosureIntegrity.test.mjs'
       - '.github/workflows/opinion-catalog-full-ci.yml'
 permissions:
   contents: read

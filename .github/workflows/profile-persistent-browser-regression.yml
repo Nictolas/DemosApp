@@ -39,7 +39,9 @@ jobs:
       - name: Install isolated browser runner
         run: |
           npm install --prefix /tmp/demos-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
-          node /tmp/demos-browser/node_modules/playwright/cli.js install --with-deps chromium
+          # The Ubuntu runner already supplies the required Chromium libraries.
+          # Only the headless shell is used by this test; avoid extra fonts/apt downloads.
+          node /tmp/demos-browser/node_modules/playwright/cli.js install --only-shell chromium
       - name: Reopen after browser reload and count profile GETs
         run: |
           npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-preview.log 2>&1 &

@@ -220,10 +220,15 @@ router.delete('/vota', verifyToken, validateInput(['legge']), async (req, res) =
   }
 });
 
-// POST /api/amnistia - Crea nuova amnistia
-router.post('/', verifyToken, (_req, res) => res.status(410).json({
-  success: false, error: 'Usa la sezione Proponi soggetto: ogni richiesta deve essere approvata dall’admin.'
-}));
+// POST /api/amnistia - Non creare voci pubbliche senza una coda di approvazione.
+// L'invio delle proposte verra' riattivato soltanto con la revisione Admin.
+router.post('/', verifyToken, (_req, res) => {
+  return res.status(409).json({
+    success: false,
+    code: 'MODERATION_REQUIRED',
+    error: 'Le proposte di Amnistia sono sospese finché non sarà disponibile l’approvazione amministrativa.',
+  });
+});
 
 // POST /api/amnistia/migrate - Migra dati da voti_amnistia
 router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {

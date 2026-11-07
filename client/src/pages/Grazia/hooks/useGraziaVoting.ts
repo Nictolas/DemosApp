@@ -4,6 +4,8 @@ import { GraziaVotingState, GraziaData } from "../types";
 import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 import { UseMutationResult } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { CarceratoFormData } from "../constants/schema";
 
 export const useGraziaVoting = (
   data: GraziaData | undefined,
@@ -18,6 +20,7 @@ export const useGraziaVoting = (
     showConfirmDialog: false,
     showForm: false
   });
+  const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [votoToRemove, setVotoToRemove] = useState<string | null>(null);
 
@@ -36,6 +39,18 @@ export const useGraziaVoting = (
       }));
     }
   }, [data]);
+
+  // The vote selection is shown optimistically while POST /api/grazia/vota
+  // runs. If the server rejects it (e.g. cooldown), restore the last confirmed
+  // personal choice instead of leaving a vote that was never saved on screen.
+  // This uses the existing GET result and does not make another database read.
+  useEffect(() => {
+    if (!saveVotiMutation.isError) return;
+    setVotingState(prev => ({
+      ...prev,
+      selectedVoti: Array.isArray(data?.mieiVoti) ? data.mieiVoti : []
+    }));
+  }, [saveVotiMutation.isError, data?.mieiVoti]);
 
   const updateField = (field: keyof GraziaVotingState, value: string | string[] | boolean) => {
     setVotingState(prev => ({
@@ -60,8 +75,19 @@ export const useGraziaVoting = (
 
   const addNomeLocal = (e: React.FormEvent) => {
     e.preventDefault();
-    const nomePulito = votingState.nomeInput.trim();
-    if (!nomePulito) return;
+    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
+    const input = votingState.nomeInput.trim();
+    if (!input) return;
+    const approved = data?.classifica?.find(item => item.nome.toLocaleLowerCase('it') === input.toLocaleLowerCase('it'));
+    if (!approved) {
+      toast({
+        title: "Nome non presente nella classifica",
+        description: "Puoi votare solo persone già approvate. Usa Proponi per chiedere una nuova valutazione.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const nomePulito = approved.nome;
     if (votingState.selectedVoti.includes(nomePulito)) {
       toast({ title: "Richiesta già selezionata" });
       return;
@@ -78,9 +104,7 @@ export const useGraziaVoting = (
         nomeInput: ""
       }));
       // Salva automaticamente dopo aver aggiornato lo stato
-      setTimeout(() => {
-        saveVotiMutation.mutate(nuoviVoti);
-      }, 0);
+      saveVotiMutation.mutate(nuoviVoti);
       return;
     }
     
@@ -92,31 +116,25 @@ export const useGraziaVoting = (
       nomeInput: ""
     }));
     // Salva automaticamente dopo aver aggiornato lo stato
-    setTimeout(() => {
-      saveVotiMutation.mutate(nuoviVoti);
-    }, 0);
+    saveVotiMutation.mutate(nuoviVoti);
   };
 
   const removeLocal = (nome: string) => {
-    console.log('🔍 DEBUG CLIENT - removeLocal chiamato con nome:', nome);
-    console.log('🔍 DEBUG CLIENT - isPending:', saveVotiMutation.isPending);
-    console.log('🔍 DEBUG CLIENT - isBlocked:', data?.blocco.isBlocked);
     
     // La rimozione è sempre permessa, anche se l'utente è bloccato
     // Solo controlliamo se c'è una mutation in corso
     if (saveVotiMutation.isPending) {
-      console.log('⚠️ DEBUG CLIENT - removeLocal bloccato (isPending)');
       return;
     }
     // Apri il dialog di conferma invece di rimuovere immediatamente
-    console.log('🔍 DEBUG CLIENT - Apertura dialog di rimozione per:', nome);
     setVotoToRemove(nome);
     setShowRemoveDialog(true);
-    console.log('🔍 DEBUG CLIENT - showRemoveDialog impostato a true');
   };
 
   const confirmRemove = () => {
-    if (!votoToRemove) return;
+    // A different vote save may have started while the confirmation dialog was open.
+    // Never dispatch a second personal write until the first POST has settled.
+    if (!votoToRemove || saveVotiMutation.isPending) return;
     const nuoviVoti = votingState.selectedVoti.filter(n => n !== votoToRemove);
     setVotingState(prev => ({
       ...prev,
@@ -125,9 +143,7 @@ export const useGraziaVoting = (
     setShowRemoveDialog(false);
     setVotoToRemove(null);
     // Salva automaticamente dopo aver rimosso il voto
-    setTimeout(() => {
-      saveVotiMutation.mutate(nuoviVoti);
-    }, 0);
+    saveVotiMutation.mutate(nuoviVoti);
   };
 
   const cancelRemove = () => {
@@ -137,55 +153,46 @@ export const useGraziaVoting = (
   
   const toggleSelezioneClassifica = (nome: string) => {
     if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
-    
-    setVotingState(prev => {
-      if (prev.selectedVoti.includes(nome)) {
-        // Rimuovi il voto e salva automaticamente
-        const nuoviVoti = prev.selectedVoti.filter(n => n !== nome);
-        setTimeout(() => {
-          saveVotiMutation.mutate(nuoviVoti);
-        }, 0);
-        return {
-          ...prev,
-          selectedVoti: nuoviVoti
-        };
-      } else {
-        // Se l'utente ha già votato e prova a votare qualcun altro, sostituisci e salva
-        const limit = getVotingLimit('grazia');
-        
-        if (hasReachedVotingLimit('grazia', prev.selectedVoti.length)) {
-          // Sostituisci il voto esistente con il nuovo e salva automaticamente
-          const nuoviVoti = [nome];
-          setTimeout(() => {
-            saveVotiMutation.mutate(nuoviVoti);
-          }, 0);
-          return {
-            ...prev,
-            selectedVoti: nuoviVoti
-          };
-        } else {
-          // Primo voto o aggiunta normale, salva automaticamente
-          const nuoviVoti = [...prev.selectedVoti, nome];
-          setTimeout(() => {
-            saveVotiMutation.mutate(nuoviVoti);
-          }, 0);
-          return {
-            ...prev,
-            selectedVoti: nuoviVoti
-          };
-        }
-      }
-    });
+    // Never dispatch an API mutation from a React state updater: React can
+    // replay that updater, resulting in duplicate or delayed private writes.
+    // Capture and submit the vote during the initiating account's click.
+    if (!data?.classifica?.some(item => item.nome === nome)) return;
+    const previous = votingState.selectedVoti;
+    const nuoviVoti = previous.includes(nome)
+      ? previous.filter(n => n !== nome)
+      : hasReachedVotingLimit('grazia', previous.length)
+        ? [nome]
+        : [...previous, nome];
+    setVotingState(prev => ({ ...prev, selectedVoti: nuoviVoti }));
+    saveVotiMutation.mutate(nuoviVoti);
   };
 
-  const handleCreateCarcerato = (data: any) => {
-    // Qui implementerai la logica per creare un nuovo carcerato
-    console.log('Nuovo carcerato:', data);
-    toast({
-      title: "Carcerato proposto",
-      description: "La proposta è stata inviata per la revisione."
-    });
-    hideForm();
+  const handleCreateCarcerato = async (data: CarceratoFormData) => {
+    if (isSubmittingProposal) return;
+    setIsSubmittingProposal(true);
+    try {
+      const response = await apiRequest("POST", "/api/grazia", {
+        nome: data.nome,
+        urlProva: data.urlProva,
+      });
+      if (!response?.ok || !response?.data?.success) {
+        throw new Error("Impossibile registrare la proposta.");
+      }
+      toast({
+        title: "Proposta registrata",
+        description: "La richiesta è in attesa di revisione e non è ancora pubblica.",
+      });
+      hideForm();
+    } catch {
+      // Do not reflect raw API response, person names, or transport errors in a toast.
+      toast({
+        title: "Proposta non registrata",
+        description: "Impossibile registrare la proposta. Riprova più tardi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingProposal(false);
+    }
   };
 
   // Informazioni sui limiti di voto
@@ -203,6 +210,7 @@ export const useGraziaVoting = (
     removeLocal,
     toggleSelezioneClassifica,
     handleCreateCarcerato,
+    isSubmittingProposal,
     // Informazioni sui limiti
     currentVotes,
     limit,

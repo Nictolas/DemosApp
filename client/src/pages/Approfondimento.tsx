@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, FileText } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
+import { addCountryFlagsToMarkdown } from "@/lib/countryFlagsMarkdown";
+import { getOpinionBrief } from "@/lib/opinionBriefs";
+import { OpinionBriefCard } from "@/components/OpinionBriefCard";
 
 interface ApprofondimentoData {
   id: string;
@@ -129,11 +132,13 @@ export default function Approfondimento() {
           </CardHeader>
           
           <CardContent className="p-8">
-            {approfondimento.approfondimento ? (
-              <div 
+            {getOpinionBrief(approfondimento.id) ? (
+              <OpinionBriefCard brief={getOpinionBrief(approfondimento.id)!} />
+            ) : approfondimento.approfondimento ? (
+              <div
                 className="prose prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ 
-                  __html: sanitizeRichHtml(renderMarkdown(approfondimento.approfondimento))
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeRichHtml(renderMarkdown(addCountryFlagsToMarkdown(approfondimento.approfondimento)))
                 }}
               />
             ) : (

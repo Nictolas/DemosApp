@@ -1,0 +1,37 @@
+name: Civic Ministero source sync (disabled until release gate)
+
+on:
+  schedule:
+    # A free-tier-friendly wake-up every four hours, when explicitly enabled.
+    # GitHub schedules are best effort, not guaranteed to execute to the minute.
+    - cron: '17 */4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: demos-civic-ministero-scheduler
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: ${{ vars.CIVIC_MINISTERO_SCHEDULER_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Authenticated source-only sync (never sends FCM)
+        env:
+          CIVIC_MINISTERO_SYNC_URL: ${{ secrets.CIVIC_MINISTERO_SYNC_URL }}
+          CIVIC_MINISTERO_SYNC_KEY: ${{ secrets.CIVIC_MINISTERO_SYNC_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CIVIC_MINISTERO_SYNC_URL" ] || [ "${#CIVIC_MINISTERO_SYNC_KEY}" -lt 32 ]; then
+            echo "CIVIC_MINISTERO_SYNC_NOT_CONFIGURED" >&2
+            exit 1
+          fi
+          # Private key never echoed. A 409/503 response is a failure, not
+          # a false successful sync. Retrying a partial sync is safe because
+          # official event identity is UNIQUE(category, official_id).
+          curl --fail --silent --show-error \
+            --retry 1 --retry-delay 20 --retry-all-errors --max-time 210 \
+            --request POST \
+            --header "X-Civic-Ministero-Sync-Key: ${CIVIC_MINISTERO_SYNC_KEY}" \
+            "$CIVIC_MINISTERO_SYNC_URL" > /dev/null

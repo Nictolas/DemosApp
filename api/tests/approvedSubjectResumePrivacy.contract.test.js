@@ -1,0 +1,110 @@
+'use strict';
+// Static regression tests for the opt-in, no-polling foreground refresh.
+// Backend Postgres lifecycle tests independently verify withdrawn titles are absent.
+const {test} = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.resolve(__dirname,'../..');
+const read = name => fs.readFileSync(path.join(root,name),'utf8');
+
+test('shared approved-subject foreground refresh is event-driven, not a polling loop', () => {
+  const source=read('client/src/hooks/useApprovedSubjectResumeRefresh.ts');
+  assert.match(source,/document\.addEventListener\("visibilitychange", onResume\)/);
+  assert.match(source,/window\.addEventListener\("focus", onResume\)/);
+  assert.match(source,/document\.removeEventListener\("visibilitychange", onResume\)/);
+  assert.match(source,/window\.removeEventListener\("focus", onResume\)/);
+  assert.match(source,/document\.visibilityState !== "visible"/);
+  assert.doesNotMatch(source,/\bsetInterval\s*\(|\bsetTimeout\s*\(/);
+  assert.match(source,/now - lastResumeAt\.current < 1500/,'deduplicate focus + visibility events');
+  assert.match(source,/currentRequest\.current\?\.abort\(\)/,'cancel stale in-flight requests');
+  assert.match(source,/controller\.signal\.aborted/,'never apply aborted stale results');
+  assert.match(source,/pendingResume\.current = true/,'remember foreground while initial or filter loading');
+  assert.match(source,/if \(enabled && pendingResume\.current\) resume\(true\)/,
+    'replay one refresh as soon as directory is ready');
+});
+
+test('focus refresh uses only one category-specific read and hides old names first', () => {
+  const source=read('client/src/hooks/useApprovedSubjectResumeRefresh.ts');
+  const relevant=source.match(/const resume = \(replay = false\) => \{([\s\S]+?)\n    \};/);
+  assert.ok(relevant,'event handler must be present');
+  assert.match(relevant[1],/setApprovedSubjects\(\[\]\)/,
+    'remove old names immediately on resume before a network response');
+  assert.match(relevant[1],/\/api\/subject-proposals\/approved\?category=/);
+  assert.equal((relevant[1].match(/await apiRequest\(/g)||[]).length,1,
+    'one targeted GET per resume, no extra complete directory read');
+  assert.match(relevant[1],/catch \{[\s\S]*setApprovedSubjects\(\[\]\)/,
+    'on offline/error fail closed, do not keep stale title');
+  assert.match(source,/\.map\(\(entry: ApprovedDirectorySubject\) => \(\{ id: entry\.id, title: entry\.title \}\)\)/,
+    'never copy extra source or third-party details into view state');
+});
+
+test('both directory views retain normal initial load and hook only when not loading', () => {
+  for (const [name,route,category] of [
+    ['client/src/pages/Attivisti.tsx','/api/attivisti','attivisti'],
+    ['client/src/pages/Organizzazioni/index.tsx','/api/organizzazioni','organizzazioni']
+  ]) {
+    const source=read(name);
+    assert.match(source,/useApprovedSubjectResumeRefresh/,'shared hook required in '+name);
+    assert.ok(source.includes('useApprovedSubjectResumeRefresh("'+category+'"'),'correct category in '+name);
+    assert.ok(source.includes(route),'initial directory load preserved in '+name);
+    assert.match(source,/setApprovedSubjects\(\[\]\)/,'stale list cleared on reload/error in '+name);
+    assert.doesNotMatch(source,/subject\.details|subject\.source_url/,'private text/url never rendered in '+name);
+  }
+  // App.tsx resolves ./pages/Attivisti to the file Attivisti.tsx, not the
+  // historical Attivisti/index.tsx. Testing the latter missed real UI regressions.
+  const app = read('client/src/App.tsx');
+  assert.match(app,/import Attivisti from "\.\/pages\/Attivisti"/);
+  assert.match(read('client/src/pages/Attivisti.tsx'),/!isLoading && !isError/);
+  assert.match(read('client/src/pages/Organizzazioni/index.tsx'),/!isLoading && !isError/);
+});
+
+test('organization initial load and resumed approved list share the configured API origin',()=>{
+  const org=read('client/src/pages/Organizzazioni/index.tsx');
+  const hook=read('client/src/hooks/useApprovedSubjectResumeRefresh.ts');
+  assert.match(org,/import \{ getApiUrl \} from "@\/lib\/api-config"/);
+  assert.match(org,/fetch\(getApiUrl\('\/api\/organizzazioni\/filtri'\)\)/);
+  assert.match(org,/const url = getApiUrl\(`\/api\/organizzazioni/);
+  assert.doesNotMatch(org,/demos-c7k0\.onrender\.com|\bAPI_BASE\b/,
+    'organization must not bypass staging/native/production API configuration');
+  assert.doesNotMatch(org,/console\.log\s*\(/,
+    'do not log entire user directories, individual names or search terms to browser console');
+  assert.match(hook,/await apiRequest\(/,'foreground refresh also resolves API base by central helper');
+});
+
+test('the canonical public approved endpoint is no-store and includes only approved titles',()=>{
+  const source=read('api/routes/subject-proposals.js');
+  assert.match(source,/readApprovedPage\(pool, category, req.query.cursor\)/);
+  const shared=read('api/services/publicApprovedSubjectPage.js');
+  assert.match(shared,/WHERE category=\$1 AND status='approved'/);
+  assert.match(source,/res\.set\('Cache-Control', 'no-store'\)/);
+});
+
+test('mounted activist directory does not bypass configured API, leak debug search or resurrect withdrawn titles on resume',()=>{
+  const mounted=read('client/src/pages/Attivisti.tsx');
+  assert.match(mounted,/import \{ getApiUrl \} from "@\/lib\/api-config"/);
+  assert.match(mounted,/const url = getApiUrl\(`\/api\/attivisti/);
+  assert.match(mounted,/fetch\(url, \{ signal: controller\.signal, cache: 'no-store' \}\)/);
+  assert.match(mounted,/useApprovedSubjectResumeRefresh\("attivisti", setApprovedSubjects, !isLoading && !isError, reset\)/);
+  assert.match(mounted,/useApprovedDirectoryPagination\("attivisti", setApprovedSubjects\)/);
+  assert.match(mounted,/setApprovedSubjects\(\[\]\)/);
+  assert.match(mounted,/reset\(data\.approved_next_cursor \?\? null\)/);
+  assert.doesNotMatch(mounted,/console\.(?:log|debug|warn)\(/,
+    'mounted directory must not log search terms, users or lists');
+  assert.doesNotMatch(mounted,/subject\.details|subject\.source_url/,
+    'only public id and title are rendered');
+  assert.doesNotMatch(mounted,/demos-c7k0\.onrender\.com|\bAPI_BASE\b/,
+    'active directory must not bypass the correct API origin');
+});
+
+test('both mounted public directories accept only id/title, never a full third-party record in React state',()=>{
+ for(const path of ['client/src/pages/Attivisti.tsx','client/src/pages/Organizzazioni/index.tsx']){
+  const mounted=read(path);
+  assert.match(mounted,/Array\.isArray\(data\.approved_subjects\)/,
+   'server response must be checked before storing in UI: '+path);
+  assert.match(mounted,/typeof item\.id === "string" && typeof item\.title === "string"/);
+  assert.match(mounted,/\.map\(item => \(\{ id: item\.id, title: item\.title \}\)\)/,
+   'discard even unexpected future details/source fields: '+path);
+  assert.doesNotMatch(mounted,/setApprovedSubjects\(data\.approved_subjects \|\| \[\]\)/);
+ }
+});

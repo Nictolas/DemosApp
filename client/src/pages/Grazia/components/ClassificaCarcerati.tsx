@@ -19,6 +19,17 @@ interface ClassificaCarceratiProps {
   hasReachedLimit: boolean;
 }
 
+// Neutral contact only: never put names, vote selections or IDs in the URL.
+export function PrivacyRectificationContact() {
+  return (
+    <p className="text-xs leading-relaxed text-slate-600">
+      Per contestare una segnalazione che ti riguarda o chiedere una rettifica,
+      contatta <a className="underline underline-offset-2" href="mailto:privacy@demos.community">privacy@demos.community</a>.
+      Non inviare documenti sensibili senza istruzioni.
+    </p>
+  );
+}
+
 export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
   classifica,
   selectedVoti,
@@ -38,6 +49,7 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
           <CardDescription className="hidden text-xs sm:block sm:text-sm">
             I carcerati con più richieste di grazia (0 totali)
           </CardDescription>
+          <PrivacyRectificationContact />
         </CardHeader>
         <CardContent className="px-0 pb-3 pt-2 sm:px-6 sm:pb-6">
           <div className="py-6 text-center text-gray-500 sm:py-12">
@@ -65,6 +77,7 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
         <CardDescription className="hidden text-xs sm:block sm:text-sm">
           I carcerati con più richieste di grazia ({classifica.length} totali)
         </CardDescription>
+        <PrivacyRectificationContact />
       </CardHeader>
       <CardContent className="px-0 pb-2 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
         <div className="space-y-0 sm:space-y-4">

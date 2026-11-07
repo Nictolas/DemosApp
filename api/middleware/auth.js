@@ -23,8 +23,7 @@ const verifyToken = async (req, res, next) => {
     const logErr = (...args) => { console.error(...args); };
 
     if (!isProduction && (req.url.includes('/vota') || req.url.includes('/capo-stato') || req.url.includes('/admin/'))) {
-      log('🚀 ENTRATA in verifyToken:', req.method, req.url);
-      log('🔐 DEBUG verifyToken - URL:', req.url);
+      log('🚀 ENTRATA in verifyToken:', req.method);
       log('🔐 DEBUG verifyToken - Headers authorization:', req.headers.authorization ? 'PRESENTE' : 'MANCANTE');
     }
     log('🔐 DEBUG verifyToken - Pool database:', pool ? 'OK' : 'ERRORE');
@@ -44,7 +43,7 @@ const verifyToken = async (req, res, next) => {
 
     try {
       const decoded = verifyAccessToken(token);
-      log('🔐 DEBUG verifyToken - Token decodificato:', decoded);
+      log('🔐 DEBUG verifyToken - JWT valido');
       log('🔐 DEBUG verifyToken - Verifica utente nel database...');
 
       // In Demos le email non vengono più usate per l'autenticazione:
@@ -67,6 +66,7 @@ const verifyToken = async (req, res, next) => {
           : null;
 
       let user;
+      let authSubjectFromCache = false;
       if (authCacheKey) {
         const cached = await redisCache.getJson(authCacheKey);
         if (
@@ -77,7 +77,8 @@ const verifyToken = async (req, res, next) => {
           cached.capabilities != null
         ) {
           user = cached;
-          log('🔐 DEBUG verifyToken - Cache auth hit per user:', userIdFromToken);
+          authSubjectFromCache = true;
+          log('🔐 DEBUG verifyToken - Cache auth hit');
         }
       }
 
@@ -86,8 +87,7 @@ const verifyToken = async (req, res, next) => {
           user = await getAccountSubject(pool, userIdFromToken);
           log('🔐 DEBUG verifyToken - Modello account caricato:', user ? 'OK' : 'NON TROVATO');
         } catch (dbError) {
-          logErr('❌ DEBUG verifyToken - Errore database:', dbError.message);
-          if (!isProduction) logErr('❌ DEBUG verifyToken - Stack database:', dbError.stack);
+          logErr('❌ DEBUG verifyToken - Errore database');
           throw dbError;
         }
 
@@ -125,16 +125,18 @@ const verifyToken = async (req, res, next) => {
         capabilities: user.capabilities,
         jti: decoded.jti
       };
+      // Admin authorization must never trust a cached capability snapshot.
+      // Only cached subjects need a second, fresh DB check at requireAdmin.
+      req.authSubjectFromCache = authSubjectFromCache;
       req.userId = user.id;
       req.userRole = user.legacyRole;
       req.userEmail = null;
 
-      log('🔐 DEBUG - Token verificato per utente:', req.user.id, 'ruolo:', req.user.role);
+      log('🔐 DEBUG - Token verificato');
 
       next();
     } catch (jwtError) {
-      console.error('❌ Errore verifica JWT:', jwtError.message);
-      if (!isProduction) console.error('❌ Stack JWT:', jwtError.stack);
+      console.error('❌ Errore verifica JWT');
 
       if (jwtError.message.includes('scaduto') || jwtError.message.includes('expired')) {
         return res.status(401).json({
@@ -159,15 +161,10 @@ const verifyToken = async (req, res, next) => {
       });
     }
   } catch (error) {
-    console.error('❌ Errore nel middleware verifyToken:', error.message);
-    if (!isProduction) {
-      console.error('❌ Stack trace verifyToken:', error.stack);
-      console.error('❌ Error details verifyToken:', { message: error.message, code: error.code, detail: error.detail, hint: error.hint });
-    }
+    console.error('❌ Errore nel middleware verifyToken');
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 };
@@ -196,11 +193,26 @@ const requireAdmin = async (req, res, next) => {
         message: 'Richiesto ruolo amministratore'
       });
     }
-    
-    if (!isProduction) console.log('👑 DEBUG - Accesso admin verificato per utente:', req.userId);
+
+    // A Redis auth snapshot may outlive account suspension, deletion or Admin
+    // role revocation. Revalidate cached Admin authorization from PostgreSQL.
+    // Cache misses already came from getAccountSubject in this very request:
+    // avoid an additional SQL read for those requests.
+    if (req.authSubjectFromCache === true) {
+      const current = await getAccountSubject(pool, req.user.id);
+      if (current?.status !== 'a' || current.capabilities?.isAdmin !== true) {
+        return res.status(403).json({
+          success: false,
+          error: 'Accesso negato',
+          message: 'Richiesto ruolo amministratore'
+        });
+      }
+    }
+
+    if (!isProduction) console.log('👑 DEBUG - Accesso admin verificato');
     next();
   } catch (error) {
-    if (!isProduction) console.error('❌ Errore nel middleware requireAdmin:', error);
+    if (!isProduction) console.error('❌ Errore nel middleware requireAdmin');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -223,7 +235,7 @@ const requireOwnProfile = async (req, res, next) => {
     
     next();
   } catch (error) {
-    console.error('❌ Errore nel middleware requireOwnProfile:', error);
+    console.error('❌ Errore nel middleware requireOwnProfile');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

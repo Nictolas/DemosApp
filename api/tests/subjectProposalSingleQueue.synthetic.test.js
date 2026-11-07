@@ -8,6 +8,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const routeSource = fs.readFileSync(path.join(__dirname, '../routes/subject-proposals.js'), 'utf8');
+const { validateEvidenceUrl } = require('../utils/recognitionEvidence');
 const TEST_USER = '11111111-1111-4111-8111-111111111111';
 const TEST_PROPOSAL = '22222222-2222-4222-8222-222222222222';
 
@@ -22,17 +23,23 @@ function mockResponse() {
   };
 }
 
-function harness({legacyGraziaReview = false} = {}) {
+function harness({legacyGraziaReview = false, inactiveOwner = false} = {}) {
   const methods = {get: new Map(), post: new Map()};
   const queries = [];
   let connects = 0;
+  let activeConnections = 0;
   const router = {
+    use(_middleware) {return router;},
     get(route, ...args) {methods.get.set(route, args.at(-1)); return router;},
     post(route, ...args) {methods.post.set(route, args.at(-1)); return router;}
   };
   async function query(statement, args = []) {
     const sql = String(statement);
     queries.push({sql, args});
+    if (sql.startsWith("SELECT id FROM users WHERE id=$1 AND status='a' FOR SHARE")) {
+      const active = !inactiveOwner && args[0] === TEST_USER;
+      return {rows: active ? [{id:TEST_USER}] : [],rowCount:active ? 1 : 0};
+    }
     if (sql.startsWith('SELECT * FROM subject_proposals')) {
       return {rows: legacyGraziaReview ? [{id: TEST_PROPOSAL, category: 'grazia', title: 'Persona sintetica', proposer_user_id: TEST_USER}] : []};
     }
@@ -43,14 +50,22 @@ function harness({legacyGraziaReview = false} = {}) {
   }
   const pool = {
     query,
-    async connect() {connects++; return {query, release() {}};}
+    async connect() {
+      assert.equal(activeConnections, 0, 'pool max=1: previous transaction connection must be released');
+      connects++;
+      activeConnections++;
+      return {query, release() {activeConnections--;}};
+    }
   };
   const noop = (_req, _res, next) => next && next();
   const moduleShim = {exports:{}};
   const stubs = {
     express: {Router: () => router},
     '../config/database': {getPool: () => pool},
-    '../middleware/auth': {verifyToken: noop, requireAdmin: noop}
+    '../middleware/auth': {verifyToken: noop, requireAdmin: noop},
+    '../services/publicApprovedSubjectPage': {readApprovedPage: async () => ({data:[],next_cursor:null})},
+    '../utils/recognitionEvidence': { validateEvidenceUrl },
+    '../utils/thirdPartyNominationGate': {isNominationWriteEnabled:()=>true,rejectUnavailableNomination:()=>{throw new Error('Unexpected production gate in synthetic test')}}
   };
   vm.runInNewContext(routeSource, {
     module: moduleShim,
@@ -61,7 +76,7 @@ function harness({legacyGraziaReview = false} = {}) {
     URL, Set,
   }, {filename:'subject-proposals.js'});
   assert.equal(moduleShim.exports, router);
-  return {methods, queries, get connects() {return connects;}};
+  return {methods, queries, get connects() {return connects;}, get activeConnections() {return activeConnections;}};
 }
 
 test('POST Grazia to the generic endpoint is rejected before any database access', async () => {
@@ -89,9 +104,10 @@ test('GET /mine Grazia cannot query the noncanonical generic queue', async () =>
 test('Admin generic queue explicitly excludes the Grazia category', async () => {
   const app = harness();
   const res = mockResponse();
-  await app.methods.get.get('/admin')({},res);
+  await app.methods.get.get('/admin')({query:{}},res);
   assert.equal(res.statusCode, 200);
-  assert.match(app.queries[0].sql, /status='pending' AND category <> 'grazia'/);
+  assert.match(app.queries[0].sql, /status='pending' AND category IN \('capo_stato','amnistia','attivisti','organizzazioni'\)/);
+  assert.doesNotMatch(app.queries[0].sql, /proposer_user_id/,'no proponent UUID in Admin list projection');
   assert.deepEqual(res.body.proposals, []);
 });
 
@@ -107,6 +123,56 @@ test('Even a legacy Grazia row cannot be approved by generic moderation', async 
   assert.equal(app.queries.some(x=>/INSERT INTO (grazia_carcerati|subject_proposals)/.test(x.sql)),false);
 });
 
+test('generic nominations reject local and private HTTPS sources before database access', async () => {
+  for (const source of [
+    'https://localhost/', 'https://127.0.0.1/', 'https://127.1/',
+    'https://192.168.1.1/', 'https://[::1]/', 'https://server.internal/'
+  ]) {
+    const app = harness();
+    const res = mockResponse();
+    await app.methods.post.get('/')({user:{id:TEST_USER},body:{
+      category:'attivisti',title:'Attivista sintetico',source_url:source
+    }},res);
+    assert.equal(res.statusCode,400,source);
+    assert.equal(app.connects,0,source);
+    assert.equal(app.queries.length,0,source);
+  }
+});
+
+test('generic nominations reject hidden or directional control characters without SQL', async () => {
+  for (const title of [
+    'Nome\u202e invertito',
+    'Nome\u2066 isolato',
+    'Nome\u200b invisibile',
+    'Nome\u061c direzionale',
+    'Nome\u00ad soft-hyphen',
+    'Nome\u034f invisible joiner',
+    'Nome\u180e invisible separator',
+    'Nome\u0000 incorporato'
+  ]) {
+    const app = harness();
+    const res = mockResponse();
+    await app.methods.post.get('/')({user:{id:TEST_USER},body:{
+      category:'attivisti',title,source_url:'https://example.org/fonte'
+    }},res);
+    assert.equal(res.statusCode,400,'reject disguised subject name');
+    assert.equal(app.connects,0,'reject before private connection');
+    assert.equal(app.queries.length,0,'do not query or store deceptive title');
+  }
+});
+
+test('inactive proposer cannot submit a generic nomination with a cached session', async () => {
+  const app = harness({inactiveOwner:true});
+  const res = mockResponse();
+  await app.methods.post.get('/')({user:{id:TEST_USER},body:{
+    category:'organizzazioni',title:'Associazione sintetica',
+    source_url:'https://example.org/fonte'
+  }},res);
+  assert.equal(res.statusCode,401);
+  assert.equal(app.queries.some(x=>x.sql.startsWith('INSERT INTO subject_proposals')),false);
+  assert.equal(app.activeConnections,0);
+});
+
 test('Other four category submissions still write only subject_proposals', async () => {
   const app = harness();
   const res = mockResponse();
@@ -116,7 +182,8 @@ test('Other four category submissions still write only subject_proposals', async
   }},res);
   assert.equal(res.statusCode,201);
   assert.equal(res.body.status,'pending');
-  assert.equal(app.connects,1);
+  assert.equal(app.connects,2, 'one transactional submit connection and one notification connection');
+  assert.equal(app.activeConnections,0, 'all connections released after completion');
   assert.equal(app.queries.filter(x=>x.sql.startsWith('INSERT INTO subject_proposals')).length,1);
   assert.equal(app.queries.some(x=>/INSERT INTO grazia_carcerati/.test(x.sql)),false);
 });

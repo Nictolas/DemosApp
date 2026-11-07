@@ -23,8 +23,12 @@ export default function RegistrazioneConsensiOpinioni() {
         </h2>
         <p className="text-gray-600 text-sm mb-4">
           <strong>Consento esplicitamente</strong> al trattamento delle mie opinioni politiche (GDPR Art. 9). 
-          Questo consenso è necessario per esprimere opinioni e votare sulla piattaforma. 
-          Puoi revocarlo in qualsiasi momento dalle impostazioni; in quel caso alcune funzionalità saranno limitate.
+          Questo consenso è necessario per esprimere opinioni e votare sulla piattaforma.
+          Se decidi di aprire il Compasso politico, le risposte già espresse
+          possono essere elaborate sul dispositivo per mostrarti cinque indicatori
+          tematici facoltativi; i punteggi non vengono salvati sul server.
+          Puoi revocare il consenso in qualsiasi momento dalle impostazioni;
+          in quel caso alcune funzionalità saranno limitate.
         </p>
 
         <Button

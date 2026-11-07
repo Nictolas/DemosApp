@@ -14,19 +14,9 @@ interface Attivista {
   id: string;
   nome: string;
   cognome: string;
-  email: string;
   ruolo: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  avatar_config: string;
-  genere: string;
-  data_nascita: string;
-  cittadinanza: string;
-  paese_residenza: string;
+  avatar_config?: string;
   regione_residenza: string;
-  provincia_residenza: string;
-  comune_residenza: string;
   facebook_url?: string;
   twitter_url?: string;
   instagram_url?: string;
@@ -49,36 +39,6 @@ const AttivistaModal: React.FC<AttivistaModalProps> = ({ attivista, isOpen, onCl
 
   const getInitials = (nome: string, cognome: string) => {
     return `${nome.charAt(0)}${cognome.charAt(0)}`.toUpperCase();
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'approved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const translateStatus = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'Attivo';
-      case 'approved':
-        return 'Approvato';
-      case 'pending':
-        return 'In attesa';
-      case 'rejected':
-        return 'Rifiutato';
-      default:
-        return status;
-    }
   };
 
   const socialLinks = [
