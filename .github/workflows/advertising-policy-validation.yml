@@ -114,9 +114,11 @@ jobs:
           # The official Google sample ID remains a safe fallback for compilation.
           app_id="${DEMOS_QA_ADMOB_APP_ID:-ca-app-pub-3940256099942544~3347511713}"
           if [ -z "${DEMOS_QA_ADMOB_APP_ID:-}" ]; then
+            qa_mode="SAMPLE_GOOGLE (CMP DEMOS non verificabile)"
             echo "mode=SAMPLE_GOOGLE" >> "$GITHUB_OUTPUT"
             echo "::notice::Using Google sample App ID; DEMOS's actual consent message cannot be validated with this APK"
           else
+            qa_mode="DEMOS_UMP_CONFIGURATA (da verificare sul telefono)"
             echo "mode=DEMOS_UMP" >> "$GITHUB_OUTPUT"
             echo "::notice::Using configured DEMOS AdMob App ID; Google TEST ad unit only"
           fi
@@ -138,10 +140,9 @@ jobs:
           sha256sum "$apk"
           qa_readme=app/build/outputs/apk/debug/QA-LEGGIMI.txt
           cat > "$qa_readme" <<EOF
-          DEMOS ANDROID — APP OPEN / SOLO TEST (07-11-2026)
-          =================================================
-          Modalita CMP: ${DEMOS_QA_ADMOB_APP_ID:+DEMOS_UMP_CONFIGURATA}
-          $([ -n "${DEMOS_QA_ADMOB_APP_ID:-}" ] || printf 'Modalita CMP: SAMPLE_GOOGLE (messaggio DEMOS non verificabile)\\n')
+          DEMOS ANDROID — APP OPEN / SOLO TEST
+          ====================================
+          Modalita CMP: ${qa_mode}
           Commit: ${GITHUB_SHA}
           
           Questo APK DEBUG si installa come community.demos.qaopen, separato da DEMOS.
