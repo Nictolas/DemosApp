@@ -201,15 +201,19 @@ router.get('/', personalNoStore, async (req, res) => {
     if (userId) {
       try {
         const { user: userIdColumn, date: timestampColumn } = await getGraziaVoteColumns();
-        // Check account status in the SAME vote query, not an extra SQL call.
-        // A signed token can outlive account suspension/deletion; those users
-        // must not receive stale private choices or cooldown metadata.
+        // Check both active-account status and political consent in the SAME vote query.
+        // Signed tokens can outlive account suspension, deletion or consent revocation; those users
+        // must not receive old personal choices or cooldown even if cleanup is delayed.
         // LEFT JOIN preserves the valid empty-vote case (and its cooldown).
         const mieiVotiQuery = `
           SELECT owner.active, vote.nome,
                  MAX(vote.${timestampColumn}) OVER () AS last_changed_at
           FROM (SELECT EXISTS(
-            SELECT 1 FROM users WHERE id::text = $2 AND status = 'a'
+            SELECT 1 FROM users u
+            LEFT JOIN user_consents uc ON uc.user_id = u.id
+            WHERE u.id::text = $2 AND u.status = 'a'
+              AND COALESCE(uc.political_opinions_consent,
+                           u.political_opinions_consent, false) = TRUE
           ) AS active) owner
           LEFT JOIN LATERAL (
             SELECT nome, ${timestampColumn}
