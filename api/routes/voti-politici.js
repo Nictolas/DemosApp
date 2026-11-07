@@ -5,6 +5,7 @@ const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { loadFromDb: loadOpenpolisUltimiDdl, fetchUltimiDdlApprovati, saveToDb: saveOpenpolisDdlToDb } = require('../services/openpolisCosaSuccedeService');
 const { loadFromDb: loadOpenpolisVotazioniFinali, fetchVotazioniFinaliDecisive, saveToDb: saveOpenpolisVotazioniFinaliToDb } = require('../services/openpolisVotazioniFinaliService');
+const { getVerifiedFinalBallots } = require('../services/parliamentVerifiedFinalBallotsService');
 const axios = require('axios');
 
 const router = express.Router();
@@ -1026,6 +1027,51 @@ router.post('/sync-openpolis-ultimi-ddl', verifyToken, requireAdmin, async (req,
       success: false,
       error: 'Errore nella sincronizzazione Openpolis ultimi DDL',
       message: error.message
+    });
+  }
+});
+
+// GET /api/voti-politici/votazioni-finali-decisive/:openpolisId/voti-nominali
+// Read-only parliamentary roll-call. Official Camera / attributed Openpolis Senate.
+// Never infer an individual vote from the final outcome or political affiliation.
+router.get('/votazioni-finali-decisive/:openpolisId/voti-nominali', verifyToken, async (req, res) => {
+  try {
+    const id = req.params.openpolisId;
+    if (!/^(?:vs19_\d{1,5}_\d{1,5}|19-\d{1,5}-\d{1,5})$/.test(id)) {
+      return res.status(400).json({ success: false, error: 'Identificativo votazione non valido' });
+    }
+    const { rows } = await pool.query(
+      'SELECT openpolis_id, camera, titolo, esito, data_votazione FROM openpolis_votazioni_finali_decisive WHERE openpolis_id = $1 AND data_votazione >= CURRENT_DATE - INTERVAL \'120 days\' LIMIT 1',
+      [id]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ success: false, error: 'Votazione finale non presente' });
+    }
+    const vote = rows[0];
+    const date = String(vote.data_votazione instanceof Date
+      ? vote.data_votazione.toISOString().slice(0, 10)
+      : vote.data_votazione || '');
+    if (!/^202\d-\d{2}-\d{2}$/.test(date) || !['Camera', 'Senato'].includes(vote.camera)) {
+      return res.status(422).json({ success: false, error: 'Votazione senza riferimenti verificabili' });
+    }
+    const data = await getVerifiedFinalBallots({ ...vote, data_votazione: date });
+    // Source authenticity is preserved: do not label Openpolis records as
+    // direct institutional records; absence or secret votes fail closed.
+    return res.json({
+      success: true,
+      voteId: id,
+      chamber: data.chamber,
+      date: data.date,
+      source: data.source,
+      total: data.members.length,
+      members: data.members
+    });
+  } catch (error) {
+    console.warn('[voti-finali-nominali] Fonte nominale non verificabile', error?.message);
+    return res.status(503).json({
+      success: false,
+      error: 'Voti individuali temporaneamente non verificabili',
+      message: 'Consulta la fonte parlamentare. DEMOS non attribuisce voti senza riscontro.'
     });
   }
 });
