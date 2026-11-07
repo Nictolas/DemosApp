@@ -61,7 +61,8 @@ test('provincial staging preflight is read-only, metadata-only, and scoped to kn
   const requiredColumns = [...sql.matchAll(/\('([a-z_]+)',\s*'([a-z_]+)'\)/g)]
     .map((match) => match[1] + '.' + match[2]);
   for (const key of [
-    'users.cognome', 'users.paese_residenza', 'users.provincia_residenza',
+    'users.cognome', 'users.paese_residenza', 'users.regione_residenza',
+    'users.provincia_residenza', 'users.comune_residenza',
     'political_selections.jurisdiction_id', 'political_selections.political_office_id',
     'political_selections.selected_mandate_id', 'political_selections.context',
     'unita_elettorale_territorio.territory_code',
