@@ -516,7 +516,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       const denied=await req('/api/subject-proposals','b','POST',
         proposal('attivisti',titleSuspended));
       assert.equal(denied.status,401);
-      assert.match(denied.cacheControl||'',/private,\\s*no-store/);
+      assert.match(denied.cacheControl||'',/private,\s*no-store/);
       const created=await pool.query(
         'SELECT count(*)::integer AS n FROM subject_proposals WHERE title=$1',
         [titleSuspended]);
