@@ -4,6 +4,8 @@
 -- policies, schema, data, credentials or environment variables.
 -- It is NOT a staging GO: a declared RLS policy can still deny all rows.
 -- Column inventory covers the core provincial E2E path, not every app route.
+-- For canonical political choices, verify an actual unique ON CONFLICT key
+-- (user_id, selection_kind, political_office_id); the legacy PK differs.
 WITH required (relation_name, mandatory_for_e2e, purpose) AS (
   VALUES
     ('users', true, 'residence/consent'),
@@ -76,6 +78,18 @@ inventory AS (
            WHERE rc.relation_name = r.relation_name AND a.attnum IS NULL
            ORDER BY rc.column_name
          ) AS missing_columns,
+         CASE WHEN r.relation_name = 'political_selections' THEN EXISTS (
+           SELECT 1 FROM pg_catalog.pg_index i
+           WHERE i.indrelid = c.oid AND i.indisunique AND i.indisvalid
+             AND i.indisready AND i.indpred IS NULL AND i.indexprs IS NULL
+             AND i.indnkeyatts = 3
+             AND (
+               SELECT array_agg(a.attname ORDER BY a.attname)
+               FROM unnest(i.indkey) AS k(attnum)
+               JOIN pg_catalog.pg_attribute a
+                 ON a.attrelid = i.indrelid AND a.attnum = k.attnum
+             ) = ARRAY['political_office_id', 'selection_kind', 'user_id']::name[]
+         ) ELSE NULL END AS canonical_selection_unique_key_ready,
          COALESCE(c.relrowsecurity, false) AS rls_enabled,
          CASE WHEN c.oid IS NULL THEN false
            ELSE has_table_privilege('demos_staging_runtime', c.oid, 'SELECT')
@@ -106,6 +120,7 @@ inventory AS (
 SELECT relation_name, mandatory_for_e2e, purpose,
        relation_oid IS NOT NULL AS exists_in_public,
        missing_columns,
+       canonical_selection_unique_key_ready,
        runtime_can_select, rls_enabled, runtime_read_policy_declared,
        runtime_can_insert, runtime_can_update, runtime_can_delete,
        CASE
@@ -114,6 +129,9 @@ SELECT relation_name, mandatory_for_e2e, purpose,
                      THEN 'BLOCKED_MISSING_RELATION'
                      ELSE 'OPTIONAL_SCHEMA_ABSENT' END
          WHEN cardinality(missing_columns) > 0 THEN 'BLOCKED_MISSING_COLUMNS'
+         WHEN relation_name = 'political_selections'
+          AND NOT canonical_selection_unique_key_ready
+          THEN 'BLOCKED_CANONICAL_CONFLICT_KEY_MISSING'
          WHEN NOT runtime_can_select THEN 'BLOCKED_NO_SELECT_GRANT'
          WHEN NOT rls_enabled THEN 'BLOCKED_RLS_DISABLED'
          WHEN NOT runtime_read_policy_declared THEN 'BLOCKED_NO_RUNTIME_READ_POLICY'
