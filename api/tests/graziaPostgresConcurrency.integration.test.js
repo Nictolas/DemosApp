@@ -195,13 +195,26 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
         assert.equal(JSON.stringify(feed.json).includes(A),false);
         assert.equal(JSON.stringify(feed.json).includes(B),false);
       }
+      // Signed access alone is not enough: suspended accounts cannot read
+      // prior personal votes or cooldown. Disposable PG17 fixture only.
+      await pool.query("UPDATE users SET status='i' WHERE id=$1",[B]);
+      try{
+        const inactive=await req('/api/grazia','b');
+        assert.equal(inactive.status,200,'public ranking remains accessible');
+        assert.deepEqual(inactive.json.mieiVoti,[],
+          'inactive account must not receive prior private votes');
+        assert.equal(inactive.json.blocco.isBlocked,false,
+          'inactive account must not receive private cooldown');
+      }finally{
+        await pool.query("UPDATE users SET status='a' WHERE id=$1",[B]);
+      }
       assert.equal((await req('/api/grazia/mia-proposta','b')).json.richiesta,null,
         'a separate account cannot retrieve the original proposer\'s request');
       assert.equal((await req('/api/grazia/mia-proposta')).status,401);
       assert.equal(seenSQL.filter(sql=>sql.includes('FROM information_schema.columns')).length,1,
         'one column lookup per worker, not per authenticated GET');
       assert.equal(seenSQL.filter(sql=>sql.includes('FROM voti_grazia') &&
-        sql.includes('MAX(timestamp) OVER ()')).length,3,
+        sql.includes('MAX(vote.timestamp) OVER ()')).length,4,
         'one private vote query per authenticated GET, not per anonymous request');
       assert.equal(seenSQL.filter(sql=>sql.includes('SELECT MAX(timestamp)')).length,0,
         'no second timestamp aggregate query');
