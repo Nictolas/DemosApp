@@ -8,6 +8,23 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..', '..');
 const file = p => fs.readFileSync(path.join(root,p),'utf8');
 
+test('modern and legacy public directory filters require active registered accounts', () => {
+  for (const route of ['api/routes/attivisti.js','api/routes/organizzazioni.js']) {
+    const src=file(route);
+    const definitions=Array.from(src.matchAll(
+      /const (?:MODERN|LEGACY)_(?:ACTIVIST|ORGANIZATION)_FILTER = ([^;]+);/g
+    ));
+    assert.equal(definitions.length,2,
+      'both capability-model and legacy role filters must exist: '+route);
+    for (const def of definitions) {
+      assert.match(def[1],/u\\.status\\s*=\\s*'a'/,
+        'inactive/deleted/suspended account must not appear in public directory: '+route);
+    }
+    assert.match(src,/sqlTemplate\\.replace\\('__ACCOUNT_FILTER__'/,
+      'public listing and statistics must apply the active-account predicate');
+  }
+});
+
 test('all three public catalogue endpoints share a minimal approved projection', () => {
   const shared=file('api/services/publicApprovedSubjectPage.js');
   assert.match(shared,/SELECT id, title,/);
