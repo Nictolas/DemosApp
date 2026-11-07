@@ -89,17 +89,25 @@ function startBootstrap(env = process.env) {
   server.listen(port, '0.0.0.0', () => console.info('[unified-staging] bootstrap-only; app tests disabled'));
   return server;
 }
-// The existing Render start command is kept unchanged. Only the exact
-// preflight mode, with its independent staging-only authorization and ACL
-// guards, can dispatch to the separate read-only probe. In bootstrap mode,
-// the database and application modules are never even imported.
+// Keep the existing Render start command unchanged. Preflight and app_canary
+// dispatch to separate, isolated probes, each with its own mandatory GO/DB
+// guards. In bootstrap mode the database and application modules are never
+// even imported.
 async function startConfiguredStaging(env=process.env, {
   bootstrap=startBootstrap,
   preflight,
+  canary,
 }={}) {
   if (env && env.DEMOS_UNIFIED_STAGING_MODE==='preflight') {
     const start = preflight ||
       require('./unified_staging_preflight_server').startPreflightServer;
+    return start(env);
+  }
+  if (env && env.DEMOS_UNIFIED_STAGING_MODE==='app_canary') {
+    // This standalone entrypoint refuses to open a socket unless its strict
+    // staging-only approval, fixed database role and side-effect guards pass.
+    const start = canary ||
+      require('./unified_staging_civic_readonly_canary').startCivicReadOnlyCanary;
     return start(env);
   }
   return bootstrap(env);
