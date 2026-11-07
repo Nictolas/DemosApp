@@ -57,6 +57,7 @@ function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=fa
     '../middleware/politicalConsent':{requirePoliticalConsent:pass},
     '../middleware/civicIdentity':{requireVerifiedCivicIdentity:pass},
     '../middleware/validation':{validateInput:()=>pass},
+    '../services/politicalConsentService':{getPoliticalConsentState:async()=>({exists:true,granted:true})},
     '../services/preferenceCooldownService':{
       getPreferenceCooldown:async(_db,args)=>{
         cooldown.push(args);
