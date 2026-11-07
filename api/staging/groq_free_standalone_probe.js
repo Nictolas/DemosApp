@@ -2,10 +2,11 @@
 
 // Standalone GROQ-02 provider smoke on a dedicated Render Free service.
 // No DB, Firebase, scheduler, user records, or public text-generation route.
-// This service performs at most one provider check per process start.
+// This service performs one connectivity check and one source QA case per start.
 // Its HTTP endpoints only expose sanitized status, never keys or model output.
 const http = require('node:http');
 const { checkGroqFreeConnectivity } = require('../services/groqFreeSmokeService');
+const { runOfficialCaseQA } = require('./groq_official_case_qa');
 
 const SAFE_STATUSES = new Set([
   'OK', 'NOT_CONFIGURED', 'MODEL_NOT_ALLOWED', 'FREE_QUOTA_UNAVAILABLE',
@@ -36,7 +37,21 @@ async function runOneProbe({ env = process.env, check = checkGroqFreeConnectivit
   }
 }
 
-function createHandler(getProbe) {
+function sanitizeCaseResult(result) {
+  const safe = new Set(['PENDING', 'OK', 'NOT_RUN', 'NOT_CONFIGURED', 'MODEL_NOT_ALLOWED', 'FREE_QUOTA_UNAVAILABLE', 'EMPTY_OR_TRUNCATED', 'INVALID_JSON', 'SOURCE_MISMATCH', 'AUTH', 'MODEL_NOT_FOUND', 'INVALID_REQUEST', 'RATE_LIMIT', 'PROVIDER_UNAVAILABLE', 'NETWORK_OR_UNKNOWN']);
+  const status = safe.has(result?.status) ? result.status : 'NETWORK_OR_UNKNOWN';
+  const count = Number(result?.verifiedFields);
+  const latency = Number(result?.latencyMs);
+  return {
+    caseId: 'T008',
+    status,
+    success: status === 'OK' && result?.success === true,
+    verifiedFields: Number.isInteger(count) ? Math.max(0, Math.min(10, count)) : 0,
+    ...(Number.isFinite(latency) && latency >= 0 ? { latencyMs: Math.min(120000, Math.round(latency)) } : {})
+  };
+}
+
+function createHandler(getProbe, getCase = () => ({ status: 'NOT_RUN' })) {
   return (req, res) => {
     const path = String(req.url || '').split('?')[0];
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -52,6 +67,12 @@ function createHandler(getProbe) {
       res.end(JSON.stringify(result));
       return;
     }
+    if (req.method === 'GET' && path === '/health/case') {
+      const result = sanitizeCaseResult(getCase());
+      res.writeHead(result.success ? 200 : 503);
+      res.end(JSON.stringify(result));
+      return;
+    }
     res.writeHead(404);
     res.end(JSON.stringify({ status: 'NOT_FOUND' }));
   };
@@ -59,12 +80,19 @@ function createHandler(getProbe) {
 
 if (require.main === module) {
   let probe = { status: 'PENDING', success: false };
-  const server = http.createServer(createHandler(() => probe));
+  let officialCase = { caseId: 'T008', status: 'PENDING', success: false, verifiedFields: 0 };
+  const server = http.createServer(createHandler(() => probe, () => officialCase));
   server.listen(Number(process.env.PORT) || 10000, '0.0.0.0', () => {
     console.log('Standalone Groq Free probe listening; no DB or push initialized');
   });
+  // Exactly one connectivity check and one fixed official case if connectivity succeeds.
   // No timer, scheduler, retry loop, or client-supplied prompt.
-  void runOneProbe().then(result => { probe = result; });
+  void runOneProbe().then(async result => {
+    probe = result;
+    officialCase = result.success ? await runOfficialCaseQA() : {
+      caseId: 'T008', status: 'NOT_RUN', success: false, verifiedFields: 0
+    };
+  });
 }
 
-module.exports = { sanitizeResult, runOneProbe, createHandler };
+module.exports = { sanitizeResult, sanitizeCaseResult, runOneProbe, createHandler };
