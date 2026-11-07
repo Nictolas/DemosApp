@@ -135,6 +135,25 @@ test('generic nominations reject local and private HTTPS sources before database
   }
 });
 
+test('generic nominations reject hidden or directional control characters without SQL', async () => {
+  for (const title of [
+    'Nome\u202e invertito',
+    'Nome\u2066 isolato',
+    'Nome\u200b invisibile',
+    'Nome\u061c direzionale',
+    'Nome\u0000 incorporato'
+  ]) {
+    const app = harness();
+    const res = mockResponse();
+    await app.methods.post.get('/')({user:{id:TEST_USER},body:{
+      category:'attivisti',title,source_url:'https://example.org/fonte'
+    }},res);
+    assert.equal(res.statusCode,400,'reject disguised subject name');
+    assert.equal(app.connects,0,'reject before private connection');
+    assert.equal(app.queries.length,0,'do not query or store deceptive title');
+  }
+});
+
 test('Other four category submissions still write only subject_proposals', async () => {
   const app = harness();
   const res = mockResponse();
