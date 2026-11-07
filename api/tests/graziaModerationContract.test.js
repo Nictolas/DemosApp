@@ -99,7 +99,8 @@ test('Grazia voting locks the approved catalogue row inside its own transaction'
   const deletion=voting.indexOf("DELETE FROM voti_grazia");
   assert.ok(begin>=0 && lock>begin && deletion>lock,
     'a candidate must remain locked from its recheck through deleting/inserting preferences');
-  assert.match(voting,/if \(!stillActive\.rows\.length\) \{\s*await client\.query\('ROLLBACK'\);\s*return res\.status\(422\)/);
+  assert.match(voting,/if \(stillActive\.rows\.length !== 1\) \{\s*await client\.query\('ROLLBACK'\);\s*return res\.status\(422\)/,
+    'zero or ambiguous approved matches must not modify a personal vote');
   assert.match(voting,/requestedVotes\[0\] = stillActive\.rows\[0\]\.nome/,
     'new preferences must use the approved catalogue display name');
   assert.doesNotMatch(voting.slice(lock,deletion),/await client\.query\('COMMIT'\)/);
