@@ -6,6 +6,8 @@
 -- Column inventory covers the core provincial E2E path, not every app route.
 -- For canonical political choices, verify an actual unique ON CONFLICT key
 -- (user_id, selection_kind, political_office_id); the legacy PK differs.
+-- The canonical selection route also needs INSERT/UPDATE/DELETE privileges and
+-- corresponding RLS policies; policy presence is NOT proof of effective access.
 WITH required (relation_name, mandatory_for_e2e, purpose) AS (
   VALUES
     ('users', true, 'residence/consent'),
@@ -110,7 +112,25 @@ inventory AS (
              AND p.polcmd IN ('r', '*')
              AND (0 = ANY(p.polroles)
                   OR 'demos_staging_runtime'::regrole::oid = ANY(p.polroles))
-         ) AS runtime_read_policy_declared
+         ) AS runtime_read_policy_declared,
+         CASE WHEN r.relation_name = 'political_selections' THEN EXISTS (
+           SELECT 1 FROM pg_catalog.pg_policy p
+           WHERE p.polrelid = c.oid AND p.polcmd IN ('a', '*')
+             AND (0 = ANY(p.polroles)
+                  OR 'demos_staging_runtime'::regrole::oid = ANY(p.polroles))
+         ) ELSE NULL END AS selection_insert_policy_declared,
+         CASE WHEN r.relation_name = 'political_selections' THEN EXISTS (
+           SELECT 1 FROM pg_catalog.pg_policy p
+           WHERE p.polrelid = c.oid AND p.polcmd IN ('w', '*')
+             AND (0 = ANY(p.polroles)
+                  OR 'demos_staging_runtime'::regrole::oid = ANY(p.polroles))
+         ) ELSE NULL END AS selection_update_policy_declared,
+         CASE WHEN r.relation_name = 'political_selections' THEN EXISTS (
+           SELECT 1 FROM pg_catalog.pg_policy p
+           WHERE p.polrelid = c.oid AND p.polcmd IN ('d', '*')
+             AND (0 = ANY(p.polroles)
+                  OR 'demos_staging_runtime'::regrole::oid = ANY(p.polroles))
+         ) ELSE NULL END AS selection_delete_policy_declared
   FROM required r
   LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = 'public'
   LEFT JOIN pg_catalog.pg_class c
@@ -124,6 +144,8 @@ SELECT relation_name, mandatory_for_e2e, purpose,
        canonical_selection_unique_key_ready,
        runtime_can_select, rls_enabled, runtime_read_policy_declared,
        runtime_can_insert, runtime_can_update, runtime_can_delete,
+       selection_insert_policy_declared, selection_update_policy_declared,
+       selection_delete_policy_declared,
        CASE
          WHEN relation_oid IS NULL
            THEN CASE WHEN mandatory_for_e2e
@@ -136,6 +158,13 @@ SELECT relation_name, mandatory_for_e2e, purpose,
          WHEN NOT runtime_can_select THEN 'BLOCKED_NO_SELECT_GRANT'
          WHEN NOT rls_enabled THEN 'BLOCKED_RLS_DISABLED'
          WHEN NOT runtime_read_policy_declared THEN 'BLOCKED_NO_RUNTIME_READ_POLICY'
+         WHEN relation_name = 'political_selections'
+           AND (NOT runtime_can_insert OR NOT runtime_can_update OR NOT runtime_can_delete)
+           THEN 'BLOCKED_SELECTION_WRITE_GRANTS'
+         WHEN relation_name = 'political_selections'
+           AND (NOT selection_insert_policy_declared OR NOT selection_update_policy_declared
+                OR NOT selection_delete_policy_declared)
+           THEN 'BLOCKED_SELECTION_WRITE_POLICIES'
          ELSE 'METADATA_PASS_NOT_E2E_GO'
        END AS gate_status
 FROM inventory
