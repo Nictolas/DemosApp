@@ -266,7 +266,7 @@ test('new authenticated adult sessions revalidate UMP and stale callbacks cannot
   assert.match(consentMethod, /requestGeneration != consentGeneration/g);
   assert.match(consentMethod, /consentVerifiedForAdultSession = true/);
   assert.match(consentMethod, /consentVerifiedForAdultSession = false/);
-  assert.match(privacyMethod, /final long optionsGeneration = \+\+consentGeneration/);
+  assert.match(privacyMethod, /final long optionsGeneration = invalidateConsentGeneration\(\)/);
   assert.match(privacyMethod, /optionsGeneration != consentGeneration/);
   assert.match(privacyMethod, /consentVerifiedForAdultSession = true/);
   assert.match(resumeMethod, /!consentVerifiedForAdultSession/);
