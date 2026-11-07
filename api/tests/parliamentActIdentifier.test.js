@@ -121,3 +121,15 @@ test('ambiguous titles with multiple numbered bills never select an arbitrary fi
   assert.equal(estraiNumeroLegge('DDL 123 e DDL 123'), '123');
   assert.equal(estraiNumeroLegge('S. 61 - votazione finale'), '61');
 });
+
+test('generic labelled DDL mismatches fail closed before any official source lookup', () => {
+  assert.equal(canSearchActTitle('123', 'DDL 456', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'Disegno di legge n. 456', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 e DDL 456', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 e DDL 456', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 456 e S. 123', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 e S. 123', 'Senato'), true);
+  assert.equal(canSearchActTitle('123', 'DDL 123 e C. 456', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'S. 123 e C. 456', 'Senato'), true);
+  assert.equal(canSearchActTitle('123', 'DDL 123', 'Camera'), true);
+});
