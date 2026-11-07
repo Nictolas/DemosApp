@@ -7,7 +7,7 @@
 const { resolveFreeGroqModel, isGroqConfigured } = require('../services/parliamentFreeAiPolicy');
 const { requestFreeGroq, classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
 
-const CASE_ID = ['T002', 'T003', 'T006', 'T009', 'T010'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
+const CASE_ID = ['T002', 'T003', 'T006', 'T009', 'T010', 'T012'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
 const EVIDENCE = [
   'Camera dei deputati, XIX legislatura, seduta 729 del 20/10/2026.',
   'Votazione finale A.C. 3131: 125 favorevoli, 43 contrari, 52 astenuti, 168 votanti, 220 presenti.',
@@ -78,6 +78,29 @@ const ARCHIVE_EVIDENCE = [
   'non è indicato un numero di legge promulgata, né una data di pubblicazione o di entrata in vigore.',
   'Non presentare il cambio di denominazione come una norma già entrata in vigore.'
 ].join(' ');
+
+// Official Senate vote: https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl/votazione?did=60425&sessionId=463&voteId=4
+// Original amendment text: https://www.senato.it/show-doc?id=1523600&idoggetto=1517749&leg=19&tipodoc=EMEND
+// The vote is on amendment 1.13 to S.2023, not on the entire law.
+const ILVA_AMENDMENT_EVIDENCE = [
+  'Senato della Repubblica, XIX legislatura, seduta 463 del 07/10/2026.',
+  'Votazione elettronica sull’emendamento 1.13 di Turco, Sabrina Licheri, Bevilacqua e Naturale al disegno S.2023, relativo al decreto-legge 154/2026 sugli impianti strategici.',
+  'Presenti 122, votanti 121, favorevoli 45, contrari 75, astenuti 1. Esito: RESPINTO.',
+  'Testo originale emendamento 1.13: accordo di programma entro trenta giorni dalla legge di conversione per il risanamento ambientale e sanitario delle aree industriali ex ILVA.',
+  'Tra le misure proposte: chiusura definitiva dell’area a caldo, salvaguardia dei posti di lavoro e bonifica; altre misure per lavoratori e territorio.',
+  'L’emendamento NON è stato approvato, la chiusura dell’area a caldo non è stata disposta da questo voto.',
+  'Non confondere l’esito di questo emendamento con la successiva approvazione del disegno di legge S.2023/C.3131.',
+  'Non assegnare all’emendamento respinto un numero di legge, una data di pubblicazione o una data di entrata in vigore.'
+].join(' ');
+
+function diagnoseIlvaAmendmentExplanation(value) {
+  const explanation = String(value || '');
+  return {
+    hotAreaFound: /area\s+a\s+caldo/i.test(explanation),
+    ilvaOrProgrammeFound: /ilva|accordo\s+di\s+programma/i.test(explanation),
+    rejectedFound: /respint|bocciat|non approvat/i.test(explanation)
+  };
+}
 
 function diagnoseSecondLegislatureExplanation(value) {
   const explanation = String(value || '');
@@ -178,6 +201,23 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
     return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]) };
   }
+  if (caseId === 'T012') {
+    const flags = diagnoseIlvaAmendmentExplanation(answer.spiegazione);
+    const checks = [
+      /^(?:EM(?:ENDAMENTO)?\.?\s*)?1\.13$/i.test(String(answer.atto || '').trim()),
+      String(answer.data_voto || '') === '07/10/2026',
+      Number(answer.favorevoli) === 45,
+      Number(answer.contrari) === 75,
+      Number(answer.astenuti) === 1,
+      String(answer.esito || '').trim().toUpperCase() === 'RESPINTO',
+      answer.numero_legge == null,
+      answer.data_pubblicazione == null,
+      answer.data_entrata_in_vigore == null,
+      flags.hotAreaFound && flags.ilvaOrProgrammeFound && flags.rejectedFound
+    ];
+    const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
+    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: flags };
+  }
   if (caseId === 'T003') {
     const checks = [
       /^C\.?\s*2822\s*[-‑]\s*B$/i.test(String(answer.atto || '')),
@@ -238,9 +278,9 @@ async function runOfficialCaseQA({
       model,
       messages: [
         { role: 'system', content: 'Sei un verificatore di dati parlamentari. Usa ESCLUSIVAMENTE la fonte fornita. Non inventare fatti. Rispondi solo con un oggetto JSON conforme alle chiavi richieste.' },
-        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : EVIDENCE) +
+        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : EVIDENCE) +
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
-          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
+          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : CASE_ID === 'T012' ? 'Em. 1.13' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
           'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
@@ -286,4 +326,4 @@ async function runOfficialCaseQA({
   }
 }
 
-module.exports = { CASE_ID, EVIDENCE, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, assessOfficialAnswer, runOfficialCaseQA };
+module.exports = { CASE_ID, EVIDENCE, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, diagnoseIlvaAmendmentExplanation, assessOfficialAnswer, runOfficialCaseQA };
