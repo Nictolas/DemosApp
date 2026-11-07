@@ -16,13 +16,14 @@ function calendarMonthsClamped(isoDate, months) {
   return first.toISOString().slice(0, 10);
 }
 
-function syntheticS4({received, extensionNotified, extensionReason, extensionDelivered, responseSent, delivered}) {
+function syntheticS4({received, extensionNotified, extensionReason, extensionSent, extensionDelivered, responseSent, delivered}) {
   const ordinary = calendarMonthsClamped(received, 1);
   // Reject impossible notification dates instead of silently accepting an ISO-like string.
-  // An extension requires evidence of delivery, not merely a drafted notice.
+  // A synthetic extension needs separate affirmative dispatch and delivery evidence;
+  // this still does NOT establish that a legal extension is justified.
   if (extensionNotified != null) calendarMonthsClamped(extensionNotified, 0);
   const hasReason = typeof extensionReason === 'string' && extensionReason.trim().length > 0;
-  const extensionAccepted = Boolean(hasReason && extensionDelivered === true && extensionNotified && extensionNotified >= received && extensionNotified <= ordinary);
+  const extensionAccepted = Boolean(hasReason && extensionSent === true && extensionDelivered === true && extensionNotified && extensionNotified >= received && extensionNotified <= ordinary);
   return {
     ordinary,
     deadline: extensionAccepted ? calendarMonthsClamped(received, 3) : ordinary,
@@ -39,14 +40,14 @@ test('S4 calendar-month examples: short February and leap year', () => {
 });
 
 test('S4 late or unreasoned extension is not treated as approved', () => {
-  const timely = syntheticS4({received:'2027-01-31',extensionNotified:'2027-02-28',extensionReason:'synthetic complexity',extensionDelivered:true});
+  const timely = syntheticS4({received:'2027-01-31',extensionNotified:'2027-02-28',extensionReason:'synthetic complexity',extensionSent:true,extensionDelivered:true});
   assert.equal(timely.extensionAccepted, true);
   assert.equal(timely.deadline, '2027-04-30');
   for (const invalid of [
-    {extensionNotified:'2027-03-01',extensionReason:'synthetic complexity',extensionDelivered:true},
+    {extensionNotified:'2027-03-01',extensionReason:'synthetic complexity',extensionSent:true,extensionDelivered:true},
     {extensionNotified:'2027-02-20',extensionReason:''},
     {extensionNotified:'2027-02-20',extensionReason:'   '},
-    {extensionNotified:'2027-01-30',extensionReason:'synthetic complexity',extensionDelivered:true},
+    {extensionNotified:'2027-01-30',extensionReason:'synthetic complexity',extensionSent:true,extensionDelivered:true},
   ]) {
     const result = syntheticS4({received:'2027-01-31',...invalid});
     assert.equal(result.extensionAccepted,false);
@@ -88,13 +89,13 @@ test('S4 year-boundary calendar and last-day extension notification examples', (
   assert.equal(ordinary.deadline,'2027-01-31');
   const lastDay = syntheticS4({
     received:'2026-12-31',extensionNotified:'2027-01-31',
-    extensionReason:'synthetic complex request',extensionDelivered:true,responseSent:false,delivered:false
+    extensionReason:'synthetic complex request',extensionSent:true,extensionDelivered:true,responseSent:false,delivered:false
   });
   assert.equal(lastDay.extensionAccepted,true);
   assert.equal(lastDay.deadline,'2027-03-31');
   assert.equal(lastDay.deliveryConfirmed,false);
   const late = syntheticS4({
-    received:'2026-12-31',extensionNotified:'2027-02-01',extensionReason:'synthetic complex request',extensionDelivered:true
+    received:'2026-12-31',extensionNotified:'2027-02-01',extensionReason:'synthetic complex request',extensionSent:true,extensionDelivered:true
   });
   assert.equal(late.extensionAccepted,false);
   assert.equal(late.deadline,'2027-01-31');
@@ -102,10 +103,17 @@ test('S4 year-boundary calendar and last-day extension notification examples', (
 
 
 test('S4 extension cannot be inferred from a drafted or unconfirmed notice', () => {
-  const sample={received:'2027-01-31',extensionNotified:'2027-02-10',extensionReason:'synthetic complexity'};
+  const sample={received:'2027-01-31',extensionNotified:'2027-02-10',extensionReason:'synthetic complexity',extensionSent:true};
   for (const extensionDelivered of [undefined,null,false,'true',1]) {
     const result=syntheticS4({...sample,extensionDelivered});
     assert.equal(result.extensionAccepted,false,'unconfirmed notice must not extend the deadline');
+    assert.equal(result.deadline,'2027-02-28');
+  }
+  // A claimed delivery without a recorded dispatch is an inconsistent evidence pair.
+  // Fail closed rather than treating that pair as a lawful extension.
+  for (const extensionSent of [undefined,null,false,'true',1]) {
+    const result=syntheticS4({...sample,extensionSent,extensionDelivered:true});
+    assert.equal(result.extensionAccepted,false);
     assert.equal(result.deadline,'2027-02-28');
   }
   const confirmed=syntheticS4({...sample,extensionDelivered:true});
