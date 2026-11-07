@@ -67,6 +67,15 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
       success: value?.success === true,
       verifiedFields: Number.isInteger(value?.verifiedFields) ? value.verifiedFields : 0,
       failedFields: Array.isArray(value?.failedFields) ? value.failedFields : [],
+      ...(caseId === 'T013' ? {
+        safeFlags: {
+          thresholdFound: value?.explanationDiagnostics?.thresholdFound === true,
+          immediateLegislatureFound: value?.explanationDiagnostics?.immediateLegislatureFound === true,
+          laterLegislatureFound: value?.explanationDiagnostics?.laterLegislatureFound === true,
+          rejectedFound: value?.explanationDiagnostics?.rejectedFound === true,
+          confusedWith18Months: value?.explanationDiagnostics?.confusedWith18Months === true
+        }
+      } : {})
     });
     // Do not hammer a Free provider when admission/auth/provider fails.
     if (['RATE_LIMIT', 'FREE_QUOTA_UNAVAILABLE', 'NOT_CONFIGURED',
@@ -89,6 +98,14 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
     samplesRequested,
     samplesCompleted: results.length,
     samplesPassed,
+    ...(caseId === 'T013' ? {
+      sampleCategories: results.map(r => SAFE_STATUSES.has(r.status) ? r.status : 'NETWORK_OR_UNKNOWN'),
+      sampleFieldScores: results.map(r => Math.max(0, Math.min(10, r.verifiedFields))),
+      t013FlagTallies: Object.fromEntries(
+        ['thresholdFound','immediateLegislatureFound','laterLegislatureFound','rejectedFound','confusedWith18Months']
+          .map(flag => [flag, results.filter(r => r.safeFlags?.[flag] === true).length])
+      )
+    } : {})
   };
 }
 
@@ -107,6 +124,18 @@ function sanitizeCaseResult(result) {
       samplesRequested: result.samplesRequested,
       samplesCompleted: Number.isInteger(result.samplesCompleted) && result.samplesCompleted >= 0 && result.samplesCompleted <= 3 ? result.samplesCompleted : 0,
       samplesPassed: Number.isInteger(result.samplesPassed) && result.samplesPassed >= 0 && result.samplesPassed <= 3 ? result.samplesPassed : 0
+    } : {}),
+    ...(result?.caseId === 'T013' && Array.isArray(result?.sampleCategories) ? {
+      sampleCategories: result.sampleCategories.slice(0, 3).map(status => safe.has(status) ? status : 'NETWORK_OR_UNKNOWN'),
+      sampleFieldScores: (Array.isArray(result.sampleFieldScores) ? result.sampleFieldScores : [])
+        .slice(0, 3).map(score => Number.isInteger(score) && score >= 0 && score <= 10 ? score : 0),
+      t013FlagTallies: Object.fromEntries(
+        ['thresholdFound','immediateLegislatureFound','laterLegislatureFound','rejectedFound','confusedWith18Months']
+          .map(flag => [flag,
+            Number.isInteger(result.t013FlagTallies?.[flag]) &&
+              result.t013FlagTallies[flag] >= 0 && result.t013FlagTallies[flag] <= 3
+              ? result.t013FlagTallies[flag] : 0])
+      )
     } : {}),
     ...(result?.caseId === 'T002' && result?.explanationDiagnostics ? {
       explanationDiagnostics: {
