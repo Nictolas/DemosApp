@@ -18,6 +18,7 @@ import sys
 from datetime import datetime
 from html.parser import HTMLParser
 from typing import Any, List, Optional, Sequence, Tuple
+from urllib.parse import urlsplit
 
 REGISTER_API = "https://register.eci.ec.europa.eu/core/api/register"
 PORTAL_BASE = "https://citizens-initiative.europa.eu"
@@ -104,14 +105,22 @@ def _fetch_ongoing_entries(*, session=None) -> List[dict]:
         if not isinstance(batch, list):
             raise RuntimeError("API ECI: campo entries mancante o non valido")
 
+        # Every page belongs to the same authoritative snapshot. If the
+        # count changes mid-pagination, never mark missing initiatives as
+        # NOT_ONGOING or create civic events from a mixed source read.
         records_found = payload.get("recordsFound")
+        if isinstance(records_found, bool) or not (
+            isinstance(records_found, int)
+            or (isinstance(records_found, str) and re.fullmatch(r"[0-9]+", records_found))
+        ):
+            raise RuntimeError("ECI_OFFICIAL_TOTAL_INVALID")
+        current_total = int(records_found)
+        if current_total <= 0:
+            raise RuntimeError("API ECI: nessuna iniziativa ONGOING restituita; sync bloccato fail-closed")
         if expected_total is None:
-            try:
-                expected_total = int(records_found)
-            except (TypeError, ValueError) as exc:
-                raise RuntimeError("API ECI: recordsFound mancante o non valido") from exc
-            if expected_total <= 0:
-                raise RuntimeError("API ECI: nessuna iniziativa ONGOING restituita; sync bloccato fail-closed")
+            expected_total = current_total
+        elif current_total != expected_total:
+            raise RuntimeError("ECI_OFFICIAL_TOTAL_CHANGED")
 
         if not batch:
             break
@@ -122,10 +131,17 @@ def _fetch_ongoing_entries(*, session=None) -> List[dict]:
             if item.get("status") != STATUS:
                 raise RuntimeError(f"API ECI: status inatteso {item.get('status')!r} nel feed ONGOING")
             item_id = item.get("id")
-            if item_id in seen_ids:
-                continue
-            seen_ids.add(item_id)
+            if isinstance(item_id, bool) or not isinstance(item_id, (int, str)) or not re.fullmatch(r"[0-9]+", str(item_id)):
+                raise RuntimeError("ECI_OFFICIAL_SOURCE_ID_INVALID")
+            # Normalize int vs digit-string IDs before uniqueness checking.
+            # Silently deduplicating can produce an incomplete mixed snapshot.
+            canonical_id = str(int(str(item_id)))
+            if canonical_id in seen_ids:
+                raise RuntimeError("ECI_OFFICIAL_SOURCE_DUPLICATE_ID")
+            seen_ids.add(canonical_id)
             entries.append(item)
+        if len(entries) > expected_total:
+            raise RuntimeError("ECI_OFFICIAL_TOO_MANY_ITEMS")
 
         if len(entries) >= expected_total:
             break
@@ -166,29 +182,77 @@ def _choose_version(detail: dict) -> dict:
 
 
 def _normalize_number(value: Any) -> int:
-    try:
-        number = int(value)
-    except (TypeError, ValueError) as exc:
-        raise RuntimeError(f"Numero firme ufficiale non valido: {value!r}") from exc
+    # int(1.5) == 1 and int(True) == 1, neither is an authoritative
+    # count of signatures. Reject coercion rather than losing information.
+    if isinstance(value, bool) or not (
+        isinstance(value, int)
+        or (isinstance(value, str) and re.fullmatch(r"[0-9]+", value))
+    ):
+        raise RuntimeError("ECI_OFFICIAL_SUPPORTERS_INVALID")
+    number = int(value)
     if number < 0:
-        raise RuntimeError(f"Numero firme ufficiale negativo: {number}")
+        raise RuntimeError("ECI_OFFICIAL_SUPPORTERS_NEGATIVE")
     return number
 
 
 def _normalize_identity(entry: dict) -> Tuple[str, str]:
     year = str(entry.get("year") or "").strip()
     number = str(entry.get("number") or "").strip()
-    if not re.fullmatch(r"\d{4}", year) or not re.fullmatch(r"\d{6}", number):
-        pub_reg = str(entry.get("pubRegNum") or "")
-        match = re.fullmatch(r"ECI\((\d{4})\)(\d{6})", pub_reg)
+    direct_valid = bool(re.fullmatch(r"\d{4}", year) and re.fullmatch(r"\d{6}", number))
+    pub_reg = entry.get("pubRegNum")
+    public_id = None
+    if pub_reg is not None:
+        match = re.fullmatch(r"ECI\((\d{4})\)(\d{6})", str(pub_reg))
         if not match:
-            raise RuntimeError(f"Identificatore ECI ufficiale non valido: {pub_reg!r}")
-        year, number = match.groups()
-    return year, number
+            raise RuntimeError("ECI_OFFICIAL_REGISTER_ID_INVALID")
+        public_id = match.groups()
+    if direct_valid and public_id is not None and (year, number) != public_id:
+        raise RuntimeError("ECI_OFFICIAL_REGISTER_ID_MISMATCH")
+    if direct_valid:
+        return year, number
+    if public_id is None:
+        raise RuntimeError("Identificatore ECI ufficiale non valido")
+    # A malformed but present field cannot silently be discarded in favour
+    # of a different official registration number.
+    if (year and not re.fullmatch(r"\d{4}", year)) or (
+        number and not re.fullmatch(r"\d{6}", number)
+    ):
+        raise RuntimeError("ECI_OFFICIAL_REGISTER_ID_INVALID")
+    if year and year != public_id[0]:
+        raise RuntimeError("ECI_OFFICIAL_REGISTER_ID_MISMATCH")
+    if number and number != public_id[1]:
+        raise RuntimeError("ECI_OFFICIAL_REGISTER_ID_MISMATCH")
+    return public_id
+
+
+def _official_support_url(value: str, fallback: str) -> str:
+    # The source is public and can change independently of our code.
+    # Do not present an arbitrary third-party HTTPS page as an EU signing URL.
+    if not value:
+        return fallback
+    try:
+        url = urlsplit(value)
+    except ValueError:
+        return fallback
+    if url.scheme != "https" or url.hostname not in (
+        "eci.ec.europa.eu", "citizens-initiative.europa.eu"
+    ) or url.username is not None or url.password is not None:
+        return fallback
+    try:
+        if url.port not in (None, 443):
+            return fallback
+    except ValueError:
+        return fallback
+    return value
 
 
 def _normalize_record(entry: dict, detail: dict) -> Tuple[str, str, int, str, str, Optional[str], Optional[str], str]:
     year, number = _normalize_identity(entry)
+    # If the detail endpoint returns a register number, it must agree with
+    # the search entry whose ID we are about to upsert.
+    detail_registration = detail.get("pubRegNum")
+    if detail_registration is not None and detail_registration != f"ECI({year}){number}":
+        raise RuntimeError("ECI_OFFICIAL_DETAIL_ID_MISMATCH")
     if detail.get("status") != STATUS:
         raise RuntimeError(f"Dettaglio {year}/{number}: status {detail.get('status')!r} non ONGOING")
 
@@ -205,7 +269,7 @@ def _normalize_record(entry: dict, detail: dict) -> Tuple[str, str, int, str, st
     objectives = _strip_html(version.get("objectives"))
     support_link = str(version.get("supportLink") or entry.get("supportLink") or "").strip()
     detail_url = f"{PORTAL_BASE}/initiatives/details/{year}/{number}_it"
-    official_url = support_link if support_link.startswith("https://") else detail_url
+    official_url = _official_support_url(support_link, detail_url)
 
     eid = f"{year}-{number}"
     slug = f"eci-{eid}"
@@ -415,8 +479,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         sync(dry_run=args.dry_run)
         return 0
-    except Exception as exc:
-        print(f"[ERR] Sync ECI fallito: {exc}", file=sys.stderr)
+    except Exception:
+        # Never print raw provider/SQL exceptions: connection failures may
+        # embed DSNs with credentials, request URLs or identifiable values.
+        # A stable code and nonzero exit status suffice for safe job alerts.
+        print("[ERR] ECI_SYNC_FAILED", file=sys.stderr)
         return 1
 
 

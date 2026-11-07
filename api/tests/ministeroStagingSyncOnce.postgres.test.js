@@ -126,8 +126,14 @@ test('staging source-only sync uses real restricted PG16/17 writes, never DELETE
     assert.deepEqual(outbox.rows.map(x=>[x.official_id,x.status]),[
       ['217','suppressed'],['218','suppressed'],
     ]);
-    // Unexpectedly depleted source must abort, not mark history as closed.
+    // A depleted feed must abort, even though the source parser may be valid.
     await assert.rejects(run([source(217,100)]),/MINISTERO_SOURCE_SYNC_ABORTED/);
+    // A *same-size* replacement with an unknown ID must also abort. This was
+    // accepted by the former 80%-of-total check and left stale data behind.
+    await assert.rejects(run([source(217,100),source(219,100)]),
+      /MINISTERO_SOURCE_SYNC_ABORTED/);
+    const unchanged=await admin.query('SELECT id FROM public.iniziative_ministero ORDER BY id');
+    assert.deepEqual(unchanged.rows.map(x=>x.id),['ministero_217','ministero_218']);
     await admin.query('UPDATE public.civic_push_delivery_guard SET blocked=false WHERE id=1');
     await assert.rejects(run([source(217),source(218)]),
       /MINISTERO_SOURCE_SYNC_ABORTED/);

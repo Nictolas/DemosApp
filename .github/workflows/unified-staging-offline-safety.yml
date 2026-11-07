@@ -7,11 +7,33 @@ on:
     branches:
       - main
       - ops/demos-unified-staging-20261102
+      # CI-only integration branch for the dependent atomic-consent PR.
+      - qa/d10-combined-source-fcm-safety-20261105
+      - qa/d10-civic-preferences-atomic-save-20261105
+      - qa/d10-atomic-fcm-device-mutations-20261105
+      - qa/d10-dispatch-bootstrap-lock-confirmation-20261105
+      - qa/d10-dispatch-status-ack-guard-20261105
+      - qa/d10-fcm-cleanup-ownership-no-steal-20261105
+      - qa/d10-fcm-legacy-schema-transaction-safe-20261105
+      - qa/d10-fcm-cleanup-canonical-first-20261105
     paths:
       - 'api/config/database.js'
       - 'api/app.js'
       - 'api/server.js'
       - 'api/services/ministeroSync.js'
+      - 'api/services/civicFcmTokenOwnership.js'
+      - 'api/services/civicLegacyFcmStorage.js'
+      - 'api/tests/civicLegacyFcmStorage.test.js'
+      - 'api/tests/civicLegacyFcmStorage.postgres.test.js'
+      - 'api/services/civicPreferenceAtomicSave.js'
+      - 'api/routes/notifiche.js'
+      - 'api/tests/civicPreferenceAtomicSave.test.js'
+      - 'api/tests/civicPreferenceGuardRecovery.http.test.js'
+      - 'api/tests/civicPreferenceAtomicSave.postgres.test.js'
+      - 'api/routes/fcm-tokens.js'
+      - 'api/tests/civicFcmTokenMutation.http.test.js'
+      - 'api/tests/civicFcmTokenOwnership.test.js'
+      - 'api/tests/civicFcmTokenOwnership.postgres.test.js'
       - 'api/tests/ministeroPkUpsert.test.js'
       - 'api/services/ministeroPaginationSafety.js'
       - 'api/tests/ministeroPaginationSafety.test.js'
@@ -84,6 +106,19 @@ on:
       - 'api/app.js'
       - 'api/server.js'
       - 'api/services/ministeroSync.js'
+      - 'api/services/civicFcmTokenOwnership.js'
+      - 'api/services/civicLegacyFcmStorage.js'
+      - 'api/tests/civicLegacyFcmStorage.test.js'
+      - 'api/tests/civicLegacyFcmStorage.postgres.test.js'
+      - 'api/services/civicPreferenceAtomicSave.js'
+      - 'api/routes/notifiche.js'
+      - 'api/tests/civicPreferenceAtomicSave.test.js'
+      - 'api/tests/civicPreferenceGuardRecovery.http.test.js'
+      - 'api/tests/civicPreferenceAtomicSave.postgres.test.js'
+      - 'api/routes/fcm-tokens.js'
+      - 'api/tests/civicFcmTokenMutation.http.test.js'
+      - 'api/tests/civicFcmTokenOwnership.test.js'
+      - 'api/tests/civicFcmTokenOwnership.postgres.test.js'
       - 'api/tests/ministeroPkUpsert.test.js'
       - 'api/services/ministeroPaginationSafety.js'
       - 'api/tests/ministeroPaginationSafety.test.js'
@@ -206,6 +241,10 @@ jobs:
           node --test api/tests/ministeroPkUpsert.test.js
           node --test api/tests/ministeroPublicSnapshotAudit.test.js
           node --test api/tests/ministeroStagingSyncOnce.test.js
+          node --test api/tests/civicFcmTokenOwnership.test.js
+          node --test api/tests/civicLegacyFcmStorage.test.js
+          node --test api/tests/civicPreferenceAtomicSave.test.js
+          # HTTP recovery suite requires Express; it runs in the civic contracts workflow after npm ci.
           node --test api/tests/unifiedStagingBootstrap.test.js api/tests/stagingRuntimeLockAudit.test.js api/tests/unifiedStagingPreflightServer.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSessionContinuity.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/legacyRenderPgRetirementGate.test.js
           node --test api/tests/referendumOfficialRoutes.staging.test.js api/tests/referendumPriorityRetired.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/publicRouteHygiene.smoke.test.js
 
@@ -353,5 +392,11 @@ jobs:
         run: node --test api/tests/unifiedStagingSessionContinuity.postgres.test.js
       - name: CI-only restricted runtime role session advisory lock on PG16 and PG17
         run: node --test api/tests/civicRuntimeAdvisoryLock.postgres.test.js
+      - name: Prove active FCM token owner exclusion in disposable PG${{ matrix.pg-major }}
+        run: node --test api/tests/civicFcmTokenOwnership.postgres.test.js
+      - name: Validate optional FCM legacy field on disposable PG${{ matrix.pg-major }}
+        run: node --test api/tests/civicLegacyFcmStorage.postgres.test.js
+      - name: Verify civic preference rollback and durable blocked guard on disposable PG${{ matrix.pg-major }}
+        run: node --test api/tests/civicPreferenceAtomicSave.postgres.test.js
       - name: Exercise actual JavaScript service on PostgreSQL ${{ matrix.pg-major }} and rollback all 10 synthetic votes
         run: node --test api/tests/referendumForecastSnapshot.postgres16.test.js
