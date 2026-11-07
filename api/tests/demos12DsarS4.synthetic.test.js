@@ -33,6 +33,8 @@ function syntheticS4({received, extensionNotified, extensionDeliveredAt, extensi
     extensionAccepted,
     // In this synthetic contract, untyped strings/numbers are not evidence of delivery.
     deliveryConfirmed: responseSent === true && delivered === true && Boolean(responseSentAt && responseDeliveredAt && responseSentAt >= received && responseDeliveredAt >= responseSentAt),
+    // Delivery evidence and compliance with the response deadline are separate facts.
+    responseWithinDeadline: responseSent === true && delivered === true && Boolean(responseSentAt && responseDeliveredAt && responseSentAt >= received && responseDeliveredAt >= responseSentAt && responseDeliveredAt <= (extensionAccepted ? calendarMonthsClamped(received, 3) : ordinary)),
   };
 }
 
@@ -153,4 +155,21 @@ test('S4 extension cannot be inferred from a drafted or unconfirmed notice', () 
   const confirmed=syntheticS4({...sample,extensionDelivered:true});
   assert.equal(confirmed.extensionAccepted,true);
   assert.equal(confirmed.deadline,'2027-04-30');
+});
+
+test('S4 delivery confirmation does not falsely certify a late response as timely', () => {
+  const base={received:'2027-01-31',responseSent:true,delivered:true};
+  const late=syntheticS4({...base,responseSentAt:'2027-03-01',responseDeliveredAt:'2027-03-02'});
+  assert.equal(late.deliveryConfirmed,true);
+  assert.equal(late.responseWithinDeadline,false);
+  const timely=syntheticS4({...base,responseSentAt:'2027-02-27',responseDeliveredAt:'2027-02-28'});
+  assert.equal(timely.responseWithinDeadline,true);
+  const extension={extensionNotified:'2027-02-20',extensionDeliveredAt:'2027-02-20',extensionReason:'synthetic complexity',extensionSent:true,extensionDelivered:true};
+  const extended=syntheticS4({...base,...extension,responseSentAt:'2027-04-29',responseDeliveredAt:'2027-04-30'});
+  assert.equal(extended.extensionAccepted,true);
+  assert.equal(extended.responseWithinDeadline,true);
+  const tooLate=syntheticS4({...base,...extension,responseSentAt:'2027-04-30',responseDeliveredAt:'2027-05-01'});
+  assert.equal(tooLate.deliveryConfirmed,true);
+  assert.equal(tooLate.responseWithinDeadline,false);
+  assert.equal(syntheticS4({...base,responseSentAt:'2027-02-27',responseDeliveredAt:'2027-02-28',delivered:false}).responseWithinDeadline,false);
 });
