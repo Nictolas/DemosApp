@@ -3,10 +3,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { Loader2, MessageSquare } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
+import { OpinioniTopicsMenu } from "@/components/OpinioniTopicsMenu";
 
 export default function Opinioni() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const [view, setView] = React.useState<"geo" | "topics">("topics");
 
   if (isAuthLoading) {
     return (
@@ -68,6 +70,12 @@ export default function Opinioni() {
           </p>
         </div>
 
+        <div className="mb-3 grid shrink-0 grid-cols-2 gap-2" role="group" aria-label="Navigazione delle Opinioni">
+          <button type="button" aria-pressed={view === "geo"} onClick={() => setView("geo")}
+            className={`rounded-lg border px-3 py-2 text-sm font-semibold ${view === "geo" ? "bg-blue-600 text-white" : "bg-white text-slate-800"}`}>Per territorio</button>
+          <button type="button" aria-pressed={view === "topics"} onClick={() => setView("topics")}
+            className={`rounded-lg border px-3 py-2 text-sm font-semibold ${view === "topics" ? "bg-blue-600 text-white" : "bg-white text-slate-800"}`}>Per argomento</button>
+        </div>
         <div className="mb-3 shrink-0">
           <button
             type="button"
@@ -89,6 +97,7 @@ export default function Opinioni() {
           </button>
         </div>
 
+        {view === "geo" ? (
         <div className="opinioni-page__grid flex-1 min-h-0 gap-2 sm:gap-3">
           {categorie.map((categoria) => {
             const color = colorMap[categoria.color as keyof typeof colorMap];
@@ -137,6 +146,7 @@ export default function Opinioni() {
             );
           })}
         </div>
+        ) : <OpinioniTopicsMenu />}
       </div>
     </PageContainer>
   );

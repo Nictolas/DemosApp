@@ -300,8 +300,8 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                   <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
                 </summary>
                 <div className="border-t border-slate-100 p-3">
-                  <Link href="/opinioni" className="mb-3 inline-flex text-sm font-semibold text-blue-700 hover:underline">
-                    Esprimi opinioni
+                  <Link href="/opinioni" data-testid="profilo-modifica-opinioni-link" className="mb-3 inline-flex items-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                    Modifica opinioni
                   </Link>
                   {sectionsLoading.opinions ? (
                     <p role="status" className="text-sm text-slate-500">Caricamento opinioni…</p>
