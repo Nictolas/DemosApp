@@ -120,6 +120,16 @@ inventory AS (
          CASE WHEN c.oid IS NULL THEN false
            ELSE has_table_privilege('demos_staging_runtime', c.oid, 'SELECT')
          END AS runtime_can_select,
+         -- Supabase may apply default client GRANTs to newly created tables.
+         -- RLS policy presence is NOT a substitute for revoking direct grants.
+         CASE WHEN c.oid IS NULL THEN false
+           ELSE has_table_privilege('anon', c.oid,
+             'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+         END AS anon_client_has_privilege,
+         CASE WHEN c.oid IS NULL THEN false
+           ELSE has_table_privilege('authenticated', c.oid,
+             'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+         END AS authenticated_client_has_privilege,
          CASE WHEN c.oid IS NULL THEN false
            ELSE has_table_privilege('demos_staging_runtime', c.oid, 'INSERT')
          END AS runtime_can_insert,
@@ -167,7 +177,8 @@ SELECT relation_name, mandatory_for_e2e, purpose,
        canonical_selection_unique_key_ready,
        legacy_selection_unique_key_conflict,
        selection_has_incoming_foreign_keys,
-       runtime_can_select, rls_enabled, runtime_read_policy_declared,
+       runtime_can_select, anon_client_has_privilege, authenticated_client_has_privilege,
+       rls_enabled, runtime_read_policy_declared,
        runtime_can_insert, runtime_can_update, runtime_can_delete,
        selection_insert_policy_declared, selection_update_policy_declared,
        selection_delete_policy_declared,
@@ -187,6 +198,8 @@ SELECT relation_name, mandatory_for_e2e, purpose,
          WHEN relation_name = 'political_selections'
           AND NOT canonical_selection_unique_key_ready
           THEN 'BLOCKED_CANONICAL_CONFLICT_KEY_MISSING'
+         WHEN anon_client_has_privilege OR authenticated_client_has_privilege
+           THEN 'BLOCKED_CLIENT_DIRECT_TABLE_GRANT'
          WHEN NOT runtime_can_select THEN 'BLOCKED_NO_SELECT_GRANT'
          WHEN NOT rls_enabled THEN 'BLOCKED_RLS_DISABLED'
          WHEN NOT runtime_read_policy_declared THEN 'BLOCKED_NO_RUNTIME_READ_POLICY'
