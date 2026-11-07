@@ -7,7 +7,7 @@
 const { resolveFreeGroqModel, isGroqConfigured } = require('../services/parliamentFreeAiPolicy');
 const { requestFreeGroq, classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
 
-const CASE_ID = ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
+const CASE_ID = ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T018'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
 const EVIDENCE = [
   'Camera dei deputati, XIX legislatura, seduta 729 del 20/10/2026.',
   'Votazione finale A.C. 3131: 125 favorevoli, 43 contrari, 52 astenuti, 168 votanti, 220 presenti.',
@@ -104,6 +104,21 @@ const LIABILITY_AMENDMENT_EVIDENCE = [
   'La proposta chiedeva di abrogare gli articoli 7 e 8 del decreto-legge 2/2023 e il comma 5 dell’articolo 9-bis del decreto-legge 69/2023.',
   'Questo emendamento NON è stato approvato; non confondere il voto con la conversione definitiva del ddl.',
   'Non attribuire numero di legge, data di pubblicazione o di entrata in vigore a questo emendamento respinto.'
+].join(' ');
+
+// Senate official record: https://www.senato.it/show-doc?id=1523304&leg=19&part=doc_dc&tipodoc=Resaula
+// Senate bill status: https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=60485&tab=datiGenerali
+// Gazzetta Ufficiale: https://www.gazzettaufficiale.it/eli/id/2026/10/06/26G00194/sg
+// This is a confidence vote ON the final conversion article: distinguish the vote date from promulgation/publication.
+const CONFIDENCE_PA_EVIDENCE = [
+  'Senato della Repubblica, XIX legislatura, seduta 460 del 30/09/2026.',
+  'Votazione nominale con appello sulla questione di fiducia posta dal Governo sull’articolo unico del DDL S.2047,',
+  'conversione del decreto-legge 7 agosto 2026 n.144, già approvato dalla Camera come C.3083.',
+  'La materia riguarda la funzionalità della pubblica amministrazione, gli enti territoriali e la protezione civile.',
+  'Voto sulla fiducia e sull’articolo unico: 95 favorevoli, 53 contrari, 2 astenuti, 150 votanti, 151 presenti.',
+  'Il Senato approva definitivamente la conversione il 30/09/2026; la fiducia è approvata.',
+  'Dopo il voto: legge 5 ottobre 2026 n.174, pubblicata sulla GU n.232 del 06/10/2026,',
+  'entrata in vigore il 07/10/2026 secondo il testo della legge. Le tre date non coincidono.'
 ].join(' ');
 
 function diagnoseLiabilityAmendmentExplanation(value) {
@@ -257,6 +272,27 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
     return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: flags };
   }
+  if (caseId === 'T018') {
+    const explanation = String(answer.spiegazione || '');
+    const confidenceTopic = /fiduci/i.test(explanation) &&
+      /(pubblic[a-z]*\\s+amministrazion|protezion[a-z]*\\s+civil|enti\\s+territorial)/i.test(explanation);
+    const checks = [
+      /^S\\.?\\s*2047$/i.test(String(answer.atto || '')),
+      String(answer.data_voto || '') === '30/09/2026',
+      Number(answer.favorevoli) === 95,
+      Number(answer.contrari) === 53,
+      Number(answer.astenuti) === 2,
+      String(answer.esito || '').trim().toUpperCase() === 'APPROVATO DEFINITIVAMENTE',
+      Number(answer.numero_legge) === 174,
+      String(answer.data_pubblicazione || '') === '06/10/2026',
+      String(answer.data_entrata_in_vigore || '') === '07/10/2026',
+      confidenceTopic && !/respint|bocciat|non\\s+definitiv/i.test(explanation)
+    ];
+    const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito',
+      'numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
+    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length,
+      failedFields: names.filter((_, i) => !checks[i]) };
+  }
   if (caseId === 'T003') {
     const checks = [
       /^C\.?\s*2822\s*[-‑]\s*B$/i.test(String(answer.atto || '')),
@@ -317,9 +353,9 @@ async function runOfficialCaseQA({
       model,
       messages: [
         { role: 'system', content: 'Sei un verificatore di dati parlamentari. Usa ESCLUSIVAMENTE la fonte fornita. Non inventare fatti. Rispondi solo con un oggetto JSON conforme alle chiavi richieste.' },
-        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : CASE_ID === 'T011' ? LIABILITY_AMENDMENT_EVIDENCE : EVIDENCE) +
+        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : CASE_ID === 'T011' ? LIABILITY_AMENDMENT_EVIDENCE : CASE_ID === 'T018' ? CONFIDENCE_PA_EVIDENCE : EVIDENCE) +
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
-          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : CASE_ID === 'T012' ? 'Em. 1.13' : CASE_ID === 'T011' ? 'Em. 1.0.6' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
+          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : CASE_ID === 'T012' ? 'Em. 1.13' : CASE_ID === 'T011' ? 'Em. 1.0.6' : CASE_ID === 'T018' ? 'S.2047' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
           'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
