@@ -9,7 +9,7 @@ const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 test('Grazia proposals are stored privately and one pending per owner via row lock', () => {
   const source = read('api/routes/grazia.js');
   assert.match(source, /router\.post\('\/', personalNoStore, verifyToken, async/);
-  assert.match(source, /SELECT id FROM users WHERE id = \$1 FOR UPDATE/);
+  assert.match(source, /SELECT id FROM users WHERE id = \$1 AND status = 'a' FOR UPDATE/);
   assert.match(source, /FROM richieste_grazia WHERE utente_id = \$1 AND status = 'pending'/);
   assert.match(source, /INSERT INTO richieste_grazia \(id, utente_id, nome, url_prova, status, data_creazione\)/);
   assert.match(source, /return res\.status\(409\)/);
@@ -119,7 +119,7 @@ test('Grazia pending Admin queue includes only fields needed for review', () => 
 test('Grazia serializes equivalent names across different users in the single queue', () => {
   const source=read('api/routes/grazia.js');
   const submission=source.slice(source.indexOf("router.post('/'"),source.indexOf("// GET /api/grazia"));
-  const owner=submission.indexOf("SELECT id FROM users WHERE id = $1 FOR UPDATE");
+  const owner=submission.indexOf("SELECT id FROM users WHERE id = $1 AND status = 'a' FOR UPDATE");
   const key=submission.indexOf("pg_advisory_xact_lock(hashtextextended");
   const duplicate=submission.indexOf("FROM richieste_grazia WHERE status IN ('pending','approved')");
   const insertion=submission.indexOf("INSERT INTO richieste_grazia");
