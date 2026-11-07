@@ -34,13 +34,23 @@ test('shared fetch reads apiRequest response.data, validates server envelope, om
   assert.doesNotMatch(pageRead, /apiRequest\("GET",\s*[`'"]\/api\/notifiche|\?user_id=/);
 });
 
-test('background polling disabled and page/badge share one 60s refresh policy', () => {
-  assert.match(shared, /refetchInterval:\s*60_000/);
+test('notifications: no periodic full-feed polling or focus/reconnect refresh', () => {
+  assert.match(shared, /refetchInterval:\s*false/);
   assert.match(shared, /refetchIntervalInBackground:\s*false/);
-  assert.match(shared, /staleTime:\s*90_000/);
-  assert.match(shared, /refetchOnWindowFocus:\s*true/);
-  assert.doesNotMatch(badge, /refetchInterval: 45000/);
-  assert.doesNotMatch(page, /refetchInterval: 60000/);
+  assert.match(shared, /staleTime:\s*5\s*\*\s*60_000/);
+  assert.match(shared, /refetchOnWindowFocus:\s*false/);
+  assert.match(shared, /refetchOnReconnect:\s*false/);
+  assert.doesNotMatch(shared, /refetchInterval:\s*60_000/);
+  assert.doesNotMatch(badge, /refetchInterval\s*:/);
+  assert.doesNotMatch(page, /refetchInterval\s*:/);
+});
+
+test('opening Notifiche refreshes the shared feed, while badge reuses the same cache', () => {
+  assert.match(page, /refetchOnMount:\s*"always"/);
+  assert.match(page, /queryKey:\s*notificationFeedKey\(user\?\.id\)/);
+  assert.match(badge, /queryKey:\s*notificationFeedKey\(user\?\.id\)/);
+  assert.doesNotMatch(badge, /refetchOnMount:\s*"always"/);
+  assert.doesNotMatch(page, /setInterval\(|setTimeout\(/);
 });
 
 test('badge does not falsely count missing notification status as unread', () => {

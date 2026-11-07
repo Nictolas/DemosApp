@@ -1,0 +1,37 @@
+name: DEMOS Notification Feed On-Demand Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/lib/notificationFeed.ts'
+      - 'client/src/hooks/useNotificationBadge.ts'
+      - 'client/src/pages/Notifiche/hooks/useNotificheData.ts'
+      - 'api/tests/notificationBadgePrivacy.contract.test.js'
+      - '.github/workflows/notification-feed-on-demand.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  on-demand-notifications:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Verify user-scoped shared feed and no background polling
+        run: node --test api/tests/notificationBadgePrivacy.contract.test.js
+      - name: Install frontend dependencies without postinstall
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend without deployment
+        run: npm run build --prefix client
