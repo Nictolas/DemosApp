@@ -246,6 +246,12 @@ test('T024 coordination De Priamo has distinct tally and formal references, not 
     }
   });
   assert.deepEqual(diagnoseCoordinationExplanation(correct.spiegazione), flags);
+  const equivalent = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Via libera al coordinamento De Priamo per correggere i riferimenti normativi degli articoli 1, 2 e 8.' }, 'T024');
+  assert.equal(equivalent.success, true);
+  const contradicted = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Il coordinamento non è stato approvato: corregge i riferimenti normativi dell’articolo 1.' }, 'T024');
+  assert.deepEqual(contradicted.failedFields, ['spiegazione']);
   const negative = diagnoseCoordinationExplanation(
     'Il Senato ha approvato il coordinamento dei riferimenti ma non ha approvato definitivamente il DDL.');
   assert.equal(negative.finalityPhraseFound, true);
