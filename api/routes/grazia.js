@@ -10,6 +10,8 @@ const { pool } = require('../middleware/auth');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 
 const router = express.Router();
+// Apply the same display-safety rule to nomination labels and private vote input.
+const unsafeNameControls = /[\u0000-\u001f\u007f-\u009f\u061c\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
 
 // Cache only a validated pair of schema column names, never user data.
 // One metadata lookup per worker/schema version instead of once per viewer.
@@ -55,7 +57,7 @@ router.post('/', personalNoStore, verifyToken, async (req, res) => {
   // Reject invisible control and bidirectional-override characters before SQL.
   // They can make a nominated person's visible name differ from the stored key,
   // defeating human moderation without changing the displayed characters.
-  const unsafeNameControls = /[\u0000-\u001f\u007f-\u009f\u061c\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
+
   if (nome.length < 3 || nome.length > 160 || unsafeNameControls.test(nome)) {
     return res.status(400).json({ success: false, error: 'Nome non valido (3-160 caratteri)' });
   }
@@ -326,11 +328,15 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
       });
     }
 
-    // [] is the only explicit request to clear a vote. A malformed one-item
-    // array must never be silently normalized into [], deleting a previously
-    // saved preference or recording an unintended cooldown. Reject before SQL.
+    // [] is the only explicit request to clear a vote. Normalize a one-item
+    // preference before validating, and reject hidden/BIDI controls before SQL.
+    // Malformed input must never silently become [] and erase a saved vote.
+    const requestedVoteName = voti.length === 1 && typeof voti[0] === 'string'
+      ? voti[0].normalize('NFC').trim().replace(/\s+/gu, ' ')
+      : null;
     if (voti.length === 1 &&
-        (typeof voti[0] !== 'string' || !voti[0].trim() || voti[0].trim().length > 160)) {
+        (!requestedVoteName || requestedVoteName.length > 160 ||
+         unsafeNameControls.test(requestedVoteName))) {
       return res.status(400).json({
         success: false,
         error: 'Preferenza Grazia non valida'
@@ -343,7 +349,7 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
     if (!['uuid','character varying','text'].includes(idType))
       throw new Error('GRAZIA_VOTE_SCHEMA_UNRECOGNIZED');
 
-    const requestedVotes = voti.map((nome) => nome.trim());
+    const requestedVotes = requestedVoteName ? [requestedVoteName] : [];
     const requestedVote = requestedVotes[0] || null;
 
     // Serialize each account's choice within a transaction so parallel POSTs
