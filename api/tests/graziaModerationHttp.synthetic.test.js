@@ -156,7 +156,9 @@ test('suspended account with stale cached JWT cannot submit a private Grazia nom
 });
 
 test('Grazia one pending proposal per user, real persistence before success',async()=>{
-  const data={nome:'Persona da verificare',urlProva:'https://example.org/fonte-pubblica'};
+  // Deliberately submit a multiline, decomposed-Unicode name. The HTTP
+  // route must persist only the canonical form used by its duplicate check.
+  const data={nome:'Pe\u0301rsona  \n   da   verificare',urlProva:'https://example.org/fonte-pubblica'};
   assert.equal((await request('/api/grazia',null,'POST',data)).status,401);
   assert.equal((await request('/api/grazia','a','POST',{nome:'X',urlProva:data.urlProva})).status,400);
   assert.equal((await request('/api/grazia','a','POST',{nome:data.nome,urlProva:'http://insecure.example.org'})).status,400);
@@ -164,10 +166,12 @@ test('Grazia one pending proposal per user, real persistence before success',asy
   assert.equal(created.status,202);
   assert.equal((await created.json()).richiesta.status,'pending');
   assert.equal(requests.filter(r=>r.utente_id===A && r.status==='pending').length,1);
+  assert.equal(requests.find(r=>r.utente_id===A && r.status==='pending').nome,'Pérsona da verificare',
+    'store only NFC text with collapsed whitespace, not the raw multiline input');
   assert.equal((await request('/api/grazia','a','POST',{nome:'Altra persona',urlProva:data.urlProva})).status,409);
   // A separate account cannot create a parallel entry for the same person.
   assert.equal((await request('/api/grazia','b','POST',{
-    nome:'  Persona   da   verificare  ',urlProva:data.urlProva
+    nome:'  Pérsona   da   verificare  ',urlProva:data.urlProva
   })).status,409);
   assert.equal(requests.filter(r=>r.status==='pending').length,1);
   assert.ok(notices.some(n=>n.to===ADMIN));
@@ -209,11 +213,11 @@ test('Grazia moderation is Admin-only, atomic and does not publish rejected subj
   assert.equal((await request('/api/grazia/richiesta/'+id+'/anything','admin','POST')).status,400);
   const accepted=await request('/api/grazia/richiesta/'+id+'/accetta','admin','POST');
   assert.equal(accepted.status,200);assert.equal((await accepted.json()).status,'approved');
-  assert.ok(catalog.some(x=>x.nome==='Persona da verificare'&&x.attivo));
+  assert.ok(catalog.some(x=>x.nome==='Pérsona da verificare'&&x.attivo));
   assert.equal((await request('/api/grazia/richiesta/'+id+'/accetta','admin','POST')).status,409);
   assert.ok(notices.some(n=>n.to===A && n.text.includes('approvata')));
   const publicView=await (await request('/api/grazia',null)).json();
-  assert.ok(publicView.classifica.some(x=>x.nome==='Persona da verificare'));
+  assert.ok(publicView.classifica.some(x=>x.nome==='Pérsona da verificare'));
   assert.deepEqual(publicView.richieste,[]);
 });
 
