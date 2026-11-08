@@ -178,3 +178,28 @@ La revisione del gestore nativo ha identificato un caso di rischio non attestato
 **Report minimo richiesto:** modello Android e versione OS (non seriale), versione del pacchetto QA, PASS/FAIL/BLOCCATO per ciascun passo, presenza di crash e descrizione tecnica priva di informazioni personali. Screenshot soltanto se privi di nomi, email, token, preferenze politiche, dati di votazione, TCF string e ID dispositivo.
 
 **Vincoli finali:** APK di debug separato, firmato solo per QA; non distribuirlo su Play, non usarlo per testare aggiornamenti dalla AAB ufficiale, non inferire l'approvazione AdMob dal caricamento di un annuncio Google TEST. Il download da Drive è privato, non è già stato consegnato ai tester.
+
+## QA con pacchetto Play originale, senza età simulata — completamento CI 08/11/2026
+
+**Motivazione verificata:** la build privata `community.demos.qaage` mantiene la produzione DEMOS separata, ma un suffisso Android diverso può bloccare Google Credential Manager per la configurazione OAuth/Firebase. È stata pertanto aggiunta una **seconda variante TEST** compilata come DEBUG `community.demos`, pensata **esclusivamente** per Google Play **Condivisione interna delle app** (non i canali di release/testing). La variante conserva l'autorizzazione dell'età tramite `/auth/me` e non simula adulti.
+
+**Configurazione vincolata dalla CI:**
+- `-PdemosDebugAppOpenAds=true -PdemosDebugUmpEea=true -PdemosDebugQaForceAdult=false -PdemosDebugQaPlayRealAge=true`.
+- Pacchetto Android `community.demos`, manager pubblicitario solo DEBUG, App ID AdMob DEMOS fornito all'esecuzione, **esclusivamente unità Google TEST**, senza traffico remunerato.
+- `DEMOS_QA_FORCE_ADULT=false` controllato nei sorgenti BuildConfig. Il ramo RELEASE resta SDK-free per impostazione predefinita.
+- L'identificativo di pacchetto originale **non garantisce** il login con la firma usata nella Condivisione interna: Play può rifirmare l'APK e i client OAuth potrebbero non riconoscere la firma. Il tester deve riportare LOGIN BLOCCATO se l'autenticazione fallisce, senza bypassare il gate adulto.
+- La firma della build DEBUG non equivale alla firma della AAB Play. L'installazione può richiedere disinstallazione dell'app Play già presente: **mai farlo senza il consenso informato del tester e la verifica della conservazione dei suoi dati locali**. Vietato inviare l'APK nei canali `production`, `internal testing`, `closed testing` o `open testing`.
+
+**Verifica GitHub:** il primo run [42524316067](https://github.com/Nictolas/DemosApp/actions/runs/42524316067) ha compilato e archiviato correttamente la nuova variante, ma il job Android è fallito **per la sola organizzazione del workflow QA**: un successivo `:app:assembleDebug` ha eliminato `app/build/outputs/apk/debug/real-age-qa/`, richiesto dallo smoke emulator. Risolto copiando l'APK in `client/android/qa-real-age-apks/` prima della compilazione successiva, e aggiornando il test contrattuale. Non era una prova di crash dell'app.
+
+**Run finale verificato:** [GitHub Actions 42525162055](https://github.com/Nictolas/DemosApp/actions/runs/42525162055) sul commit di codice `78d4f0dff403e2fc37303c9a8d9979dea3557f1d`, **COMPLETED SUCCESS 2/2**: `advertising-policy` e `android-native-debug-compile`; [contratti catalogo 42525162045](https://github.com/Nictolas/DemosApp/actions/runs/42525162045) SUCCESS. PASS su compilazioni debug/release, nuovo QA originale con test age gate, emulator Android API35 anonimo/offline, replacement APK Ads-free → TEST-ads release isolata, assenza AD_ID/GMA/UMP dalla release di default, AAB opt-in **non firmata con Google TEST**. I test su account Google adulto reale, CMP effettiva, notifiche reali e AAB cumulativa firmata rimangono **non eseguiti**.
+
+**Archivio permanente dell'artefatto testato:** [DEMOS — PLAY Internal Sharing età reale, solo TEST](https://drive.google.com/file/d/1Z_gHQJz9D9E5-fqjX7tjc5jd99reBKqW/view), ZIP 12.052.625 byte, SHA-256 `30209cc9ba5775fd2f87f139b92591ff6f750daa0305fb170fea20f9b4fe4de6`, con `DEMOS-REAL-AGE-PLAY-INTERNAL-TEST-ONLY.apk` e `LEGGIMI-PLAY-INTERNO-ETA-REALE.txt`. Fonte GitHub artifact `13634548723`. **Drive owner-only, non condiviso; l'archivio non è stato caricato su Play**. La stessa URL Drive è stata aggiornata in-place con i byte della CI verde per evitare di diffondere una build pre-verifica.
+
+**Protocollo da applicare dopo autorizzazione del titolare:**
+1. Autorizzare uno dei tester maggiorenni già presenti nel programma Android, concordando espressamente il rischio di conflitto firma/necessità di reinstallazione; preferire un telefono con dati di prova.
+2. Distribuire soltanto mediante **Condivisione interna delle app di Google Play**, non tramite una release sui track, e verificare prima il login; fermarsi e segnare BLOCCATO se OAuth fallisce.
+3. Accettare, rifiutare e revocare UMP in SEE; verificare che il backend autorizzi un adulto solo dopo login; uscire/cambiare account; provare offline e notifica → foreground senza mostrare annunci; registrare solo risultati anonimi.
+4. Per approvare la AAB cumulativa **ripetere** sulla build firmata Play le verifiche Android, privacy e notifiche. La riuscita di questo APK non sostituisce il GO AdMob/app-ads.txt/Play/DPO.
+
+**Stato rilascio:** PR #634 **Draft**, senza merge/deploy, senza pubblicazioni e senza annunci reali.
