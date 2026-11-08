@@ -130,9 +130,11 @@ const PE_AUTHORIZED_SQL = [
   ')'
 ].join('\n');
 const UPSERT_SELECTED_PE_CURRENT_VOTE_SQL = UPSERT_CURRENT_VOTE_SQL
-  .replace('  INSERT INTO', PE_AUTHORIZED_SQL + '\n  INSERT INTO')
+  // Callback replacement avoids interpreting the SQL regexp's $' as a
+  // JavaScript replacement token (which would splice the trailing SQL here).
+  .replace('  INSERT INTO', () => PE_AUTHORIZED_SQL + '\n  INSERT INTO')
   .replace('  VALUES ($1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11)',
-    '  SELECT $1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11 FROM authorized_pe WHERE true');
+    () => '  SELECT $1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11 FROM authorized_pe WHERE true');
 
 async function upsertVerifiedCurrentVote(db, raw) {
   const vote = assertVerifiedVote(raw); // fail closed before any DB access
