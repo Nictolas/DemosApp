@@ -148,6 +148,28 @@ async function fetchRecentPlenarySittings(now=new Date(),client=axios,minimum=20
 }
 
 /**
+ * PR #633 decision: nominal refresh is limited to selected representatives
+ * with independently approved MepId↔DEMOS links. A selection must provide
+ * the exact institutional numeric MepId; never a name or political group.
+ * The no-argument form remains a full official-source 76-MEP QA audit.
+ */
+function validateSelectedMepIds(input) {
+  if(input===undefined)return null;
+  if(!Array.isArray(input)&&!(input instanceof Set))
+    throw Error('EP_SELECTED_ID_LIST_REQUIRED');
+  if(input.size>100||input.length>100)
+    throw Error('EP_SELECTED_ID_LIST_TOO_LARGE');
+  const ids=new Set();
+  for(const raw of input){
+    if(typeof raw!=='string'||!/^[1-9]\\d{0,8}$/.test(raw))
+      throw Error('EP_SELECTED_MEP_ID_INVALID');
+    if(ids.has(raw))throw Error('EP_SELECTED_MEP_ID_DUPLICATE');
+    ids.add(raw);
+  }
+  return ids;
+}
+
+/**
  * A bounded, non-persistent collection of verified current explicit votes.
  * Missing voters remain unknown. If a source fails, fail the whole batch
  * instead of silently asserting older votes are the newest.
@@ -156,10 +178,20 @@ async function collectRecentVerifiedItalianVotes(options={}) {
   const now=options.now||new Date();
   const client=options.client||axios;
   const maxSittings=Math.min(Math.max(options.maxSittings||10,1),20);
-  const [sittings,ids]=await Promise.all([
+  const selected=validateSelectedMepIds(options.targetMepIds);
+  if(selected!==null && selected.size===0) {
+    // Nobody follows an already-verified MEP. The shared writer should not
+    // run; also avoid even the public roster/meeting API calls.
+    return {selectedOnly:true,latestSitting:null,checkedSittings:[],
+      covered:0,totalItalianMepIds:0,incomplete:false,current:new Map()};
+  }
+  const [sittings,officialItalianIds]=await Promise.all([
     fetchRecentPlenarySittings(now,client,maxSittings),
     fetchCurrentItalianMepIds(client)
   ]);
+  if(selected && [...selected].some(id=>!officialItalianIds.has(id)))
+    throw Error('EP_SELECTED_MEP_NOT_IN_OFFICIAL_CURRENT_ITALIAN_ROSTER');
+  const ids=selected||officialItalianIds;
   const current=new Map(), scanned=[];
   const reader=options.fetchDecisions||fetchOfficialDecisionBallots;
   for (const date of sittings.slice(0,maxSittings)) {
@@ -187,6 +219,7 @@ async function collectRecentVerifiedItalianVotes(options={}) {
     if (current.size===ids.size) break;
   }
   return {
+    selectedOnly:selected!==null,
     latestSitting:sittings[0],
     checkedSittings:scanned,
     covered:current.size,totalItalianMepIds:ids.size,
@@ -197,6 +230,7 @@ async function collectRecentVerifiedItalianVotes(options={}) {
 
 module.exports={
   exactPersonId,parsePastPlenarySittings,parseItalianCurrentMepIds,
+  validateSelectedMepIds,
   fetchCurrentItalianMepIds,fetchPastPlenarySittingDates,fetchRecentPlenarySittings,
   collectRecentVerifiedItalianVotes
 };
