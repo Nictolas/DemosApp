@@ -45,3 +45,22 @@ test('real official API remains manual pre-release; Chromium mobile runs on PR b
   assert.match(workflow,/name: European representative current vote — real Chrome mobile synthetic/);
   assert.match(workflow,/run: node --test api\/tests\/europeanRepresentativeChrome\.synthetic\.e2e\.test\.js/);
 });
+
+
+test('ep-reader and PG16 jobs exercise actual PR633 shared writer and guard all fixture writes',()=>{
+  assert.match(workflow,/ref: refs\/pull\/633\/head/);
+  assert.match(workflow,/Cross-PR current-only writer contract with synthetic verified PE candidate/);
+  assert.match(workflow,/node --test api\/tests\/europeanParliamentSharedWriterInterop\.test\.js/);
+  assert.match(workflow,/Prove actual canonical followed-PE write, replay protection, review revocation, ROLLBACK/);
+  assert.match(workflow,/node api\/tests\/epSelectedWriterRealPgSmoke\.js/);
+  assert.match(workflow,/PGDATABASE: ep_bridge_ci_fixture/);
+  assert.match(workflow,/EP_SCHEMA_FIXTURE_ONLY: 'true'/);
+  assert.match(workflow,/ports:\s*\n\s*- 55434:5432/);
+  assert.match(workflow,/api\/tests\/fixtures\/epSelectedWriterPgFixture\.sql/);
+  for(const file of [
+    'api/tests/europeanParliamentSharedWriterInterop.test.js',
+    'api/tests/epSelectedWriterRealPgSmoke.js',
+    'api/tests/fixtures/epSelectedWriterPgFixture.sql'
+  ]) assert.ok(workflow.includes("'"+file+"'"),
+    'A real shared-writer interop change must trigger QA: '+file);
+});
