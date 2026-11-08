@@ -2,9 +2,7 @@ const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const {
   getUltimeVotazioni,
-  getDettagliVotazione,
-  sincronizzaVotazioniPE,
-  getVotiNominaliMEPItaliani
+  getDettagliVotazione
 } = require('../services/parlamentoEuropeoService');
 const { generaAnalisiLegge, recuperaAnalisiDaCache } = require('../services/leggeAnalysisService');
 
@@ -14,7 +12,7 @@ const router = express.Router();
 router.get('/ultime', verifyToken, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 1, 100); // Default 1 (ultima votazione), max 100
-    const forceRefresh = req.query.refresh === 'true'; // Forza refresh da API
+    const forceRefresh = false; // Never trigger historical DB writers from a GET
     
     console.log(`🔍 GET /api/voti-parlamento-europeo/ultime - Richiesta ultime ${limit} votazioni (refresh: ${forceRefresh})`);
     
@@ -30,35 +28,8 @@ router.get('/ultime', verifyToken, async (req, res) => {
       votazioni = [];
     }
     
-    // Sincronizza SOLO se esplicitamente richiesto con refresh=true
-    // La sincronizzazione automatica è disabilitata perché può richiedere molto tempo
-    // e bloccare la risposta HTTP. Usa l'endpoint POST /sincronizza per sincronizzazioni manuali.
-    if (forceRefresh) {
-      try {
-        console.log('🔄 Refresh richiesto, sincronizzazione in corso...');
-        // Usa Promise.race per aggiungere un timeout di 30 secondi
-        const syncPromise = sincronizzaVotazioniPE(3); // Sincronizza solo ultime 3 sessioni per essere più veloce
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout sincronizzazione (30s)')), 30000)
-        );
-        
-        const syncResult = await Promise.race([syncPromise, timeoutPromise]);
-        console.log(`✅ Sincronizzazione completata: ${syncResult.salvate} salvate, ${syncResult.errori} errori`);
-        // Ricarica dopo la sincronizzazione
-        votazioni = await getUltimeVotazioni(limit);
-        console.log(`📊 Votazioni recuperate dopo sincronizzazione: ${votazioni.length}`);
-      } catch (syncError) {
-        console.error('❌ Errore nella sincronizzazione:', syncError);
-        console.error('   Stack:', syncError.stack);
-        // Se c'è un errore, restituisci comunque i dati disponibili (anche se vecchi)
-        // Non bloccare la risposta per errori di sincronizzazione
-        if (votazioni.length === 0) {
-          // Se non ci sono dati, restituisci array vuoto invece di errore
-          votazioni = [];
-        }
-      }
-    }
-    
+    // I refresh preesistenti costruiscono tabelle storiche. Per PROD-041
+    // l'endpoint è sola lettura finché il writer canonico è integrato.
     // Se non ci sono votazioni, restituisci array vuoto invece di bloccare
     // L'utente può richiedere manualmente la sincronizzazione se necessario
     
@@ -127,40 +98,12 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
     unAnnoFa.setFullYear(unAnnoFa.getFullYear() - 1);
     const isVotazioneRecente = dataVotazione && dataVotazione >= unAnnoFa;
     
-    // Recupera voti nominali MEP italiani (solo per votazioni recenti per evitare timeout)
-    let votiNominaliMEPItaliani = null;
-    if (isVotazioneRecente) {
-      try {
-        // Aggiungi timeout per evitare blocchi
-        const votiPromise = getVotiNominaliMEPItaliani(decodedUri);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout recupero voti MEP (15s)')), 15000)
-        );
-        votiNominaliMEPItaliani = await Promise.race([votiPromise, timeoutPromise]);
-      } catch (votiError) {
-        console.error('⚠️ Errore nel recupero voti nominali MEP italiani:', votiError.message);
-        // Continua comunque senza voti nominali
-        votiNominaliMEPItaliani = {
-          favorevoli: [],
-          contrari: [],
-          astenuti: [],
-          assenti: [],
-          disponibili: false,
-          messaggio: 'Voti non disponibili per questa votazione'
-        };
-      }
-    } else {
-      console.log(`⚠️ Votazione vecchia (${dataVotazione ? dataVotazione.toISOString().split('T')[0] : 'N/A'}), salto recupero voti MEP per evitare timeout`);
-      votiNominaliMEPItaliani = {
-        favorevoli: [],
-        contrari: [],
-        astenuti: [],
-        assenti: [],
-        disponibili: false,
-        messaggio: 'Voti non disponibili per votazioni vecchie'
-      };
-    }
-    
+    // Il lettore storico per URI scriveva (uri_votazione,mep_id), violando
+    // l'unico ultimo voto e attribuendo assenze non documentate.
+    // Le posizioni ufficiali saranno esposte soltanto tramite il record
+    // corrente verificato del rappresentante, non nella lista storica.
+    const votiNominaliMEPItaliani = null;
+
     // Verifica se esiste già un'analisi AI (solo per votazioni recenti)
     let analisiLegge = null;
     if (isVotazioneRecente) {
@@ -282,89 +225,19 @@ router.post('/rigenera-analisi/:uri', verifyToken, async (req, res) => {
 });
 
 // POST /api/voti-parlamento-europeo/sincronizza - Sincronizza le votazioni dal PE
-router.post('/sincronizza', verifyToken, async (req, res) => {
-  try {
-    const limitSessioni = parseInt(req.body.limitSessioni) || 5;
-    
-    console.log(`🔄 POST /api/voti-parlamento-europeo/sincronizza - Sincronizzazione (${limitSessioni} sessioni)`);
-    
-    const risultato = await sincronizzaVotazioniPE(limitSessioni);
-    
-    res.json({
-      success: true,
-      message: `Sincronizzazione completata: ${risultato.salvate} votazioni salvate, ${risultato.errori} errori`,
-      data: risultato
-    });
-  } catch (error) {
-    console.error('❌ Errore nella sincronizzazione:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nella sincronizzazione',
-      error: error.message
-    });
-  }
+router.post('/sincronizza', verifyToken, (_req, res) => {
+  return res.status(409).json({
+    success: false,
+    message: 'Sincronizzazione storica disabilitata: usare esclusivamente il writer canonico ultimo-voto dopo i gate.'
+  });
 });
 
 // POST /api/voti-parlamento-europeo/aggiorna-titoli - Aggiorna i titoli delle votazioni esistenti
-router.post('/aggiorna-titoli', verifyToken, async (req, res) => {
-  try {
-    const { getPool } = require('../config/database');
-    const pool = getPool();
-    const { fetchDettagliVotazioneDiretta, estraiTitoloVotazione } = require('../services/parlamentoEuropeoService');
-    
-    console.log(`🔄 POST /api/voti-parlamento-europeo/aggiorna-titoli - Aggiornamento titoli`);
-    
-    // Recupera tutte le votazioni con titoli generici
-    const result = await pool.query(`
-      SELECT uri, votazione_id, titolo
-      FROM parlamento_europeo
-      WHERE titolo LIKE 'Votazione %' OR titolo LIKE 'Votazione del %'
-      ORDER BY data_votazione DESC
-      LIMIT 100
-    `);
-    
-    let aggiornate = 0;
-    let errori = 0;
-    
-    for (const votazione of result.rows) {
-      try {
-        // Prova a recuperare i dettagli direttamente
-        const votazioneDiretta = await fetchDettagliVotazioneDiretta(votazione.uri);
-        if (votazioneDiretta) {
-          const nuovoTitolo = estraiTitoloVotazione(votazioneDiretta);
-          if (nuovoTitolo && nuovoTitolo !== votazione.titolo && nuovoTitolo.length > votazione.titolo.length) {
-            await pool.query(`
-              UPDATE parlamento_europeo
-              SET titolo = $1, updated_at = CURRENT_TIMESTAMP
-              WHERE uri = $2
-            `, [nuovoTitolo, votazione.uri]);
-            aggiornate++;
-            console.log(`✅ Aggiornato titolo per ${votazione.uri}: "${nuovoTitolo}"`);
-          }
-        }
-      } catch (error) {
-        errori++;
-        console.error(`⚠️ Errore nell'aggiornamento titolo per ${votazione.uri}:`, error.message);
-      }
-    }
-    
-    res.json({
-      success: true,
-      message: `Aggiornamento completato: ${aggiornate} titoli aggiornati, ${errori} errori`,
-      data: {
-        aggiornate,
-        errori,
-        totali: result.rows.length
-      }
-    });
-  } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento titoli:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nell\'aggiornamento dei titoli',
-      error: error.message
-    });
-  }
+router.post('/aggiorna-titoli', verifyToken, (_req, res) => {
+  return res.status(409).json({
+    success: false,
+    message: 'Aggiornamento legacy sospeso durante la migrazione al solo ultimo voto.'
+  });
 });
 
 module.exports = router;
