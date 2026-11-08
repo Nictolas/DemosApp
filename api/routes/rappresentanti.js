@@ -205,14 +205,7 @@ router.get('/', verifyToken, async (req, res) => {
     const selectionState = await loadRepresentativeSelectionProjection(userId);
     const user = selectionState.projection;
 
-    console.log('🔍 DEBUG Backend - User data:', {
-      userId,
-      rappresentante_europeo: user.rappresentante_europeo,
-      rappresentante_camera: user.rappresentante_camera,
-      rappresentante_senato: user.rappresentante_senato,
-      rappresentante_regionale: user.rappresentante_regionale,
-      rappresentante_comune: user.rappresentante_comune
-    });
+    // Minimize logs: never print the user's representative selections or UUIDs.
 
     // Ottieni i dettagli dei rappresentanti selezionati
     const rappresentantiSelezionati = {};
@@ -225,7 +218,6 @@ router.get('/', verifyToken, async (req, res) => {
       const rappresentanteId = user[campo];
 
       if (rappresentanteId) {
-        console.log(`🔍 DEBUG Backend - Trovato rappresentante per ${categoria}: ${rappresentanteId}`);
         // Ottieni i dettagli del rappresentante
         const rappresentanteQuery = `
           SELECT
@@ -253,12 +245,9 @@ router.get('/', verifyToken, async (req, res) => {
           }
           rappresentantiSelezionati[categoria] = [rappresentante];
           idMap[rappresentanteId] = `${rappresentante.nome} ${rappresentante.cognome}`;
-          console.log(`🔍 DEBUG Backend - Rappresentante ${categoria} caricato:`, rappresentante.nome, rappresentante.cognome);
         } else {
-          console.log(`⚠️ DEBUG Backend - Rappresentante ${categoria} con ID ${rappresentanteId} non trovato nel database`);
         }
       } else {
-        console.log(`🔍 DEBUG Backend - Nessun rappresentante per ${categoria}`);
       }
     }
 
