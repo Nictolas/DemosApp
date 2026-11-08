@@ -6,6 +6,7 @@
 const crypto = require('node:crypto');
 const { getVerifiedFinalBallots } = require('./parliamentVerifiedFinalBallotsService');
 const { sendFinalBallotPush } = require('./parliamentFinalBallotPushService');
+const { upsertVerifiedCurrentVote } = require('./institutionalCurrentNominalVotesService');
 
 const ALLOWED = new Set(['Favorevole', 'Contrario', 'Astensione', 'Astenuto', 'Astenuto R',
   'Assente', 'In missione', 'In congedo', 'Non ha partecipato',
@@ -109,6 +110,22 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
   try {
     await client.query('BEGIN');
     for (const { rep, ballot } of matches) {
+      // A single stable DEMOS representative UUID; verified source attribution
+      // must already have passed the unique-member fail-closed guard above.
+      // Both current state and in-app notification commit in this transaction.
+      await upsertVerifiedCurrentVote(client, {
+        institution: vote.camera,
+        representativeKey: 'demos:' + String(rep.id),
+        sourcePersonId: ballot.sourcePersonId || null,
+        ballotId: vote.openpolis_id,
+        voteDate: dateIso(vote.data_votazione),
+        ballotOrder: order,
+        status: ballot.vote,
+        ballotTitle: vote.titolo,
+        sourceUrl: verified.source.url,
+        sourceType: vote.camera === 'Camera' ? 'camera_ufficiale' : 'senato_openpolis',
+        verified: true
+      });
       const hash = crypto.createHash('sha256').update(String(rep.id) + ':' + vote.openpolis_id).digest('hex');
       const sql = 'INSERT INTO notifiche_voti_parlamento ' +
         '(id_utente, politico, camera, titolo, testo, voto, data, votazione_hash, openpolis_id, vote_order) ' +
