@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Link } from "wouter";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { UserInfo } from "@/types/profile";
+import { LatestItalianNominalVote } from "@/components/LatestItalianNominalVote";
 
 interface ProfileRepresentativesProps {
   userInfo: UserInfo | null;
@@ -146,6 +147,11 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails, canEdi
         </div>
       </div>
 
+      <LatestItalianNominalVote
+        representativeId={userInfo.rappresentante_camera}
+        chamber="Camera"
+      />
+
       {/* Rappresentante Senato */}
       <div className="flex items-center gap-2 py-1">
         <div className="w-9 h-9 shrink-0">
@@ -162,6 +168,11 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails, canEdi
           <p className="text-sm text-gray-600">{representativeNames.rappresentante_senato || "Non selezionato"}</p>
         </div>
       </div>
+
+      <LatestItalianNominalVote
+        representativeId={userInfo.rappresentante_senato}
+        chamber="Senato"
+      />
 
       {/* Rappresentante Regionale */}
       <div className="flex items-center gap-2 py-1">
