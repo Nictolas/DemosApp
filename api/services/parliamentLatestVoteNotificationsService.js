@@ -125,6 +125,7 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
         ballotOrder: order,
         status: ballot.vote,
         ballotTitle: vote.titolo,
+        ballotOutcome: vote.esito,
         sourceUrl: verified.source.url,
         sourceType: vote.camera === 'Camera' ? 'camera_ufficiale' : 'senato_openpolis',
         verified: true
