@@ -16,6 +16,7 @@ on:
       - 'api/services/parliamentFinalBallotPushService.js'
       - 'api/tests/parliamentFinalBallotPush.test.js'
       - 'api/tests/parliamentLatestVotePostgres.integration.js'
+      - 'api/tests/prod041SyntheticBackupRestore.sh'
       - 'api/create-notifiche-voti-parlamento-table.sql'
       - 'client/src/hooks/useNativePush.ts'
       - 'client/public/firebase-messaging-sw.js'
@@ -85,6 +86,10 @@ jobs:
           TEST_PARLIAMENT_PG_EPHEMERAL: 'true'
           TEST_PARLIAMENT_PG_URL: postgres://demos_test:temporary_ci_only@127.0.0.1:55432/demos_test
         run: node api/tests/parliamentLatestVotePostgres.integration.js
+      - name: Verify encrypted legacy backup and restore with synthetic votes only
+        env:
+          TEST_PARLIAMENT_PG_EPHEMERAL: 'true'
+        run: bash api/tests/prod041SyntheticBackupRestore.sh
       - name: Verify notification UI wiring
         run: node --test client/tests/parliamentNotificationIntegration.test.mjs
       - name: Install frontend dependencies (no scripts)
