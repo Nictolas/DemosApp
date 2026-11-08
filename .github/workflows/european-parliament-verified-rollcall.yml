@@ -10,6 +10,7 @@ on:
       - 'api/scripts/verifyEuropeanParliamentOfficialDecisionAPI.js'
       - 'api/scripts/probeEuropeanParliamentOfficialRollCall.js'
       - 'api/scripts/probeEuropeanParliamentPublicApi.js'
+      - 'api/scripts/probeEuropeanParliamentDiscovery.js'
       - 'client/src/pages/VotiParlamentoEuropeo.tsx'
       - 'api/routes/voti-parlamento-europeo.js'
       - 'client/src/components/ViewOpinioniDialog.tsx'
@@ -45,6 +46,8 @@ jobs:
         run: |
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
           npm run build --prefix client
+      - name: Check official current MEP roster and sitting discovery
+        run: node api/scripts/probeEuropeanParliamentDiscovery.js
       - name: Diagnostic read-only API probe (never logs names or ballots)
         run: node api/scripts/probeEuropeanParliamentPublicApi.js
       - name: Official Open Data API vote/individual/finality live verification (release gate)
