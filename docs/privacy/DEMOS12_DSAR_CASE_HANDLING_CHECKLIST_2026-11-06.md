@@ -235,3 +235,12 @@ Decisioni espresse dal titolare e recepite **come requisiti di prodotto**, non c
 - **DSAR-01:** la ricezione tecnica sintetica già attestata non va ripetuta senza necessità; DSAR-02..06 rimangono NON TESTATI. Staging unico DEMOS 10 e Android fisico richiedono autorizzazioni e prove indipendenti. Nessuna modifica a dati reali o flag autorizzata da questa nota.
 
 **Stato:** documento di riconciliazione decisionale, non implementazione runtime né test. Gate giuridici/operativi e rilascio **NO-GO**.
+
+
+## 08/11/2026 — Requisiti di ammissibilità per categoria (decisioni prodotto, non GO)
+
+- **Attivisti e Organizzazioni:** il titolare ha precisato che una candidatura deve provenire dal soggetto interessato, non da un terzo. Per le organizzazioni l'istanza deve essere presentata dal presidente o dal rappresentante legale; l'identificazione CIE è un requisito già deciso. Prima dell'implementazione occorre definire la verifica del potere rappresentativo, evitando di trattare la sola CIE come prova del ruolo. La coda attuale che accetta nomine da terzi NON va dichiarata conforme a questa regola.
+- **Grazia:** il titolare ammette proposte da familiari o amici. La relazione dichiarata non prova poteri di rappresentanza, consenso della persona nominata né base giuridica art. 10. Restano obbligatori il controllo della fonte e il gate legale.
+- **Capo di Stato:** il titolare consente proposte da chiunque, ma pubblicazione solo dopo moderazione e decisioni artt. 6/9/14 secondo applicabilità.
+- **Ipotesi commerciale:** per Attivisti e Organizzazioni è stata scelta come proposta di prodotto una quota di 10 EUR/anno. Non costituisce autorizzazione ad attivare pagamenti, fatturazione, rinnovi o servizi store. Richiede verifica fiscale, contrattuale, privacy e policy degli store prima di qualsiasi sviluppo di incasso.
+- **Conseguenza tecnica:** mantenere OFF i flag di pubblicazione e non aprire i flussi self-service finché identificazione, titolarità della proposta, rappresentanza, moderazione, revoca e retention non siano progettati e testati. Nessuna modifica runtime o dati reali autorizzata da questa registrazione.
