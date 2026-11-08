@@ -16,8 +16,14 @@ No party, political group, source roster, or individual history is stored.
 - Camera and Senate selected representatives: `demos:<users.id UUID>`,
   taken from the currently selected, active representative and a
   fail-closed unique roster match on a checked roll call. The identity key
-  is **not** the person's name. Attribution against historical source
-  identifiers remains a release QA gate, especially for homonyms.
+  is **not** the person's name. **A matching name is never sufficient to
+  attribute a vote.** An explicitly linked `source_person_id` must be
+  present in both the signed-off minimal identity bridge and the verified
+  source row. Names are used only as an additional consistency check.
+  The bridge `institutional_nominal_identity_links` has one unique
+  source ID per institution and one DEMOS UUID per institution, no names,
+  groups, ballot dates or voting history. Link entries require separate
+  evidence review: no automatic seeding from names.
 - European Parliament: reserved `pe:<official MEP id>` with official
   source only. Draft adapter `api/services/europeanCurrentNominalVoteAdapter.js`
   checks exact official MEP IDs and explicitly present voting categories;
@@ -40,7 +46,10 @@ Files: `api/database/20261108_institutional_current_nominal_votes.sql`,
 `api/services/parliamentLatestVoteNotificationsService.js`,
 `api/routes/voti-politici.js`, the European standalone adapter,
 unit tests and PostgreSQL ephemeral integration (including concurrent
-writes, later EP ballots, and Camera-to-Senato office transitions).
+writes, later EP ballots, and Camera-to-Senato office transitions);
+`api/database/20261108_institutional_nominal_identity_links.sql`,
+`api/database/20261108_latest_parliament_notifications_one_per_rep.sql`,
+`api/tests/prod041SyntheticBackupRestore.sh`.
 
 ## Supabase inventory (read-only, 8 November 2026)
 
@@ -52,7 +61,7 @@ Project **Demos** `wxnblcqoyjqxktwkcqok`:
 `(uri_votazione,mep_id)`, which would allow a history.
 `voti_camera` **1,474** distinct names; **zero** rows have a populated `voto`,
 `data_votazione` or `votazione_id` field. They are non-voting legacy metadata,
-not an individual voting history, and must be preserved outside this cleanup. `notifiche_voti_parlamento` **0** rows.
+not an individual voting history, and must be preserved outside this cleanup. `notifiche_voti_parlamento` **0** rows in production. The Draft additionally ensures **one shared notification per person, not one per chamber**; migration refuses to silently collapse duplicates.
 `parlamento` **284** and `parlamento_europeo` **84** are
 ballot-level aggregates, not the nominal-personal history; retention
 still needs assessment.
@@ -131,9 +140,13 @@ merge/deploy GO separate from cleanup GO.
    EU branch coordination and end-to-end tests; no EU UI changes here.
 3. Legacy reader/writer and production cron/deploy dependency review,
    backed-up cleanup rehearsal and explicit deletion authorization.
-4. Authenticated E2E staging/Chrome/Android, FCM/cost/consent, DPO and
+4. **Source markup/link QA:** verify that live official Camera/Openpolis
+   roll calls contain usable stable person hyperlinks. The parser will
+   return no ID (and will not attribute a vote) for plain-text names.
+   There is no automatic crosswalk in existing canonical mandates.
+5. Authenticated E2E staging/Chrome/Android, FCM/cost/consent, DPO and
    separate release authorization.
-5. Confirm running CI and exact HEAD of stacked Draft PR before merge.
+6. Confirm running CI and exact HEAD of stacked Draft PR before merge.
 
 The Transparency Podium is suspended, with no dependency on vote history.
 No new paid services, production deploy, deletion, or push activation.
@@ -149,3 +162,52 @@ with **191** distinct nonblank source-person URIs across **five** ballots.
 The nominal cleanup must not delete `voti_camera`: these are currently
 non-voting legacy metadata records. The historical Senate table remains
 subject to backup, approved restoration rehearsal and explicit deletion GO.
+
+
+## Verified-ID bridge, staging and shared-notification audit — 8 November 2026
+
+**Identity audit (production SELECT only):** 1,485 currently active
+Camera/Senate mandates (978 Camera, 507 Senate), 1,485 unique DEMOS
+representative accounts. None of the five existing
+`political_mandates.legacy_context` verification/source URL fields
+matches an exact `uri_politico` value from the 720 legacy Senate
+nominal rows. **Zero** verified source-person crosswalks can therefore
+be imported by exact equality from these existing fields. Do not
+infer matches from surnames or institutional office.
+
+**Code:** source parser accepts a source-person URL only from an
+explicit, validated person-profile anchor on the exact verified
+ballot roster row, constrained to trusted Camera, Senato or Openpolis
+domains. The current-vote writer requires a nonempty institution-appropriate
+`sourcePersonId`; selected Italian representatives must have a record
+in the vetted `institutional_nominal_identity_links` table and a matching
+row-level source ID. Missing/ambiguous IDs yield no assignment. No
+automated name-to-ID crosswalk or live manual link insertion was performed.
+
+**Notification minimization:** the new Draft migration rejects any
+existing cross-chamber duplicate `id_utente` and adds a unique index
+on `id_utente`, not `(id_utente,camera)`. Writer changes its
+`ON CONFLICT` to replace the existing shared row across institutional
+transitions, with date + same-institution order guards and reaction reset.
+It never automatically deletes duplicate real rows.
+
+**Staging Supabase (pre-existing unified Demos-Staging, no new service):**
+`institutional_current_nominal_votes` has a global PK on
+`representative_key` with `source_person_id NOT NULL`; vetted
+identity-link table created with RLS and no anon/authenticated SELECT;
+identity bridge/current-vote tables contained **zero rows** at
+post-migration verification. Existing `notifiche_voti_parlamento` was
+verified empty and its prerequisite migration plus
+`latest_rep` unique-index migration applied successfully.
+The production project was not modified.
+
+**Synthetic backup/restore rehearsal:** `api/tests/prod041SyntheticBackupRestore.sh`
+is guarded to run only in isolated GitHub Actions PostgreSQL 16 with
+`TEST_PARLIAMENT_PG_EPHEMERAL=true`. It exercises `pg_dump`, a
+temporary encrypted backup (AES-256-CBC/PBKDF2), checksum comparison,
+`pg_restore` into a separate ephemeral database and count/identity
+checks, deleting the temporary files. **This is not a production backup
+or an authorized restoration test of actual personal data.** Production
+cleanup remains forbidden until an access-controlled, encrypted
+production dump, actual verified restore test, DPO retention decision
+and explicit deletion authorization are recorded.
