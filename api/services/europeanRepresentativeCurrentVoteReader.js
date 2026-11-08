@@ -50,6 +50,8 @@ async function readVerifiedEuropeanCurrentVote(db, representativeUuid, options={
       'FROM public.institutional_current_nominal_votes AS c ' +
       'INNER JOIN public.institutional_nominal_identity_links AS x ' +
       "ON x.institution = 'PE' AND x.representative_id = $1::uuid " +
+      "AND x.review_state = 'VERIFIED' " +
+      'AND x.reviewed_by IS NOT NULL AND x.reviewed_at IS NOT NULL ' +
       'AND x.source_person_id = c.source_person_id ' +
       "WHERE c.institution = 'PE' AND c.representative_key = $2 " +
       "AND (x.evidence_url LIKE 'https://data.europarl.europa.eu/%' " +
