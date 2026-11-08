@@ -16,9 +16,9 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   onNavigate,
   onOpenOpinioni
 }) => {
-  // The representative name stops click propagation and opens its profile.
-  // Card selection uses only the native click event (also works with touch
-  // and keyboard), never a delayed mouseup/touchend redirect.
+  // Separate native controls: outer clickable div selects a representative;
+  // inner button opens the current representative's profile. This avoids
+  // invalid nested button elements and touch event retargeting on mobile.
   const isDetailsTarget = (target: EventTarget | null) =>
     target instanceof Element && target.closest('[data-representative-details]') !== null;
 
@@ -76,20 +76,11 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
         </div>
         <div className="text-center">
           {rappresentanteData && rappresentanteData.nome && rappresentanteData.cognome ? (
-            <p
+            <button
+              type="button"
               data-representative-details
-              role="button"
-              tabIndex={0}
-              className="font-medium text-primary cursor-pointer hover:underline text-sm"
+              className="font-medium text-primary cursor-pointer hover:underline text-sm text-center"
               onClick={(e) => {
-                e.stopPropagation();
-                if (rappresentanteUid && rappresentanteData) {
-                  onOpenOpinioni(rappresentanteUid, rappresentanteData.nome, rappresentanteData.cognome, rappresentanteData.avatar_config, categoriaId);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter' && e.key !== ' ') return;
-                e.preventDefault();
                 e.stopPropagation();
                 if (rappresentanteUid && rappresentanteData) {
                   onOpenOpinioni(rappresentanteUid, rappresentanteData.nome, rappresentanteData.cognome, rappresentanteData.avatar_config, categoriaId);
@@ -97,7 +88,7 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
               }}
             >
               {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
-            </p>
+            </button>
           ) : (
             <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
           )}
@@ -122,10 +113,19 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   const color = colorMap[categoria.color as keyof typeof colorMap] || colorMap.blue;
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Scegli rappresentante per ${categoria.nome}`}
       className="relative flex w-full h-full min-h-0 items-center justify-center rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
       onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
       onMouseDown={(e) => {
         if (isDetailsTarget(e.target)) return;
         e.currentTarget.classList.add('scale-95', 'shadow-md');
@@ -158,6 +158,6 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
         </div>
         {renderRappresentante(categoria.id)}
       </div>
-    </button>
+    </div>
   );
 };
