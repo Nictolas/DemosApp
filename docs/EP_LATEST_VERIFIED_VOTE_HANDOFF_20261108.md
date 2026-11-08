@@ -3,6 +3,63 @@
 Data controllo: 2026-11-08. Proprietario: fonte PE, attribuzione, API reader/UI europea.
 **Non è una dichiarazione GO per la prossima AAB. Nessun deploy o SQL applicato.**
 
+## Stato tecnico aggiornato e verificato 08/11/2026 (prevale sui checkpoint storici sotto)
+- **Sorgente ufficiale completata in sola lettura:** `api/services/europeanParliamentOfficialDiscovery.js`
+  interroga `GET /api/v2/meetings?year=2026` e scarta le sedute future; l'ultima
+  seduta trascorsa rilevata è **22 ottobre 2026**, su **44** sedute trascorse
+  trovate. Il roster `GET /meps/show-current` viene paginato a 500, filtrato
+  ESCLUSIVAMENTE per `api:country-of-representation=IT`: **76 ID ufficiali
+  italiani** reali; nessun nome o gruppo in cache.
+- **Evidenza HTTP reale:** nel run GitHub Actions
+  `42504999590` lo step `EP_LATEST_OFFICIAL_REAL_PASS` conferma
+  **76** decisioni nominali per la seduta del 22/10/2026, **1** voto sul
+  testo complessivo, **46** eurodeputati italiani con voto nominale
+  esplicito, **30** senza voto individuale verificato in quella seduta
+  (NON classificarli assenti). Chiamate di sola lettura, zero scritture.
+  L'intero workflow di quella HEAD è poi fallito per timeout HTTP
+  durante un SECONDO probe ridondante su 2026-10-22, non nello step
+  precedente; rimossi i probe duplicati dal workflow ordinario.
+- **Lettore scheda Rappresentanti completato nel Draft:** 
+  `api/services/europeanRepresentativeCurrentVoteReader.js` e
+  `api/routes/rappresentanti.js` leggono un solo record PE dalla
+  tabella corrente condivisa della PR #633 usando la chiave
+  `demos:<users.id UUID>` già selezionata dall'utente autenticato;
+  riconfermano `source_person_id`, `ballot_id`, `ballot_order`,
+  `vote_date` e posizione individuale contro l'API v2, e ricavano
+  l'esito dalla decisione `ADOPTED/REJECTED`. Nessuna query
+  storica, nessuna interpolazione dei nomi, una SELECT parametrica
+  più due chiamate API *condivise via cache 6h per seduta* solo se
+  esiste già un record. Tabella assente = `null` senza voto inventato.
+- **Reader delle sedute precedenti:** `collectRecentVerifiedItalianVotes`
+  esplora in ordine decrescente fino a 20 sedute, conservando
+  esclusivamente una mappa transitoria del voto nominale più recente
+  riconosciuto per ID. Fallisce chiuso se una fonte è indisponibile,
+  senza assegnare automaticamente `Assente` ai 30 non presenti
+  nel roll-call più recente. Il recupero completo e una
+  sincronizzazione reale sul writer canonico **non sono ancora attestati**.
+- **Coordinamento PR #633:** commento GitHub #6724671783 consegnato
+  al proprietario dello schema/writer. **Problema d'integrazione:** il
+  writer PE proposto da #633 usa `pe:<MEPID>`, mentre la scheda DEMOS
+  richiede `demos:<UUID>`. La creazione del crosswalk ufficiale
+  MepId↔UUID e il passaggio alla singola chiave canonica competono
+  alla PR #633: non sono stati modificati né la sua tabella né il writer.
+  La fonte del record deve essere il percorso esatto delle decisioni
+  `https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-YYYY-MM-DD/decisions`.
+- **CI:** `European Parliament official latest-vote source validation`
+  run `42505421300` SUCCESS: unit test, sintassi Node,
+  build React/Vite. Il controllo reale esterno è mantenuto per
+  `workflow_dispatch` come gate manuale pre-release: il provider
+  può avere timeout non deterministici durante le numerose CI di Draft.
+  Ultima evidenza live eseguita: step citato sopra. Il workflow
+  provinciale parallelo ha una prova di overlay fallita per branch
+  differente, ma le prove funzionali provinciali sono PASS.
+- **Non ancora pronto AAB:** crosswalk ufficiale,
+  writer PE→current-only #633, 30 MEP da riconciliare
+  con votazioni precedenti e prova di copertura, E2E staging
+  autenticato, Chrome reale su 320×568 / 390×844 (tunnel DeskMCP
+  offline), DPO e gate AAB. Nessun merge, deploy, SQL di modifica,
+  push FCM o nuova risorsa a pagamento.
+
 ## Stato reale e criticità confermate
 - Supabase Demos produzione: `parlamento_europeo` **84** righe, data massima **2015-01-13**;
   `parlamento_europeo_voti_nominali` **0** righe ma chiave `(uri_votazione,mep_id)`
