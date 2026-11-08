@@ -15,6 +15,7 @@ router.use((_req, res, next) => {
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
 const pool = getPool();
 const CATEGORIES = new Set(['capo_stato', 'amnistia', 'attivisti', 'organizzazioni']);
+const SELF_PROFILE_CATEGORIES = new Set(['attivisti', 'organizzazioni']);
 
 function cleanProposal(body) {
   const category = typeof body?.category === 'string' ? body.category : '';
@@ -117,6 +118,23 @@ router.post('/', verifyToken, async (req, res) => {
     if (!owner.rows.length) {
       await client.query('ROLLBACK');
       return res.status(401).json({success:false,error:'Account non attivo o non disponibile'});
+    }
+    // These are self-applications, not third-party nominations. A generic
+    // access token or the transitional deferred-CIE middleware is not enough.
+    // The applicant must already have a verified CIE record before storing a
+    // profile application. Final ownership/name match is reviewed in videocall.
+    if (SELF_PROFILE_CATEGORIES.has(proposal.category)) {
+      const cie = await client.query(
+        "SELECT 1 FROM identity_verifications WHERE user_id=$1 AND provider='CIE' AND status='verified' LIMIT 1",
+        [userId]
+      );
+      if (cie.rows.length !== 1) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          success:false, error:'VERIFICA_CIE_RICHIESTA',
+          message:'La candidatura richiede un identificativo CIE verificato.'
+        });
+      }
     }
     const r = await client.query(
       "INSERT INTO subject_proposals(proposer_user_id,category,title,details,source_url,status,submission_notification_sent) VALUES($1,$2,$3,$4,$5,'pending',FALSE) RETURNING id,category,title,created_at",
@@ -412,6 +430,35 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
     if (p.category === 'grazia') {
       await client.query('ROLLBACK');
       return res.status(409).json({ success: false, error: 'GRAZIA_CODA_UNICA' });
+    }
+    // Publishing a self-profile is forbidden without evidence linked to THIS
+    // locked proposal and proposer: verified CIE, first-approval videocall,
+    // Admin's identity/title match, and (organizations) legal role checks.
+    // An un-migrated database or missing verification ledger fails closed.
+    // Only the backend may read the ledger; no meeting URL or video is stored.
+    if (decision === 'approve' && SELF_PROFILE_CATEGORIES.has(p.category)) {
+      const evidence = await client.query(
+        `SELECT v.proposal_id
+         FROM subject_self_profile_verifications v
+         JOIN identity_verifications cie ON cie.user_id=v.proposer_user_id
+           AND cie.provider='CIE' AND cie.status='verified'
+         JOIN users reviewer ON reviewer.id=v.call_verified_by
+           AND reviewer.status='a' AND (reviewer.is_admin=TRUE OR reviewer.ruolo IN ('AD','Admin'))
+         WHERE v.proposal_id=$1 AND v.proposer_user_id=$2 AND v.category=$3
+           AND v.identity_match_confirmed=TRUE
+           AND cie.verified_at IS NOT NULL AND v.call_verified_at >= cie.verified_at
+           AND (v.category='attivisti' OR (
+             v.representative_role IN ('presidente','rappresentante_legale')
+             AND v.role_verified_at IS NOT NULL AND v.role_verified_by IS NOT NULL
+             AND v.role_evidence_kind IN ('official_registry','official_document')
+           ))
+         FOR SHARE OF v`,
+        [p.id, p.proposer_user_id, p.category]
+      );
+      if (evidence.rows.length !== 1) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success:false, error:'VERIFICA_IDENTITA_VIDEO_MANCANTE' });
+      }
     }
     let publishedRef = null;
     if (decision === 'approve') {
