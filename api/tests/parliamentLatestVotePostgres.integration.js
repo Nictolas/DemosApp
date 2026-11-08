@@ -119,6 +119,56 @@ async function main(){
     assert.deepEqual(reps.map(r=>r.id),[rep], 'only current active selected MP');
     assert.deepEqual(await selectedRepresentatives(pool,'Senato'),[],'not accidentally a senator');
     const first=finalVote('vs19_730_097',baseDate),second=finalVote('vs19_731_005','2026-10-22');
+
+    // PROD-041 race regression: reps were selected BEFORE the expensive
+    // official ballot fetch. Each revocation below occurs AFTER that old
+    // snapshot, but BEFORE any attempted write. No canonical or feed row
+    // is allowed to appear, even though reps[0].has_followers is still true.
+    async function refuseStaleSelectedSnapshot(message) {
+      const denied=await persistLatestForChamber(pool,first,verified(first),reps);
+      assert.equal(denied.changed,0,message);
+      assert.equal((await pool.query(
+        "SELECT COUNT(*)::integer AS n FROM public.institutional_current_nominal_votes"
+      )).rows[0].n,0,'revoked selector must never write current vote');
+      assert.equal((await pool.query(
+        "SELECT COUNT(*)::integer AS n FROM notifiche_voti_parlamento"
+      )).rows[0].n,0,'revoked selector must never emit in-app notification');
+    }
+
+    await pool.query(
+      "UPDATE public.institutional_nominal_identity_links "+
+      "SET review_state='PENDING',reviewed_by=NULL,reviewed_at=NULL "+
+      "WHERE institution='Camera' AND representative_id=$1",[rep]);
+    await refuseStaleSelectedSnapshot('stale VERIFIED snapshot cannot override revoked reviewer approval');
+    await pool.query(
+      "UPDATE public.institutional_nominal_identity_links "+
+      "SET review_state='VERIFIED',reviewed_by=$2,reviewed_at=now() "+
+      "WHERE institution='Camera' AND representative_id=$1",[rep,other]);
+
+    await pool.query("UPDATE users SET status='i' WHERE id=$1",[follower]);
+    await refuseStaleSelectedSnapshot('stale active follower snapshot cannot override deactivation');
+    await pool.query("UPDATE users SET status='a' WHERE id=$1",[follower]);
+
+    await pool.query("DELETE FROM political_selections WHERE selected_user_id=$1",[rep]);
+    await refuseStaleSelectedSnapshot('last follower removed while roll-call fetch was pending');
+    await pool.query(
+      "INSERT INTO political_selections(user_id,selected_user_id,selection_kind,political_office_id) "+
+      "VALUES($1,$2,'representative','it.camera')",[follower,rep]);
+
+    await pool.query("UPDATE political_mandates SET status='INACTIVE' WHERE user_id=$1 AND office_code='C'",[rep]);
+    await refuseStaleSelectedSnapshot('stale active mandate snapshot cannot override ended status');
+    await pool.query("UPDATE political_mandates SET status='ACTIVE' WHERE user_id=$1 AND office_code='C'",[rep]);
+
+    await pool.query(
+      "UPDATE public.institutional_nominal_identity_links "+
+      "SET source_person_id='https://documenti.camera.it/deputato/changed-source' "+
+      "WHERE institution='Camera' AND representative_id=$1",[rep]);
+    await refuseStaleSelectedSnapshot('source identity remapped after fetch cannot attribute old ID');
+    await pool.query(
+      "UPDATE public.institutional_nominal_identity_links "+
+      "SET source_person_id='https://documenti.camera.it/deputato/fixture-maria' "+
+      "WHERE institution='Camera' AND representative_id=$1",[rep]);
+
     let result=await persistLatestForChamber(pool,first,verified(first),reps);
     assert.equal(result.changed,1);
     const read=()=>pool.query('SELECT id,openpolis_id,politico,camera,voto,data,vote_order,likes,dislikes FROM notifiche_voti_parlamento');
