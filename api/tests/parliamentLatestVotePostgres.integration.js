@@ -169,6 +169,40 @@ async function main(){
       "SET source_person_id='https://documenti.camera.it/deputato/fixture-maria' "+
       "WHERE institution='Camera' AND representative_id=$1",[rep]);
 
+    // The opt-out may happen EVEN BETWEEN the in-transaction fresh snapshot
+    // and the row-lock acquisition. Simulate that interleaving using another
+    // real PostgreSQL connection (not a mocked return value).
+    let optedOutBetweenReadAndLock=false;
+    const interleavingPool={
+      connect:async()=>{
+        const client=await pool.connect();
+        const queryOriginal=client.query.bind(client);
+        const releaseOriginal=client.release.bind(client);
+        client.query=async (sql,...params)=>{
+          if (!optedOutBetweenReadAndLock && typeof sql==='string' &&
+              sql.includes('LIMIT 1 FOR SHARE OF ps,follower,p,m,l')){
+            optedOutBetweenReadAndLock=true;
+            await pool.query("UPDATE users SET status='i' WHERE id=$1",[follower]);
+          }
+          return queryOriginal(sql,...params);
+        };
+        client.release=()=>{
+          client.query=queryOriginal;
+          client.release=releaseOriginal;
+          return releaseOriginal();
+        };
+        return client;
+      }
+    };
+    const interleaved=await persistLatestForChamber(interleavingPool,first,verified(first),reps);
+    assert.equal(optedOutBetweenReadAndLock,true,
+      'real separate PostgreSQL connection must revoke between checks');
+    assert.equal(interleaved.changed,0,'FOR SHARE rechecks opt-out after stale in-transaction snapshot');
+    assert.equal((await pool.query(
+      'SELECT count(*)::int n FROM public.institutional_current_nominal_votes'
+    )).rows[0].n,0,'interleaved opt-out cannot create a verified current vote');
+    await pool.query("UPDATE users SET status='a' WHERE id=$1",[follower]);
+
     let result=await persistLatestForChamber(pool,first,verified(first),reps);
     assert.equal(result.changed,1);
     const read=()=>pool.query('SELECT id,openpolis_id,politico,camera,voto,data,vote_order,likes,dislikes FROM notifiche_voti_parlamento');
