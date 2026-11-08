@@ -203,3 +203,46 @@ La revisione del gestore nativo ha identificato un caso di rischio non attestato
 4. Per approvare la AAB cumulativa **ripetere** sulla build firmata Play le verifiche Android, privacy e notifiche. La riuscita di questo APK non sostituisce il GO AdMob/app-ads.txt/Play/DPO.
 
 **Stato rilascio:** PR #634 **Draft**, senza merge/deploy, senza pubblicazioni e senza annunci reali.
+
+## Rettifica modalità Google Play chiusa + handoff AAB cumulativa — 08/11/2026
+
+**Scelta del titolare:** integrare AdMob direttamente nella **prossima AAB cumulativa** e collaudare attraverso i tester già autorizzati, **senza annunci remunerati né release in produzione**. La chat AAB cumulativa è l'unica titolare del merge, dell'integrazione cross-PR, della firma e dell'eventuale caricamento Play; questa PR #634 prepara e verifica il *solo componente AdMob*.
+
+### Chiarimento importante dalla documentazione Google
+
+[Google AdMob — How to test your ads](https://support.google.com/admob/answer/9388275?hl=en) afferma di usare le unità **demo** soltanto per le prove **prima della pubblicazione sugli store**. Anche il [Google Mobile Ads Next-Gen SDK — Enable test ads](https://developers.google.com/admob/android/next-gen/test-ads) raccomanda di **sostituire gli ID demo prima della pubblicazione** e utilizzare dispositivi di prova per un'app distribuita. [Google Play](https://support.google.com/googleplay/android-developer/answer/9859751?hl=en) considera la versione nel test chiuso una release distribuita tramite lo store ai tester selezionati.
+
+**Pertanto non caricare sul test chiuso** le AAB CI con `ca-app-pub-3940256099942544~3347511713` e `ca-app-pub-3940256099942544/9257395921`. Quegli ID Google SAMPLE sono consentiti qui soltanto per CI locale/off-store, emulatori e APK di QA non distribuiti come release Play.
+
+Per un test dei veri annunci *attraverso Google Play* Google indica gli **ID App/Unità AdMob DEMOS** con le richieste coperte da **modalità test dell'app/versione** in AdMob, quando disponibile, oppure dispositivi tester individualmente registrati in modalità test ([Google — test app](https://support.google.com/admob/answer/17080939?hl=en), funzione con disponibilità dell'account da verificare). Questo richiede verificare che **tutti** i destinatari del test ricevano traffico di test; rimuovere/disabilitare la modalità test può avviare richieste di **annunci reali** dalla stessa AAB. Il flag Gradle di conferma è una **attestazione manuale**, non una verifica tecnica dell'account. Se questo controllo non è dimostrabile, consegnare una AAB **senza SDK pubblicitario attivo** e rinviare le richieste ads.
+
+### Nuovo guard Gradle per la AAB Play chiusa
+
+Il flag `demosReleasePlayClosedQa` (default `false`) è separato da `demosReleaseAdsApproved` (autorizzazione monetizzazione, sempre `false` nei test). Compilare la variante AdMob per test chiuso **solo dopo** aver verificato nell'account AdMob la modalità test per versione/dispositivi, completato verifiche Play/DPO e ricevuto il consenso del titolare per il canale chiuso:
+
+```bash
+# ESEMPLIFICAZIONE PER LA CHAT RESPONSABILE DELLA AAB CUMULATIVA.
+# Richiede gli ID REALI DEMOS esatti, NON inventarli e NON inserirli nel repo.
+# Il flag ownerConfirmed NON verifica lo stato remoto della console.
+./gradlew :app:bundleRelease \
+  -PdemosReleaseAppOpenAds=true \
+  -PdemosReleasePlayClosedQa=true \
+  -PdemosReleasePlayClosedQaOwnerConfirmed=true \
+  -PdemosReleaseAdsTestOnly=false \
+  -PdemosReleaseAdsApproved=false \
+  "-PdemosReleaseAdMobAppId=$DEMOS_REAL_ADMOB_APP_ID" \
+  "-PdemosReleaseAdUnitId=$DEMOS_REAL_APP_OPEN_UNIT_ID"
+```
+
+**Il build rifiuta** la combinazione `demosReleasePlayClosedQa=true` con: mancanza dell'attestazione, `demosReleaseAdsTestOnly=true` (unità demo), `demosReleaseAdsApproved=true`, `demosReleaseQaIsolated=true`, nessun opt-in SDK oppure ID Google SAMPLE. Queste protezioni non rendono *automaticamente* test-only le richieste: **la console AdMob deve esserlo davvero prima di distribuire la AAB**.
+
+### Contratto della release cumulativa
+
+1. Importare **#558 → #634** in quest'ordine; non cherry-pick #634 da sola contro `main`. Non fare merge automatico dalle singole chat.
+2. Integrare la nuova AAB completa con le PR approvate dalla chat release; conservare almeno `versionCode >=16` / `versionName >=1.0.13` provenienti dalla #588, e `android:windowSoftInputMode="adjustResize"` dalla #583. Verificare manifest merge e flussi FCM/notifiche dopo il merge.
+3. Compilare prima l'AAB cumulativa **Ads-free** (default: `demosReleaseAppOpenAds=false`; no SDK, UMP, metadata AdMob, `AD_ID`) e far passare tutti i controlli, poi solo se l'account e Play sono pronti creare l'AAB AdMob closed QA con flag sopra. In entrambi i casi firma Play e nuovo versionCode verificati; non usare la AAB SAMPLE CI come distribuzione.
+4. Prima del test chiuso con ad SDK, rivedere **dichiarazione "Contiene annunci"**, **Google Play Data Safety**, informativa / CMP, policy per i minori, rifiuto e revoca, e valutazione DPO. Google richiede [Data Safety anche sui test chiusi](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en) e [dichiarazione ads](https://support.google.com/googleplay/android-developer/answer/9859455?hl=en) per app con pubblicità.
+5. Solo dopo la reale iscrizione della versione/dispositivi alla modalità test in AdMob, prova su Android di un tester adulto: login, `/auth/me`, consenso/rifiuto/revoca UMP, prime due aperture escluse, limite 6 ore, caricamento autentico, ritorno da notifica *senza* Ad Open, logout/cambio account, FCM. In caso di impossibilità di confermare "TEST MODE" o esito ambiguo **NO-GO** per richieste ads.
+6. Il test chiuso non prova né sostituisce la pubblicazione pubblica necessaria per il collegamento definitivo alla scheda Google Play e la revisione di idoneità AdMob. Restano aperti anche `app-ads.txt` crawler, DPO/Play e AAB cumulativa firmata.
+
+**Non richiedere adesso alcun cambio AdMob o Play al titolare:** prima CI e verifica del contratto; successivamente serviranno ID reale dell'unità App Open (già creata in console), conferma modalità test per i destinatari e autorizzazione esplicita al caricamento nel test chiuso. Nessun test reale, merge, upload Play o ricavo è implicito in questi flag.
