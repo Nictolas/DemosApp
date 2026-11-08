@@ -320,4 +320,6 @@ test('isolated test release upgrade is signed for QA only and cannot use real ad
   assert.doesNotMatch(workflow, /adb install -r "\$candidate"/);
   assert.match(workflow, /adb uninstall community\.demos\.qaadsrc/);
   assert.match(workflow, /Offline anonymous emulator smoke for real-age QA/);
+  // The emulator runner runs EACH script line in a fresh /bin/sh process.
+  assert.match(workflow, /if adb logcat -d -s AndroidRuntime:E \| grep -Fq 'community\.demos\.qaadsrc'; then echo [^\n]+; exit 1; fi/);
 });
