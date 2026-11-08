@@ -402,6 +402,81 @@ router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) =
   return res.json({ success: true, status: 'withdrawn', notification_sent: notificationSent });
 });
 
+// Record a completed first-approval videocall manually. No Google Meet URL,
+// recording, attendee email, document or free-text judicial detail is stored.
+// This Admin-only evidence is *not* automatically created by opening Meet.
+router.post('/admin/:id/verify-profile', verifyToken, requireAdmin, async (req, res) => {
+  const id = String(req.params.id || '');
+  const body = req.body;
+  const role = body?.representative_role;
+  const source = body?.role_evidence_kind;
+  const allowed = new Set(['identity_match_confirmed','representative_role','role_evidence_kind']);
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) ||
+      !body || typeof body !== 'object' || Array.isArray(body) ||
+      Object.keys(body).some(key => !allowed.has(key)) ||
+      body.identity_match_confirmed !== true ||
+      (role !== undefined && !['presidente','rappresentante_legale'].includes(role)) ||
+      (source !== undefined && !['official_registry','official_document'].includes(source))) {
+    return res.status(400).json({ success:false, error:'ATTESTAZIONE_NON_VALIDA' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const result = await client.query(
+      "SELECT id, category, proposer_user_id FROM subject_proposals WHERE id=$1 AND status='pending' AND category IN ('attivisti','organizzazioni') FOR UPDATE",
+      [id]
+    );
+    const p = result.rows[0];
+    if (!p || !p.proposer_user_id) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({success:false,error:'CANDIDATURA_NON_VERIFICABILE'});
+    }
+    // Same user + current CIE in the canonical store, rather than a client flag.
+    // Both account and verification are locked against simultaneous revocation.
+    const cie = await client.query(
+      `SELECT v.verified_at FROM identity_verifications v
+       JOIN users applicant ON applicant.id=v.user_id
+       WHERE v.user_id=$1 AND v.provider='CIE' AND v.status='verified'
+         AND v.verified_at IS NOT NULL AND applicant.status='a'
+       FOR SHARE OF v, applicant`,
+      [p.proposer_user_id]
+    );
+    if (cie.rows.length !== 1) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({success:false,error:'VERIFICA_CIE_RICHIESTA'});
+    }
+    if (p.category === 'organizzazioni' && (!role || !source)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({success:false,error:'RAPPRESENTANZA_DA_VERIFICARE'});
+    }
+    if (p.category === 'attivisti' && (role !== undefined || source !== undefined)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({success:false,error:'CAMPI_VERIFICA_NON_APPLICABILI'});
+    }
+    await client.query(
+      `INSERT INTO subject_self_profile_verifications
+        (proposal_id,proposer_user_id,category,identity_match_confirmed,
+         call_verified_at,call_verified_by,representative_role,role_verified_at,
+         role_verified_by,role_evidence_kind)
+       VALUES ($1,$2,$3,TRUE,now(),$4,$5,
+               CASE WHEN $5::text IS NULL THEN NULL ELSE now() END,
+               CASE WHEN $5::text IS NULL THEN NULL ELSE $4::uuid END,$6)`,
+      [p.id,p.proposer_user_id,p.category,req.user.id,role||null,source||null]
+    );
+    await client.query('COMMIT');
+    return res.json({success:true,verification_recorded:true});
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    if (error?.code === '23505') {
+      return res.status(409).json({success:false,error:'VERIFICA_GIA_REGISTRATA'});
+    }
+    return res.status(503).json({success:false,error:'VERIFICA_TEMPORANEAMENTE_NON_DISPONIBILE'});
+  } finally {
+    client?.release();
+  }
+});
+
 // Atomic review: the canonical public list changes only inside an authorized approval transaction.
 router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) => {
   const id = String(req.params.id || '');
