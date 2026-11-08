@@ -8,6 +8,8 @@ on:
       - 'api/tests/europeanParliamentOfficialDecisionReader.test.js'
       - 'api/services/europeanParliamentOfficialDecisionReader.js'
       - 'api/services/europeanRepresentativeCurrentVoteReader.js'
+      - 'api/services/europeanParliamentOfficialDiscovery.js'
+      - 'api/tests/europeanParliamentOfficialDiscovery.test.js'
       - 'api/tests/europeanRepresentativeCurrentVoteReader.test.js'
       - 'api/routes/rappresentanti.js'
       - 'api/scripts/verifyEuropeanParliamentOfficialDecisionAPI.js'
@@ -46,7 +48,8 @@ jobs:
           node --check api/routes/voti-parlamento-europeo.js
           node --check api/routes/rappresentanti.js
           node --check api/services/europeanRepresentativeCurrentVoteReader.js
-          node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js api/tests/europeanParliamentOfficialDecisionReader.test.js api/tests/europeanRepresentativeCurrentVoteReader.test.js
+          node --check api/services/europeanParliamentOfficialDiscovery.js
+          node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js api/tests/europeanParliamentOfficialDecisionReader.test.js api/tests/europeanRepresentativeCurrentVoteReader.test.js api/tests/europeanParliamentOfficialDiscovery.test.js
       - name: Frontend type/build regression
         run: |
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
