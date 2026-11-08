@@ -22,6 +22,19 @@ test('five native category options live in one static client bundle', () => {
   assert.doesNotMatch(file, /apiRequest|fetch\(/);
 });
 
+test('activists and organizations see their self-only identity and representation requirements', () => {
+  const file = read('client/src/config/subjectProposalCategories.ts');
+  const activist = file.match(/value: "attivisti",[\s\S]*?backPath: "\/attivisti"/)?.[0] || '';
+  const organization = file.match(/value: "organizzazioni",[\s\S]*?backPath: "\/organizzazioni"/)?.[0] || '';
+  assert.match(activist, /soltanto te stesso/);
+  assert.match(activist, /CIE verificata/);
+  assert.match(activist, /videocall privata/);
+  assert.match(organization, /presidente o rappresentante legale autorizzato/);
+  assert.match(organization, /CIE verificata/);
+  assert.match(organization, /verifica anche la carica/);
+  assert.match(organization, /non crea automaticamente un account né attiva pagamenti/);
+});
+
 test('all contextual plus buttons navigate to shared proposal route without fetching', () => {
   const button = read('client/src/components/ProposeSubjectButton.tsx');
   assert.match(button, /navigate\("\/proponi-soggetto\?categoria=" \+ category\)/);
