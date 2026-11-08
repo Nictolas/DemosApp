@@ -24,6 +24,7 @@ on:
       - 'api/tests/prod041SyntheticBackupRestore.sh'
       - 'api/tests/prod041LiveIdentityCapabilityProbe.js'
       - 'api/database/20261108_senate_identity_candidates_readonly.sql'
+      - 'api/database/20261108_selected_mp_identity_review_readonly.sql'
       - 'api/tests/senateIdentityCandidatesReadonly.test.js'
       - 'docs/PROD-041-current-nominal-votes.md'
       - 'api/create-notifiche-voti-parlamento-table.sql'
