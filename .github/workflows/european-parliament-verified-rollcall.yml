@@ -13,6 +13,8 @@ on:
       - 'api/tests/europeanRepresentativeCurrentVoteReader.test.js'
       - 'api/services/europeanParliamentCurrentOnlyCandidateBridge.js'
       - 'api/tests/europeanParliamentCurrentOnlyCandidateBridge.test.js'
+      - 'api/services/europeanParliamentSelectedCurrentOnlyReader.js'
+      - 'api/tests/europeanParliamentSelectedCurrentOnlyReader.test.js'
       - 'api/tests/europeanParliamentWorkflow.test.js'
       - 'api/tests/europeanRepresentativeChrome.synthetic.e2e.test.js'
       - 'client/src/pages/Rappresentanti/hooks/useRappresentantiData.ts'
@@ -59,9 +61,10 @@ jobs:
           node --check api/services/europeanRepresentativeCurrentVoteReader.js
           node --check api/services/europeanParliamentOfficialDiscovery.js
           node --check api/services/europeanParliamentCurrentOnlyCandidateBridge.js
+          node --check api/services/europeanParliamentSelectedCurrentOnlyReader.js
           node --check api/scripts/verifyEuropeanParliamentLatestSitting.js
           node --check api/scripts/probeEuropeanParliamentRecentCoverage.js
-          node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js api/tests/europeanParliamentOfficialDecisionReader.test.js api/tests/europeanRepresentativeCurrentVoteReader.test.js api/tests/europeanParliamentOfficialDiscovery.test.js api/tests/europeanParliamentCurrentOnlyCandidateBridge.test.js api/tests/europeanParliamentWorkflow.test.js
+          node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js api/tests/europeanParliamentOfficialDecisionReader.test.js api/tests/europeanRepresentativeCurrentVoteReader.test.js api/tests/europeanParliamentOfficialDiscovery.test.js api/tests/europeanParliamentCurrentOnlyCandidateBridge.test.js api/tests/europeanParliamentSelectedCurrentOnlyReader.test.js api/tests/europeanParliamentWorkflow.test.js
       - name: Frontend type/build regression
         run: |
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
