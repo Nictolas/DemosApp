@@ -36,9 +36,28 @@ function assertVerifiedVote(vote) {
   try { url = new URL(vote.sourceUrl); } catch { throw new Error('CURRENT_VOTE_SOURCE_INVALID'); }
   if (url.protocol !== 'https:' || url.hostname !== SOURCES[vote.institution].host ||
       url.username || url.password) throw new Error('CURRENT_VOTE_SOURCE_INVALID');
-  if (vote.sourcePersonId !== undefined && vote.sourcePersonId !== null &&
-      (typeof vote.sourcePersonId !== 'string' || vote.sourcePersonId.length > 200))
-    throw new Error('CURRENT_VOTE_SOURCE_PERSON_INVALID');
+  // A DEMOS UUID alone proves the storage key, NOT the identity of the
+  // person named in a roll call. The source person ID is mandatory for writes.
+  const sourcePersonId = vote.sourcePersonId;
+  if (typeof sourcePersonId !== 'string' || !sourcePersonId.trim() ||
+      sourcePersonId.length > 250) throw new Error('CURRENT_VOTE_SOURCE_PERSON_REQUIRED');
+  if (vote.institution === 'PE') {
+    if (!/^[1-9]\\d{0,8}$/.test(sourcePersonId))
+      throw new Error('CURRENT_VOTE_SOURCE_PERSON_INVALID');
+  } else {
+    let personUrl;
+    try { personUrl = new URL(sourcePersonId); } catch {
+      throw new Error('CURRENT_VOTE_SOURCE_PERSON_INVALID');
+    }
+    const allowed = vote.institution === 'Camera'
+      ? ['camera.it','www.camera.it','documenti.camera.it','dati.camera.it']
+      : ['parlamento19.openpolis.it','senato.it','www.senato.it','dati.senato.it'];
+    if (!['http:', 'https:'].includes(personUrl.protocol) ||
+        !allowed.includes(personUrl.hostname.toLowerCase()) ||
+        personUrl.username || personUrl.password || personUrl.hash ||
+        !/\\/(?:deputat|senat|person|ocd\\/deputato)/i.test(personUrl.pathname))
+      throw new Error('CURRENT_VOTE_SOURCE_PERSON_INVALID');
+  }
   return { ...vote, representativeKey:key, voteDate:date, sourceUrl:url.toString() };
 }
 
@@ -67,7 +86,7 @@ const UPSERT_CURRENT_VOTE_SQL = `
 
 async function upsertVerifiedCurrentVote(db, raw) {
   const vote = assertVerifiedVote(raw); // fail closed before any DB access
-  const values = [vote.institution, vote.representativeKey, vote.sourcePersonId || null,
+  const values = [vote.institution, vote.representativeKey, vote.sourcePersonId,
     vote.ballotId, vote.voteDate, vote.ballotOrder, vote.status,
     vote.ballotTitle.trim(), vote.sourceUrl, vote.sourceType];
   const { rows } = await db.query(UPSERT_CURRENT_VOTE_SQL, values);
