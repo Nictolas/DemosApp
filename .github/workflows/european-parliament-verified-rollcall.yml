@@ -51,6 +51,8 @@ jobs:
           node --check api/routes/rappresentanti.js
           node --check api/services/europeanRepresentativeCurrentVoteReader.js
           node --check api/services/europeanParliamentOfficialDiscovery.js
+          node --check api/scripts/verifyEuropeanParliamentLatestSitting.js
+          node --check api/scripts/probeEuropeanParliamentRecentCoverage.js
           node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js api/tests/europeanParliamentOfficialDecisionReader.test.js api/tests/europeanRepresentativeCurrentVoteReader.test.js api/tests/europeanParliamentOfficialDiscovery.test.js
       - name: Frontend type/build regression
         run: |
