@@ -156,6 +156,45 @@ async function main() {
     });
     assert.equal(readHttp,1);
 
+    // Read gate must re-check live canonical selection, not trust an
+    // old current row or the selection that was present at import time.
+    const follower='00000000-0000-4000-8000-000000000104';
+    await db.query(
+      "DELETE FROM public.political_selections WHERE selected_user_id=$1",
+      [target]
+    );
+    let staleReadRequests=0;
+    const noFollowerVote=await readVerifiedEuropeanCurrentVote(db,target,{
+      fetchDecisions:async()=>{staleReadRequests++;return [finalOfficial];}
+    });
+    assert.equal(noFollowerVote,null,'last follower removed must hide PE current vote');
+    assert.equal(staleReadRequests,0,'unselected representative must avoid official HTTP');
+    await db.query(
+      "INSERT INTO public.political_selections " +
+      "(user_id,selected_user_id,political_office_id,selection_kind) " +
+      "VALUES($1,$2,'eu.parliament.it','representative')",
+      [follower,target]
+    );
+
+    await db.query(
+      "UPDATE public.political_mandates SET status='INACTIVE' WHERE user_id=$1 AND office_code='E'",
+      [target]
+    );
+    const noMandateVote=await readVerifiedEuropeanCurrentVote(db,target,{
+      fetchDecisions:async()=>{staleReadRequests++;return [finalOfficial];}
+    });
+    assert.equal(noMandateVote,null,'ended mandate must hide PE current vote');
+    assert.equal(staleReadRequests,0,'expired mandate must avoid official HTTP');
+    await db.query(
+      "UPDATE public.political_mandates SET status='ACTIVE' WHERE user_id=$1 AND office_code='E'",
+      [target]
+    );
+    const visibleAgain=await readVerifiedEuropeanCurrentVote(db,target,{
+      fetchDecisions:async()=>[finalOfficial]
+    });
+    assert.deepEqual(visibleAgain,validatedRead,
+      'restoring the independently reviewed selection and mandate restores current vote without reimport');
+
     // Reject a wrong official order/vote even for a correctly stored record.
     const mismatched=await readVerifiedEuropeanCurrentVote(db,target,{
       fetchDecisions:async()=>[{
@@ -205,6 +244,9 @@ async function main() {
         currentRows:1,importerThroughRealWriter:true,
         identityRevocationStopsPreview:true,
         readSideOfficialVerification:true,
+        lastFollowerRemovalHidesCurrentVote:true,
+        mandateEndedHidesCurrentVote:true,
+        reselectedActiveMandateRestoresCurrentVote:true,
         revokedIdentityHidesCurrentVote:true,
         directWriterRevocationDenied:true,
         externalOfficialHttpCalls:0
