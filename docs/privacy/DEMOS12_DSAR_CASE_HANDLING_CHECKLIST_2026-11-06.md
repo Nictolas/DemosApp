@@ -14,6 +14,26 @@ Data: 06/11/2026. Ambito: richieste a `privacy@demos.community` relative a Grazi
 4. **Non registrare la videocall** e non conservare copie del documento o della CIE salvo necessità specifica motivata e autorizzata. Proposta di evidenza minima in area privata ad accesso ristretto: ID pratica, ID interno referente, esito CIE, data della videocall, ID Admin verificatore, esito/typologia fonte della verifica della carica, decisione motivata minimizzata, eventuale data di rinnovo della verifica. Non inserire nominativi, link alla chiamata, documento, CF o prove di carica in Google Sheet/GitHub. Tempi di conservazione delle evidenze ancora da decidere.
 5. Approvazione server-side consentita soltanto se la verifica della **stessa pratica e della stessa identità** è conclusa con esito positivo; riesaminare alla variazione del rappresentante o di attributi identitari. La procedura di schedulazione della chiamata e il record attestante l'esito sono **da implementare e testare**, senza attestare videocall già svolte.
 
+### DEMOS12 — perimetro MVP minimo approvato: nessuna automazione Meet/DSAR superflua
+
+**Decisione del titolare (08/11/2026): ridurre le attività all'indispensabile per il primo rilascio; il GDPR non prescrive automazione di videocall, calendario, attestazioni o DSAR.** Gli obblighi applicabili di liceità, sicurezza, trasparenza, minimizzazione, accountability, risposta ai diritti, conservazione e valutazione dei rischi restano invariati. Processo umano documentato e controlli server-side essenziali sono ammessi se proporzionati e verificati. Non qualificare questa semplificazione come GO GDPR.
+
+**Percorso minimo per Attivisti e Organizzazioni, senza ulteriori integrazioni:**
+1. Autocandidatura e CIE effettivamente verificata da backend.
+2. L'Admin concorda direttamente con il richiedente una videocall Google Meet **fuori dall'app**, senza scheduling automatico, API Meet, calendari sincronizzati, notifiche email di prova, link della chiamata conservati, registrazioni, trascrizioni o riconoscimento biometrico.
+3. L'Admin confronta identità e richiesta; per Organizzazioni verifica la carica su documento/registro attendibile; in caso di esito non verificato mantiene la candidatura pendente o la rifiuta. Non pubblica automaticamente.
+4. Solo dopo la chiamata reale, l'Admin usa il pulsante esistente «Attesta videocall effettuata» e poi valuta manualmente «Approva/Rifiuta». Il backend impedisce la prima approvazione senza CIE e attestazione della stessa pratica; l'attestazione è responsabilità umana, NON prova tecnica della presenza in Meet.
+5. Attivista modifica autonomamente i dati ordinari senza nuove chiamate. Per cambio identità serve nuova verifica CIE; nessun flusso aggiuntivo di videocall automatica.
+
+**Semplificazioni di scope confermate:**
+- **Non sviluppare** scheduler, generazione link Meet, API Calendar/Meet, reminder automatici, log di partecipanti, archiviazione registrazioni, automatismi sulla decisione di approvazione o controlli biometrici.
+- **DSAR-02..06:** tenere una procedura manuale con casella `privacy@demos.community`, registro minimo privato, esame umano dell'identità, rettifica/ritiro e risposta entro termini. Preparare e collaudare casi sintetici senza inviare email reali né copiare dati veri nei registri. Non occorre costruire ora un portale DSAR automatizzato.
+- **RP-18/19/20:** approvare durate motivate per categoria con DPO/legale, poi applicarle con procedura documentata o con automazione solo se davvero necessaria al volume/affidabilità. I numeri 90 giorni, 12 mesi e 3 anni restano **ipotesi non approvate**, non default tecnici.
+- **Grazia e nomine di terzi:** mantenere i gate giuridici specifici per artt. 5, 6, 9, 10, 14 e screening DPIA. Non pubblicare né attivare nuove raccolte senza base legale verificata. Ridurre funzionalità opzionali, non questi obblighi.
+- **Test e rilascio:** riusare CI/fixture già esistenti senza duplicarle; staging unico solo con coordinamento DEMOS 10 e autorizzazione specifica; Android fisico e decisione GO/NO-GO separati. Nessun merge/deploy/migrazione su DB reale/flag/pagamento autorizzato.
+
+**Checklist minima per il GO di questa parte:** ① codice fail-closed con CI; ② prova reale CIE e moderazione/videocall autorizzate; ③ scelta documentata di basi giuridiche/informative e retention, eventuale DPIA; ④ risposta DSAR manuale provata; ⑤ QA coordinato e rilascio autorizzato. Non aggiungere nuove attività automatizzate in assenza di un obbligo specifico o bug dimostrato.
+
 ### IMPLEMENTAZIONE DRAFT 08/11 — attestazione manuale CIE/videocall in Admin
 
 **Nuovo codice NON rilasciato nella PR #502** (ramo `feat/proposals-integration-20261031`): `api/routes/subject-proposals.js`, `api/migrations/20261031_subject_proposals_review_gate.sql`, `client/src/pages/Gestisci/ProposteSoggetti.tsx` e fixture PostgreSQL 17 sintetiche. Non è un'integrazione diretta delle API Google Meet e non prova che sia avvenuta una vera videocall.
