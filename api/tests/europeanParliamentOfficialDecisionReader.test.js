@@ -45,9 +45,8 @@ test('amendments and uncertain finality never become displayed final ballots',()
   assert.equal(list[0].final,false);
   assert.equal(selectLatestFinalRollCall([list],['person/1234']).size,0);
 });
-test('no fuzzy IDs, duplicate per-vote positions, invalid method or invalid outcome',()=>{
+test('no fuzzy IDs, secret method or withdrawn decision is never treated as an official nominal vote',()=>{
   const data=body(
-    rec('1',{had_voter_against:['person/1234']}),
     rec('2',{decision_method:'def/ep-decision-methods/VOTE_SECRET'}),
     rec('3',{decision_outcome:'def/ep-statuses/WITHDRAWN'}),
     rec('4',{had_voter_favor:['person/12345']})
@@ -172,4 +171,21 @@ test('cache supports 12 distinct latest-vote sitting dates without repeat HTTP c
  assert.equal(calls,26,'13th meeting requires only 2 extra official requests');
  await fetchOfficialDecisionBallots(dates[0],client);
  assert.equal(calls,28,'Oldest entry evicted after bounded 12-sitting cache');
+});
+
+
+test('ambiguous or empty official FINAL roll-call fails entire sitting rather than exposing older votes',()=>{
+  const cases=[
+    rec('1',{had_voter_against:['person/1234']}),
+    rec('1',{had_voter_against:['person/1234x']}),
+    rec('1',{had_voter_favor:null,had_voter_against:null,had_voter_abstention:null}),
+    rec('1',{had_voter_favor:'person/1234'})
+  ];
+  for(const invalidFinal of cases)
+    assert.throws(()=>parseOfficialDecisionBallots(body(invalidFinal),DAY),
+      /EP_OFFICIAL_FINAL_VOTERS_UNVERIFIABLE/);
+  const nonfinal=rec('1',{
+    activity_label:{en:'Amendment 1'},had_voter_against:['person/1234']
+  });
+  assert.deepEqual(parseOfficialDecisionBallots(body(nonfinal),DAY),[]);
 });
