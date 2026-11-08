@@ -121,7 +121,10 @@ test('one-row UPSERT resets reactions only when new vote really replaced the old
   const client = {
     query: async (sql, args) => {
       queries.push({sql,args});
-      if (sql.includes('INSERT INTO public.institutional_current_nominal_votes')) return {rows:[{ballot_id:'fixture'}]};
+      // Both canonical and notification mock UPSERT must report no rows
+      // for a stale/replayed vote; the changed count now tracks current state.
+      if (sql.includes('INSERT INTO public.institutional_current_nominal_votes'))
+        return {rows:resultRows.length?[{ballot_id:'fixture'}]:[]};
       if (sql.includes('INSERT INTO notifiche_voti_parlamento')) return { rows: resultRows };
       return { rows: [] };
     },
