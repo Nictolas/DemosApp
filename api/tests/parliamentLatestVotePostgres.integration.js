@@ -448,6 +448,18 @@ async function main(){
     // Genuine Camera official source roster contains 397 names but no person
     // links. Only a separately vetted official-ID bridge may attribute a
     // name-only row, and the current vote must still be keyed by stable UUID.
+    // A subsequent return to Camera is another institutional transition:
+    // reconcile the mandate and trusted Camera evidence BEFORE attribution.
+    await pool.query(
+      "UPDATE political_mandates SET status='INACTIVE', ends_at=now() "+
+      "WHERE user_id=$1 AND office_code='S'",[rep]);
+    await pool.query(
+      "UPDATE political_mandates SET status='ACTIVE', ends_at=NULL "+
+      "WHERE user_id=$1 AND office_code='C'",[rep]);
+    await pool.query(
+      "UPDATE public.institutional_nominal_identity_links "+
+      "SET evidence_url='https://www.camera.it/deputati/scheda-verificata' "+
+      "WHERE institution='Camera' AND representative_id=$1",[rep]);
     const unlinkedCamera=finalVote('vs19_739_14','2026-11-05','Camera');
     const unlinkedVerified={...verified(unlinkedCamera),
       members: members.map(m=>({...m,sourcePersonId:null}))};
