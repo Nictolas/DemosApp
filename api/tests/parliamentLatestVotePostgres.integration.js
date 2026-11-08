@@ -11,6 +11,7 @@ const {
   LATEST_FINAL_BALLOTS_SQL, selectedRepresentatives, persistLatestForChamber, refreshLatestParliamentVoteNotifications
 } = require('../services/parliamentLatestVoteNotificationsService');
 const { sendFinalBallotPush } = require('../services/parliamentFinalBallotPushService');
+const { upsertVerifiedCurrentVote } = require('../services/institutionalCurrentNominalVotesService');
 
 const connection = new URL(process.env.TEST_PARLIAMENT_PG_URL || 'postgres://invalid');
 if (process.env.TEST_PARLIAMENT_PG_EPHEMERAL !== 'true' ||
@@ -57,6 +58,7 @@ async function main(){
     await pool.query(fs.readFileSync(path.join(root,'api/create-notifiche-voti-parlamento-table.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261103_latest_parliament_votes.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261103_latest_parliament_votes.sql'),'utf8'));
+    await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_nominal_votes.sql'),'utf8'));
     // Regression: 65 new Camera votes must NOT push a less frequent Senate
     // vote out of the bounded source window. Same-day numeric ordering matters.
     await pool.query(
@@ -112,6 +114,31 @@ async function main(){
 
     result=await persistLatestForChamber(pool,first,verified(first),reps);
     assert.equal(result.changed,0,'out-of-order older vote ignored');
+    let current=(await pool.query(
+      "SELECT representative_key,ballot_id,vote_date,ballot_order FROM public.institutional_current_nominal_votes WHERE institution='Camera'"
+    )).rows;
+    assert.equal(current.length,1,'exactly one nominal current vote per representative');
+    assert.equal(current[0].representative_key,'demos:'+rep);
+    assert.equal(current[0].ballot_id,second.openpolis_id,'older sync cannot restore old vote');
+    const currentAttempt=await upsertVerifiedCurrentVote(pool,{
+      institution:'Camera', representativeKey:'demos:'+rep,
+      ballotId:'vs19_731_003', voteDate:'2026-10-22', ballotOrder:73100003,
+      status:'Contrario',ballotTitle:'Even later synthetic final',
+      sourceUrl:'https://documenti.camera.it/fixture',sourceType:'camera_ufficiale',verified:true
+    });
+    assert.equal(currentAttempt.changed,true,'higher order on same date replaces');
+    current=(await pool.query(
+      "SELECT ballot_id FROM public.institutional_current_nominal_votes WHERE institution='Camera'"
+    )).rows;
+    assert.equal(current.length,1);
+    assert.equal(current[0].ballot_id,'vs19_731_003');
+    const replay=await upsertVerifiedCurrentVote(pool,{
+      institution:'Camera', representativeKey:'demos:'+rep,
+      ballotId:first.openpolis_id, voteDate:baseDate, ballotOrder:73000097,
+      status:'Favorevole',ballotTitle:'Old synthetic final',
+      sourceUrl:'https://documenti.camera.it/fixture',sourceType:'camera_ufficiale',verified:true
+    });
+    assert.equal(replay.changed,false,'newer current record cannot regress');
     result=await persistLatestForChamber(pool,second,verified(second),reps);
     assert.equal(result.changed,0,'replay idempotent');
     assert.equal((await read()).rows[0].openpolis_id,second.openpolis_id);
