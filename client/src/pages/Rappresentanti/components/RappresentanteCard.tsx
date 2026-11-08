@@ -40,9 +40,7 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
       rappresentanteData = rappresentantiPerCategoria[0]; // Prendi il primo (e unico) rappresentante
       rappresentanteUid = rappresentanteData.id;
       
-      console.log(`🔍 DEBUG RappresentanteCard - Rappresentante trovato per ${categoriaId}:`, rappresentanteData);
     } else {
-      console.log(`🔍 DEBUG RappresentanteCard - Nessun rappresentante per ${categoriaId}:`, rappresentantiPerCategoria);
     }
 
     let avatarContent;
@@ -61,9 +59,7 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
           config = rappresentanteData.avatar_config;
         }
         avatarContent = <CustomAvatar config={config} size={56} className="w-full h-full" />;
-        console.log(`🔍 DEBUG RappresentanteCard - Avatar config per ${categoriaId}:`, config);
       } catch (e) { 
-        console.log(`⚠️ DEBUG RappresentanteCard - Errore parsing avatar per ${categoriaId}:`, e);
       }
     }
 
