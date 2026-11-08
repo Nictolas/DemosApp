@@ -78,6 +78,11 @@ if (demosReleaseAppOpenAds) {
             || demosReleaseAdUnitId == demosSampleAppOpenUnitId) {
             throw new GradleException('Own AdMob App ID and App Open unit required; Google demo IDs are forbidden for Play closed QA/production')
         }
+        // A well-formed unit from a DIFFERENT publisher is still unsafe.
+        // Reject it before producing a closed-track or production AAB.
+        if (demosReleaseAdMobAppId.split('~', 2)[0] != demosReleaseAdUnitId.split('/', 2)[0]) {
+            throw new GradleException('AdMob App ID and App Open unit must belong to the same publisher')
+        }
     }
 }
 
