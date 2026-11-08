@@ -408,7 +408,8 @@ final class DemosAppOpenAdsManager {
                         loading = false;
                         if (requestConsentGeneration != consentGeneration
                             || !adultEligible || !consentVerifiedForAdultSession || privacyFormOpen || activity.isDestroyed()
-                            || activity.isFinishing() || !foreground || !hasIntervalElapsed()
+                            || activity.isFinishing() || !foreground || !coldLaunchDisplayWindowOpen
+                            || !hasIntervalElapsed()
                             || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
                             || consentInformation.getConsentStatus()
                                 != ConsentInformation.ConsentStatus.OBTAINED) {
