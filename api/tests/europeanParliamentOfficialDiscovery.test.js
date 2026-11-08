@@ -222,3 +222,71 @@ test('separate injected API clients do not contaminate the official sitting cach
  assert.deepEqual(await fetchPastPlenarySittingDates('2028-01-25T12:00:00Z',a),['2028-01-18']);
  assert.deepEqual(await fetchPastPlenarySittingDates('2028-01-25T12:00:00Z',b),['2028-01-19']);
 });
+
+
+test('ambiguous latest individual vote never falls back to an older sitting',async()=>{
+ const people=roster();
+ const client={get:async url=>{
+   if(url.includes('/meetings?'))return {status:200,data:meetings};
+   if(url.includes('/meps/show-current?')){
+     const start=Number(new URL(url).searchParams.get('offset'));
+     return {status:200,data:{data:people.slice(start,start+500)}};
+   }
+   throw Error('unexpected endpoint');
+ }};
+ let visited=0;
+ await assert.rejects(collectRecentVerifiedItalianVotes({
+   now:ISO,client,maxSittings:2,
+   fetchDecisions:async date=>{
+     visited++;
+     return [{
+       date,final:true,verified:true,officialOrder:null,
+       sourceUrl:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-'+date+'/decisions',
+       ballots:new Map([['100001','Favorevole']])
+     }];
+   }
+ }),/EP_OFFICIAL_CHRONOLOGY_UNVERIFIABLE/);
+ assert.equal(visited,1,'Do not visit older sittings when newest vote order is ambiguous');
+});
+
+test('two conflicting same-order final ballots must not be replaced by older votes',async()=>{
+ const people=roster();
+ const client={get:async url=>{
+   if(url.includes('/meetings?'))return {status:200,data:meetings};
+   if(url.includes('/meps/show-current?')){
+     const start=Number(new URL(url).searchParams.get('offset'));
+     return {status:200,data:{data:people.slice(start,start+500)}};
+   }
+   throw Error('unexpected endpoint');
+ }};
+ await assert.rejects(collectRecentVerifiedItalianVotes({
+   now:ISO,client,maxSittings:2,
+   fetchDecisions:async date=>[1,2].map((n)=>({
+     date,final:true,verified:true,officialOrder:10,
+     voteId:'MTG-PL-'+date+'-DEC-'+n,
+     subject:'Final vote '+n,outcome:'Approvato',
+     sourceUrl:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-'+date+'/decisions',
+     ballots:new Map([['100001',n===1?'Favorevole':'Contrario']])
+   }))
+ }),/EP_OFFICIAL_CHRONOLOGY_UNVERIFIABLE/);
+});
+
+test('official final vote reported under wrong sitting date cannot be accepted',async()=>{
+ const people=roster();
+ const client={get:async url=>{
+   if(url.includes('/meetings?'))return {status:200,data:meetings};
+   if(url.includes('/meps/show-current?')){
+     const start=Number(new URL(url).searchParams.get('offset'));
+     return {status:200,data:{data:people.slice(start,start+500)}};
+   }
+   throw Error('unexpected endpoint');
+ }};
+ await assert.rejects(collectRecentVerifiedItalianVotes({
+   now:ISO,client,maxSittings:2,
+   fetchDecisions:async date=>[{
+     date:'2026-08-08',final:true,verified:true,officialOrder:12,
+     sourceUrl:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-'+date+'/decisions',
+     ballots:new Map([['100001','Favorevole']])
+   }]
+ }),/EP_OFFICIAL_CHRONOLOGY_UNVERIFIABLE/);
+});
