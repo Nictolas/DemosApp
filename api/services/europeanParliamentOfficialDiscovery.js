@@ -161,7 +161,7 @@ function validateSelectedMepIds(input) {
     throw Error('EP_SELECTED_ID_LIST_TOO_LARGE');
   const ids=new Set();
   for(const raw of input){
-    if(typeof raw!=='string'||!/^[1-9]\\d{0,8}$/.test(raw))
+    if(typeof raw!=='string'||!/^[1-9]\d{0,8}$/.test(raw))
       throw Error('EP_SELECTED_MEP_ID_INVALID');
     if(ids.has(raw))throw Error('EP_SELECTED_MEP_ID_DUPLICATE');
     ids.add(raw);
