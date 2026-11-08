@@ -1,17 +1,47 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
-const {
-  getUltimeVotazioni,
-  getDettagliVotazione
-} = require('../services/parlamentoEuropeoService');
-const { generaAnalisiLegge, recuperaAnalisiDaCache } = require('../services/leggeAnalysisService');
+const { getPool } = require('../config/database');
+const { recuperaAnalisiDaCache } = require('../services/leggeAnalysisService');
 
 const router = express.Router();
+const pool = getPool();
+
+// Legacy aggregate read side only: no ensureTableExists/DDL and no historical
+// nominal vote writer. The current single-vote persistence has a separate owner.
+async function readRecentEuropeanAggregates(limit) {
+  const result = await pool.query(`
+    SELECT id, uri, votazione_id, titolo, descrizione, data_votazione, esito,
+           sessione_id, sessione_data, sessione_label, favorevoli, contrari,
+           astenuti, presenti, votanti, termine_parlamentare, metadati,
+           data_sincronizzazione
+    FROM parlamento_europeo
+    WHERE data_votazione >= (CURRENT_DATE - INTERVAL '120 days')
+      AND data_votazione <= CURRENT_DATE
+      AND titolo IS NOT NULL AND titolo <> ''
+    ORDER BY data_votazione DESC, id DESC
+    LIMIT $1
+  `, [Math.max(1, Math.min(Number(limit) || 1, 10))]);
+  return result.rows;
+}
+async function readEuropeanAggregateByUri(uri) {
+  const result = await pool.query(`
+    SELECT id, uri, votazione_id, titolo, descrizione, data_votazione, esito,
+           sessione_id, sessione_data, sessione_label, favorevoli, contrari,
+           astenuti, presenti, votanti, termine_parlamentare, metadati,
+           data_sincronizzazione
+    FROM parlamento_europeo
+    WHERE uri = $1
+      AND data_votazione >= (CURRENT_DATE - INTERVAL '120 days')
+      AND data_votazione <= CURRENT_DATE
+    LIMIT 1
+  `, [uri]);
+  return result.rows[0] || null;
+}
 
 // GET /api/voti-parlamento-europeo/ultime - Ottieni le ultime N votazioni
 router.get('/ultime', verifyToken, async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 1, 100); // Default 1 (ultima votazione), max 100
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 1, 1), 10);
     const forceRefresh = false; // Never trigger historical DB writers from a GET
     
     console.log(`🔍 GET /api/voti-parlamento-europeo/ultime - Richiesta ultime ${limit} votazioni (refresh: ${forceRefresh})`);
@@ -20,7 +50,7 @@ router.get('/ultime', verifyToken, async (req, res) => {
     console.log(`📊 Recupero votazioni dal database...`);
     let votazioni = [];
     try {
-      votazioni = await getUltimeVotazioni(limit);
+      votazioni = await readRecentEuropeanAggregates(limit);
       console.log(`✅ Recuperate ${votazioni.length} votazioni dal database`);
     } catch (dbError) {
       console.error('❌ Errore nel recupero dal database:', dbError);
@@ -68,8 +98,7 @@ router.get('/ultime', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Errore nel recupero delle votazioni',
-      error: error.message,
-      details: error.stack
+      message: 'Consultazione temporaneamente non disponibile'
     });
   }
 });
@@ -83,7 +112,7 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
     console.log(`🔍 GET /api/voti-parlamento-europeo/dettagli - Richiesta dettagli per: ${decodedUri}`);
     
     // Recupera la votazione dal database
-    const votazione = await getDettagliVotazione(decodedUri);
+    const votazione = await readEuropeanAggregateByUri(decodedUri);
     
     if (!votazione) {
       return res.status(404).json({
@@ -110,21 +139,7 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
       try {
         analisiLegge = await recuperaAnalisiDaCache(decodedUri);
         
-        // Se non esiste, genera una nuova analisi (solo per votazioni recenti)
-        if (!analisiLegge && votazione.titolo) {
-          try {
-            console.log('🤖 Generazione analisi AI per la votazione...');
-            // Aggiungi timeout per evitare blocchi
-            const analisiPromise = generaAnalisiLegge(votazione.titolo, decodedUri);
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Timeout generazione analisi (20s)')), 20000)
-            );
-            analisiLegge = await Promise.race([analisiPromise, timeoutPromise]);
-          } catch (analisiTimeoutError) {
-            console.error('⚠️ Timeout nella generazione analisi:', analisiTimeoutError.message);
-            // Continua senza analisi
-          }
-        }
+        // Nessuna AI generata su GET: lettura della sola cache già validata.
       } catch (analisiError) {
         console.error('⚠️ Errore nella generazione analisi:', analisiError.message);
         // Continua comunque senza analisi
@@ -175,53 +190,17 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Errore nel recupero dei dettagli',
-      error: error.message
+      error: 'EP_READ_UNAVAILABLE'
     });
   }
 });
 
 // POST /api/voti-parlamento-europeo/rigenera-analisi/:uri - Rigenera l'analisi AI
-router.post('/rigenera-analisi/:uri', verifyToken, async (req, res) => {
-  try {
-    const { uri } = req.params;
-    const decodedUri = decodeURIComponent(uri);
-    
-    console.log(`🔄 POST /api/voti-parlamento-europeo/rigenera-analisi - Rigenerazione analisi per: ${decodedUri}`);
-    
-    // Recupera la votazione
-    const votazione = await getDettagliVotazione(decodedUri);
-    
-    if (!votazione) {
-      return res.status(404).json({
-        success: false,
-        message: 'Votazione non trovata'
-      });
-    }
-    
-    // Genera nuova analisi
-    const analisiLegge = await generaAnalisiLegge(votazione.titolo, decodedUri);
-    
-    res.json({
-      success: true,
-      data: {
-        spiegazione_generale: analisiLegge.spiegazione_generale,
-        effetti_positivi: analisiLegge.effetti_positivi,
-        effetti_negativi: analisiLegge.effetti_negativi,
-        numero_legge: analisiLegge.numero_legge,
-        tipo_atto: analisiLegge.tipo_atto,
-        provider_ai: analisiLegge.provider_ai,
-        modello_ai: analisiLegge.modello_ai,
-        data_generazione: analisiLegge.data_generazione
-      }
-    });
-  } catch (error) {
-    console.error('❌ Errore nella rigenerazione analisi:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nella rigenerazione dell\'analisi',
-      error: error.message
-    });
-  }
+router.post('/rigenera-analisi/:uri', verifyToken, (_req, res) => {
+  return res.status(409).json({
+    success: false,
+    message: 'Analisi AI legacy sospesa: nessuna generazione su voti europei non verificati.'
+  });
 });
 
 // POST /api/voti-parlamento-europeo/sincronizza - Sincronizza le votazioni dal PE
