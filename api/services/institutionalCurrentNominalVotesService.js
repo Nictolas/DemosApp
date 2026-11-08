@@ -94,9 +94,9 @@ const UPSERT_CURRENT_VOTE_SQL = `
 `;
 
 
-/* In one atomic SQL statement, lock and verify the PE identity, its human
- * approval, official evidence, active mandate and active canonical selection.
- * This protects direct writer calls from bypassing the European preview. */
+/* One atomic SQL statement locks and rechecks the manually VERIFIED PE identity,
+ * exact official MepId/UUID, active mandate and active canonical follower.
+ * This prevents direct calls bypassing the European preview. */
 const PE_AUTHORIZED_SQL = [
   'WITH authorized_pe AS MATERIALIZED (',
   ' SELECT l.representative_id FROM public.institutional_nominal_identity_links AS l',
@@ -108,33 +108,7 @@ const PE_AUTHORIZED_SQL = [
   ' AND (',
   "  l.evidence_url = 'https://data.europarl.europa.eu/person/' || $3",
   "  OR l.evidence_url = 'https://data.europarl.europa.eu/person/' || $3 || '/'",
-  "  OR l.evidence_url ~ ('^https://www[.]europarl[.]europa[.]eu/meps/[a-z]{2}/' || $3 || '(/[^?#]*)?
-  const vote = assertVerifiedVote(raw); // fail closed before any DB access
-  const values = [vote.institution, vote.representativeKey, vote.sourcePersonId,
-    vote.ballotId, vote.voteDate, vote.ballotOrder, vote.status,
-    vote.ballotTitle.trim(), vote.ballotOutcome?.trim() || null, vote.sourceUrl, vote.sourceType];
-  const sql = vote.institution === 'PE' ? UPSERT_SELECTED_PE_CURRENT_VOTE_SQL : UPSERT_CURRENT_VOTE_SQL;
-  const { rows } = await db.query(sql, values);
-  return { changed: rows.length === 1, current: rows[0] || null };
-}
-
-async function getCurrentVote(db, institution, representativeKey) {
-  if (!Object.hasOwn(SOURCES, institution) || typeof representativeKey !== 'string' ||
-      representativeKey.length > 180 ||
-      (institution === 'PE' && !/^demos:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(representativeKey)))
-    throw new Error('CURRENT_VOTE_INVALID_LOOKUP');
-  const { rows } = await db.query(
-    `SELECT institution, representative_key, ballot_id, vote_date, ballot_order,
-            vote, ballot_title, ballot_outcome, source_url, source_type
-       FROM public.institutional_current_nominal_votes
-      WHERE institution = $1 AND representative_key = $2 LIMIT 1`,
-    [institution, representativeKey]);
-  return rows[0] || null;
-}
-
-module.exports = { assertVerifiedVote, UPSERT_CURRENT_VOTE_SQL,
-  UPSERT_SELECTED_PE_CURRENT_VOTE_SQL, upsertVerifiedCurrentVote, getCurrentVote };
-)",
+  "  OR l.evidence_url ~ ('^https://www[.]europarl[.]europa[.]eu/meps/[a-z]{2}/' || $3 || '(/[^?#]*)?$')",
   ' )',
   ' AND EXISTS (',
   '  SELECT 1 FROM public.political_mandates AS m',
@@ -165,7 +139,8 @@ async function upsertVerifiedCurrentVote(db, raw) {
   const values = [vote.institution, vote.representativeKey, vote.sourcePersonId,
     vote.ballotId, vote.voteDate, vote.ballotOrder, vote.status,
     vote.ballotTitle.trim(), vote.ballotOutcome?.trim() || null, vote.sourceUrl, vote.sourceType];
-  const { rows } = await db.query(UPSERT_CURRENT_VOTE_SQL, values);
+  const sql = vote.institution === 'PE' ? UPSERT_SELECTED_PE_CURRENT_VOTE_SQL : UPSERT_CURRENT_VOTE_SQL;
+  const { rows } = await db.query(sql, values);
   return { changed: rows.length === 1, current: rows[0] || null };
 }
 
@@ -184,4 +159,4 @@ async function getCurrentVote(db, institution, representativeKey) {
 }
 
 module.exports = { assertVerifiedVote, UPSERT_CURRENT_VOTE_SQL,
-  upsertVerifiedCurrentVote, getCurrentVote };
+  UPSERT_SELECTED_PE_CURRENT_VOTE_SQL, upsertVerifiedCurrentVote, getCurrentVote };
