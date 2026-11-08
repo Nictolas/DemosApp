@@ -102,3 +102,26 @@ Rimangono obbligatorie QA con dispositivi Android fisici e upgrade dal pacchetto
 - **Accesso alle console** AdMob e Google Play: stato app, review, `app-ads.txt` accettato dal crawler, dichiarazione pubblicità, Data Safety, target età, requisiti fiscali/publisher. La sola presenza del file `app-ads.txt` non conferma la scansione.
 - **DPO**: verifica finale e motivata della informativa, basi giuridiche, CMP vendor, revoca e dati effettivamente elaborati. Nessun automatismo può sostituire le decisioni effettive del titolare/DPO.
 - **Build AAB cumulativa effettiva**: CI e signing verificati, versionCode corretto, installazione/aggiornamento Play, confronto dei manifest binari e contenuto SDK/permessi; release senza ads reali fino a GO separato.
+
+## Verifica live da PC autorizzato e vincolo AdMob / Google Play — 08/11/2026
+
+**Accesso strumenti:** DeskMCP in profilo locale `fully-unlocked` operativo, Desktop Commander online. Il browser DeskMCP isolato con profilo `demos-play-console-release` è arrivato alla pagina pubblica Play e al login Google AdMob; **non è una verifica autenticata degli stati interni** delle console. Chrome utente raggiunge la home Play Console, ma la lettura strutturata di app/dichiarazioni/stati non è ancora verificata. Non sono stati inseriti codici, modificati dati o concesse autorizzazioni.
+
+**Verifica live HTTP / browser:**
+- `https://www.demos.community/app-ads.txt` è pubblicamente raggiungibile e contiene esattamente `google.com, pub-7488681940015678, DIRECT, f08c47fec0942fa0` (stessa riga del sorgente `client/public/app-ads.txt`).
+- `https://demos.community/app-ads.txt` reindirizza alla variante `www` con la medesima riga. **Raggiungibilità ≠ crawler Google verificato**.
+- `https://play.google.com/store/apps/details?id=community.demos&hl=en` restituisce **«Not Found»** a una visita pubblica senza login. Ciò non prova l'assenza di test chiusi; **non è una scheda Play pubblicamente verificabile**.
+
+**Blocco procedurale da fonti ufficiali Google (consultate 08/11):**
+- [Google AdMob — configurare un'app](https://support.google.com/admob/answer/9989980?hl=it): per collegarla ad AdMob l'app Android deve essere **pubblicamente disponibile** in uno store supportato. Una app `non pubblicata` è testabile ma non può ottenere la normale verifica di idoneità prima dell'associazione allo Store.
+- [Google AdMob — idoneità dell'app](https://support.google.com/admob/answer/10564477?hl=it): prima della revisione occorrono app pubblicata, scheda Store e collegamento AdMob.
+- [Google AdMob — app-ads.txt](https://support.google.com/admob/answer/9776740?hl=it): il crawler prende come riferimento il sito web sviluppatore della scheda Store; può impiegare fino a 24 ore dopo un aggiornamento e lo stato effettivo va controllato in AdMob.
+- [Google AdMob — guida iniziale](https://support.google.com/admob/answer/15948559?hl=en): per la readiness dell'account sono richiesti anche dati di pagamento, da confermare nella console senza attivare incassi.
+
+**Sequenza consigliata (nessuna azione di rilascio autorizzata):**
+1. Completare le verifiche della **AAB cumulativa Ads-free**, con dati privacy, notifiche, voti, Proponi e QA appropriata; lasciare disabilitati GMA/UMP per default sino al GO e mantenere il codice AdMob in Draft.
+2. Quando il titolare autorizza effettivamente la disponibilità pubblica e gli altri gate della release sono superati, pubblicare la build approvata **senza annunci reali**. La pubblicazione NON è stata eseguita da questo audit.
+3. Verificare che la scheda Play pubblica mostri il sito sviluppatore corretto, collegare l'app allo store in AdMob, controllare eventuali verifiche dell'account, revisione e stato del crawler app-ads.txt.
+4. Solo dopo AdMob pronto, DPO/consenso/Play Data Safety aggiornati e collaudi su veri dispositivi, preparare una **successiva** release AdMob opt-in con IDs reali, firma e controlli Play. Mai considerare l'AAB CI Google TEST pronta per produzione.
+
+**Decisione ancora del titolare:** autorizzazione pubblicazione dopo tutti i gate; non anticipare né approvare implicitamente release o annunci reali. Il calendario di disponibilità pubblica non è determinato da questa indagine.
