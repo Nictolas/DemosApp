@@ -47,9 +47,13 @@ test('rejects unverified or wrong official position, order, outcome, URL and dat
 test('only stable DEMOS UUID is read from the shared current-vote table, never by name',async()=>{
   let called=0, fetched=0;
   const db={query:async(sql,params)=>{
-    called++;assert.match(sql,/SELECT source_person_id/);
+    called++;assert.match(sql,/SELECT c\.source_person_id/);
+    assert.match(sql,/INNER JOIN public\.institutional_nominal_identity_links AS x/);
+    assert.match(sql,/x\.source_person_id = c\.source_person_id/);
+    assert.match(sql,/x\.representative_id = \$1::uuid/);
+    assert.match(sql,/x\.evidence_url LIKE 'https:\/\/data\.europarl\.europa\.eu\/%'/);
     assert.doesNotMatch(sql,/INSERT|UPDATE|DELETE|DROP|JOIN\s+users/i);
-    assert.deepEqual(params,['demos:'+UUID]);
+    assert.deepEqual(params,[UUID,'demos:'+UUID]);
     return {rows:[row]};
   }};
   const got=await readVerifiedEuropeanCurrentVote(db,UUID,{
@@ -70,4 +74,13 @@ test('migration absent, no rows, invalid UUID or official outage: fail closed',a
   assert.equal(await readVerifiedEuropeanCurrentVote(db,UUID,{
     fetchDecisions:async()=>{throw new Error('EP_RATE_LIMIT')}
   }),null);
+});
+
+test('unvetted EU identity link rejects current row before external API call',async()=>{
+  let requests=0;
+  const db={query:async(sql)=>{requests++;assert.match(sql,/institutional_nominal_identity_links/);return {rows:[]};}};
+  assert.equal(await readVerifiedEuropeanCurrentVote(db,UUID,{
+    fetchDecisions:async()=>{throw Error('external API must not be called without identity link');}
+  }),null);
+  assert.equal(requests,1);
 });
