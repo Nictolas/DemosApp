@@ -88,8 +88,8 @@ test('preload requires consent and ad display requires real loading', () => {
 test('notification return and background resume cannot surface a cached App Open ad', () => {
   assert.match(manager, /private boolean coldLaunchDisplayWindowOpen = true/);
   const paused = manager.slice(manager.indexOf('void onPause()'), manager.indexOf('boolean arePrivacyOptionsRequired()', manager.indexOf('void onPause()')));
-  assert.match(paused, /foreground = false;\\s*coldLaunchDisplayWindowOpen = false;/);
-  assert.match(paused, /if \\(readyAd != null\\) \\{\\s*readyAd\\.destroy\\(\\);\\s*readyAd = null;/);
+  assert.match(paused, /foreground = false;\s*coldLaunchDisplayWindowOpen = false;/);
+  assert.match(paused, /if \(readyAd != null\) \{\s*readyAd\.destroy\(\);\s*readyAd = null;/);
   const load = manager.slice(manager.indexOf('private void loadOnlyTestAppOpenAd()'), manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
   const show = manager.slice(manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
   assert.ok(load.indexOf('!coldLaunchDisplayWindowOpen') > 0);
@@ -98,7 +98,7 @@ test('notification return and background resume cannot surface a cached App Open
   const guardJsCallback = show.indexOf('result -> {');
   assert.ok(show.indexOf('!coldLaunchDisplayWindowOpen', guardJsCallback) > guardJsCallback);
   assert.ok(show.indexOf('!coldLaunchDisplayWindowOpen', guardJsCallback) < show.indexOf('ad.show(activity)'));
-  assert.match(mainActivity, /appOpenAdsManager\\.onPause\\(\\)/);
+  assert.match(mainActivity, /appOpenAdsManager\.onPause\(\)/);
 });
 
 test('required UMP privacy options are reachable from Android settings without release ads', () => {
