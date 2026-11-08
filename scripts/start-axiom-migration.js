@@ -1,3 +1,7 @@
+'use strict';
+// Deprecated migration entrypoint: refuse before loading credentials, SQL or HTTP.
+require('../api/services/legacyAxiomMigrationGate').exitRetiredLegacyAxiomMigration();
+
 // Script per avviare la migrazione Axiom da Render
 // Uso: node scripts/start-axiom-migration.js [--dry-run] [--tables=centralized_logs,audit_logs]
 
