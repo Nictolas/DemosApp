@@ -40,7 +40,7 @@ test('source date and office are independently verified; no grouping heuristics'
     'CANDIDATE_ONLY');
   assert.equal(profileEvidence(html('Claudio Borghi','1970-06-06','Senatrice'),p,'it.senato',u).state,
     'OFFICE_UNAVAILABLE','unknown office wording is not positive evidence');
-  assert.equal(profileEvidence(html('Claudio Borghi','1970-06-06','Senatore e Deputato'),p,'it.senato',u).state,
+  assert.equal(profileEvidence(html('Claudio Borghi','1970-06-06','Senatore')+' <p>Deputato dal 13/10/2022</p>',p,'it.senato',u).state,
     'OFFICE_UNAVAILABLE');
 });
 
