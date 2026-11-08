@@ -351,9 +351,8 @@ async function main(){
     assert.equal((await pool.query("SELECT count(*)::int n FROM public.institutional_current_nominal_votes WHERE representative_key=$1",
       ['demos:'+rep])).rows[0].n,1);
 
-    // Every verified active politician deserves their current vote, even
-    // with ZERO current followers; only a followed politician gets a shared
-    // notification and can be considered for FCM.
+    // Free-tier invariant: even an active VERIFIED identity without any
+    // active follower must not be included in the source scan or written.
     const unfollowed='00000000-0000-4000-8000-000000000004';
     await pool.query("INSERT INTO users(id,nome,cognome,status) VALUES($1,'Nessun','Seguace','a')",[unfollowed]);
     await pool.query("INSERT INTO political_mandates(user_id,status,office_code,starts_at) VALUES($1,'ACTIVE','C',NOW()-INTERVAL '2 days')",[unfollowed]);
@@ -361,15 +360,32 @@ async function main(){
       [unfollowed,'https://documenti.camera.it/deputato/fixture-no-followers',
         'https://www.camera.it/deputati/fixture-no-followers']);
     assert.equal((await selectedRepresentatives(pool,'Camera')).some(p=>p.id===unfollowed),false,
-      'PENDING identity cannot enter canonical vote ingest even with an exact name');
+      'PENDING identity cannot be selected even with an active follower');
     await pool.query(
       "UPDATE public.institutional_nominal_identity_links SET review_state='VERIFIED', reviewed_by=$2, reviewed_at=now() WHERE representative_id=$1",
       [unfollowed,other]);
-    const activeVetted=await selectedRepresentatives(pool,'Camera');
-    const lone=activeVetted.find(p=>p.id===unfollowed);
-    assert.ok(lone,'unfollowed verified active MP must be eligible for a current vote');
-    assert.equal(lone.has_followers,false,'selection applies only to notification eligibility');
-    assert.equal(activeVetted.find(p=>p.id===rep)?.has_followers,true);
+    const withoutFollow=await selectedRepresentatives(pool,'Camera');
+    assert.equal(withoutFollow.some(p=>p.id===unfollowed),false,
+      'VERIFIED active MP with zero followers must not be scanned');
+    assert.equal(withoutFollow.find(p=>p.id===rep)?.has_followers,true);
+    assert.equal((await pool.query(
+      "SELECT count(*)::int n FROM public.institutional_current_nominal_votes WHERE representative_key=$1",
+      ['demos:'+unfollowed]
+    )).rows[0].n,0,'zero selected user => zero nominal-vote storage');
+    assert.equal((await read()).rows.length,1,'no in-app notifications for unfollowed MPs');
+
+    // First selection: next enabled refresh finds this verified MP once,
+    // independent of how many people choose them.
+    await pool.query("INSERT INTO political_selections(user_id,selected_user_id,selection_kind,political_office_id) VALUES($1,$2,'representative','it.camera')",
+      [other,unfollowed]);
+    await pool.query("INSERT INTO political_selections(user_id,selected_user_id,selection_kind,political_office_id) VALUES($1,$2,'representative','it.camera')",
+      [follower,unfollowed]);
+    const activeSelected=await selectedRepresentatives(pool,'Camera');
+    const lone=activeSelected.find(p=>p.id===unfollowed);
+    assert.ok(lone,'first selection exposes MP to subsequent source refresh');
+    assert.equal(lone.has_followers,true);
+    assert.equal(activeSelected.filter(p=>p.id===unfollowed).length,1,
+      'two followers must still result in ONE current MP entry');
     const loneBallot=finalVote('vs19_740_18','2026-11-06','Camera');
     const loneRoster=members.map((m,i)=>i===4
       ? {...m,name:'SEGUACE NESSUN',vote:'Favorevole',
@@ -378,17 +394,21 @@ async function main(){
       date:loneBallot.data_votazione,
       source:{type:'official',url:'https://documenti.camera.it/fixture'},
       members:loneRoster};
-    const unfollowedResult=await persistLatestForChamber(pool,loneBallot,loneVerified,[lone]);
-    assert.equal(unfollowedResult.changed,1,'current vote created without followers');
-    assert.deepEqual(unfollowedResult.updated,[],'unfollowed MP cannot trigger any push');
-    const currentUnfollowed=(await pool.query(
-      "SELECT ballot_id,vote FROM public.institutional_current_nominal_votes WHERE representative_key=$1",
+    const selectedResult=await persistLatestForChamber(pool,loneBallot,loneVerified,[lone]);
+    assert.equal(selectedResult.changed,1);
+    assert.equal((await pool.query(
+      "SELECT count(*)::int n FROM public.institutional_current_nominal_votes WHERE representative_key=$1",
       ['demos:'+unfollowed]
-    )).rows;
-    assert.equal(currentUnfollowed.length,1);
-    assert.equal(currentUnfollowed[0].ballot_id,loneBallot.openpolis_id);
-    assert.equal((await read()).rows.length,1,
-      'no second shared notification when nobody follows the new representative');
+    )).rows[0].n,1,'no duplicate current vote across followers');
+    assert.equal((await read()).rows.length,2,'one shared notification per selected MP');
+    await pool.query("DELETE FROM political_selections WHERE selected_user_id=$1",[unfollowed]);
+    assert.equal((await selectedRepresentatives(pool,'Camera')).some(p=>p.id===unfollowed),false,
+      'removing the final follower stops future source scanning');
+    assert.equal((await pool.query(
+      "SELECT count(*)::int n FROM public.institutional_current_nominal_votes WHERE representative_key=$1",
+      ['demos:'+unfollowed]
+    )).rows[0].n,1,
+      'existing last-vote row is not destructively removed on unselect');
 
     // Orchestration disabled means no DB writes even when this table exists.
     delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
