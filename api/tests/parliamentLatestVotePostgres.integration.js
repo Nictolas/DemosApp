@@ -29,7 +29,8 @@ const other='00000000-0000-4000-8000-000000000003';
 const baseDate='2026-10-21';
 const members=Array.from({length:125},(_,i)=>({
   name:i===2?'DE LUCA MARIA':'PERSONA CON NOME '+i,
-  group:'GRUPPO',vote:i===2?'In missione':'Favorevole'
+  group:'GRUPPO',vote:i===2?'In missione':'Favorevole',
+  sourcePersonId:i===2?'https://documenti.camera.it/deputato/fixture-maria':null
 }));
 function finalVote(id,date, chamber='Camera'){
   return {openpolis_id:id,camera:chamber,titolo:'Votazione finale sintetica',
@@ -60,6 +61,8 @@ async function main(){
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261103_latest_parliament_votes.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261103_latest_parliament_votes.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_nominal_votes.sql'),'utf8'));
+    await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_nominal_identity_links.sql'),'utf8'));
+    await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_nominal_identity_links.sql'),'utf8'));
     // Regression: 65 new Camera votes must NOT push a less frequent Senate
     // vote out of the bounded source window. Same-day numeric ordering matters.
     await pool.query(
@@ -87,13 +90,16 @@ async function main(){
 
     await pool.query('INSERT INTO users(id,nome,cognome,status) VALUES ($1,$2,$3,$4),($5,$6,$7,$8),($9,$10,$11,$12)',
       [rep,'Maria','De Luca','a',follower,'Follower','Uno','a',other,'Altro','Utente','a']);
+    await pool.query("INSERT INTO public.institutional_nominal_identity_links(institution,representative_id,source_person_id,evidence_url) VALUES('Camera',$1,$2,$3)",[rep,'https://documenti.camera.it/deputato/fixture-maria','https://documenti.camera.it/fixture']);
     await pool.query("INSERT INTO political_mandates (user_id,status,office_code,starts_at) VALUES ($1,'ACTIVE','C',NOW()-INTERVAL '7 days')",[rep]);
     await pool.query("INSERT INTO political_selections (user_id,selected_user_id,selection_kind,political_office_id) VALUES ($1,$2,'representative','it.camera')",[follower,rep]);
     await pool.query('INSERT INTO notifiche_preferenze (user_id,deputato,senatore) VALUES ($1,TRUE,FALSE)',[follower]);
     const token='T'.repeat(130);
     await pool.query('INSERT INTO user_devices (user_id,fcm_token,is_active) VALUES ($1,$2,TRUE)',[follower,token]);
 
+    await assert.rejects(pool.query("INSERT INTO public.institutional_nominal_identity_links(institution,representative_id,source_person_id,evidence_url) VALUES('Camera',$1,$2,$3)",[other,'https://documenti.camera.it/deputato/fixture-maria','https://documenti.camera.it/fixture']),{code:'23505'});
     const reps=await selectedRepresentatives(pool,'Camera');
+    assert.equal(reps[0].source_person_id,'https://documenti.camera.it/deputato/fixture-maria');
     assert.deepEqual(reps.map(r=>r.id),[rep], 'only current active selected MP');
     assert.deepEqual(await selectedRepresentatives(pool,'Senato'),[],'not accidentally a senator');
     const first=finalVote('vs19_730_097',baseDate),second=finalVote('vs19_731_005','2026-10-22');
@@ -124,6 +130,7 @@ async function main(){
     const currentAttempt=await upsertVerifiedCurrentVote(pool,{
       institution:'Camera', representativeKey:'demos:'+rep,
       ballotId:'vs19_731_006', voteDate:'2026-10-22', ballotOrder:73100006,
+      sourcePersonId:'https://documenti.camera.it/deputato/fixture-maria',
       status:'Contrario',ballotTitle:'Even later synthetic final',
       sourceUrl:'https://documenti.camera.it/fixture',sourceType:'camera_ufficiale',verified:true
     });
@@ -136,6 +143,7 @@ async function main(){
     const replay=await upsertVerifiedCurrentVote(pool,{
       institution:'Camera', representativeKey:'demos:'+rep,
       ballotId:first.openpolis_id, voteDate:baseDate, ballotOrder:73000097,
+      sourcePersonId:'https://documenti.camera.it/deputato/fixture-maria',
       status:'Favorevole',ballotTitle:'Old synthetic final',
       sourceUrl:'https://documenti.camera.it/fixture',sourceType:'camera_ufficiale',verified:true
     });
@@ -161,6 +169,7 @@ async function main(){
     const staleCamera=await upsertVerifiedCurrentVote(pool,{
       institution:'Camera', representativeKey:'demos:'+rep,
       ballotId:'vs19_733_001', voteDate:'2026-10-22', ballotOrder:73300001,
+      sourcePersonId:'https://documenti.camera.it/deputato/fixture-maria',
       status:'Favorevole', ballotTitle:'Stale Camera fixture',
       sourceUrl:'https://documenti.camera.it/fixture',
       sourceType:'camera_ufficiale',verified:true
@@ -169,6 +178,7 @@ async function main(){
     const sameDayOtherChamber=await upsertVerifiedCurrentVote(pool,{
       institution:'Camera', representativeKey:'demos:'+rep,
       ballotId:'vs19_999_999', voteDate:'2026-10-23', ballotOrder:99900999,
+      sourcePersonId:'https://documenti.camera.it/deputato/fixture-maria',
       status:'Favorevole', ballotTitle:'Ambiguous cross-house same-day fixture',
       sourceUrl:'https://documenti.camera.it/fixture',
       sourceType:'camera_ufficiale',verified:true
