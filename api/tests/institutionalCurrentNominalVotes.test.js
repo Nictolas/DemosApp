@@ -19,7 +19,8 @@ test('fail-closed verification: no guessed vote, name-only key, wrong source, ma
     { representativeKey: 'Mario Rossi' }, { status: 'Segreto' },
     { status: 'Ignoto' }, { verified: false }, { sourceType: 'senato_openpolis' },
     { sourceUrl: 'https://evil.test/vote' }, { voteDate: '2026-02-31' },
-    { ballotOrder: null }, { institution: 'Sconosciuto' }
+    { ballotOrder: null }, { institution: 'Sconosciuto' },
+    { sourcePersonId:null }, {sourcePersonId:'Mario Rossi'}, {sourcePersonId:'https://evil.test/persone/123'}
   ]) {
     const input = { ...base, ...bad };
     assert.throws(() => assertVerifiedVote(input), /CURRENT_VOTE_/);
