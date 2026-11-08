@@ -15,6 +15,7 @@ on:
       - 'api/tests/europeanParliamentCurrentOnlyCandidateBridge.test.js'
       - 'api/services/europeanParliamentSelectedCurrentOnlyReader.js'
       - 'api/tests/europeanParliamentSelectedCurrentOnlyReader.test.js'
+      - 'api/tests/europeanParliamentSharedWriterInterop.test.js'
       - 'api/database/20261108_ep_selected_identity_review_readonly.sql'
       - 'docs/operations/PROD041_EP_BRIDGE_MIGRATION_PROPOSAL.sql'
       - 'api/tests/epBridgeProposalPgSmoke.sh'
@@ -69,6 +70,19 @@ jobs:
           node --check api/scripts/verifyEuropeanParliamentLatestSitting.js
           node --check api/scripts/probeEuropeanParliamentRecentCoverage.js
           node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js api/tests/europeanParliamentOfficialDecisionReader.test.js api/tests/europeanRepresentativeCurrentVoteReader.test.js api/tests/europeanParliamentOfficialDiscovery.test.js api/tests/europeanParliamentCurrentOnlyCandidateBridge.test.js api/tests/europeanParliamentSelectedCurrentOnlyReader.test.js api/tests/europeanParliamentIdentityReviewReadonly.test.js api/tests/europeanParliamentWorkflow.test.js
+      - name: Fetch shared writer from current Draft PR #633 (read only)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: Nictolas/DemosApp
+          ref: refs/pull/633/head
+          path: .interop-pr633
+          persist-credentials: false
+          sparse-checkout: |
+            api/services/institutionalCurrentNominalVotesService.js
+      - name: Cross-PR current-only writer contract with synthetic verified PE candidate
+        env:
+          EP_CURRENT_WRITER_PATH: .interop-pr633/api/services/institutionalCurrentNominalVotesService.js
+        run: node --test api/tests/europeanParliamentSharedWriterInterop.test.js
       - name: Frontend type/build regression
         run: |
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
