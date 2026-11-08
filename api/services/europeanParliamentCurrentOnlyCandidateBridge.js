@@ -53,14 +53,28 @@ function candidateFromVerifiedBallot(mepId,uuid,ballot) {
 }
 
 function prepareVettedEuropeanCurrentVoteCandidates(coverage,links) {
+  // When no verified selected MEP exists, PR #633 must skip network and
+  // writes altogether. Accept only this exact zero-identity sentinel.
+  if(coverage?.selectedOnly===true && coverage?.incomplete===false &&
+     coverage.totalItalianMepIds===0 && coverage.covered===0 &&
+     coverage.current instanceof Map && coverage.current.size===0 &&
+     Array.isArray(coverage.checkedSittings) &&
+     coverage.checkedSittings.length===0 && Array.isArray(links) && links.length===0)
+    return Object.freeze({
+      vettedLinks:0,prepared:0,withoutCertifiedIdentity:0,
+      writesPerformed:0,candidates:Object.freeze([])
+    });
+  const minimum=coverage?.selectedOnly===true?1:50;
   if(!coverage||coverage.incomplete!==false ||
      !(coverage.current instanceof Map) ||
      !Number.isSafeInteger(coverage.totalItalianMepIds) ||
-     coverage.totalItalianMepIds<50 || coverage.totalItalianMepIds>100 ||
+     coverage.totalItalianMepIds<minimum || coverage.totalItalianMepIds>100 ||
+     (coverage.selectedOnly!==undefined && typeof coverage.selectedOnly!=='boolean') ||
      coverage.current.size!==coverage.totalItalianMepIds ||
      coverage.covered!==coverage.current.size ||
      !Array.isArray(coverage.checkedSittings) ||
-     !coverage.checkedSittings.length)
+     !coverage.checkedSittings.length ||
+     coverage.checkedSittings[0]!==coverage.latestSitting)
     throw Error('EP_CURRENT_FULL_SOURCE_COVERAGE_REQUIRED');
   if(!Array.isArray(links)||links.length>100)
     throw Error('EP_CURRENT_VETTED_LINKS_INVALID');
