@@ -590,3 +590,62 @@ No production or staging data has been mutated.
 Il file `api/jobs/openpolisVotazioniFinaliJob.js` richiama `refreshSelectedEuropeanCurrentVote` della PR #635 **solamente** con `PARLIAMENT_EP_CURRENT_REFRESH_ENABLED=true`. Non è stata aggiunta una schedulazione: il refresh utilizza il job Openpolis con la frequenza esistente. OFF/variabile mancante => nessun `require` del modulo #635, nessuna lettura o scrittura PE. Una volta composti i due rami, il servizio #635 usa il writer #633 e la transazione corrente con `UPSERT` solo su chiavi `demos:<UUID>`. Gli errori non lanciano import alternativi né causano fallback verso il vecchio storico.
 
 La CI #633 testa esplicitamente il wiring e il fatto che non nascano altri cron. La CI #635 testa modalità disattivata, 0 chiamate HTTP con 0 MepId verificati, transazione unica e ROLLBACK; esegue anche un collaudo PostgreSQL 16 con il writer effettivo della PR #633. **Nessuna variabile runtime è stata abilitata e nessun database DEMOS è stato modificato.** Rilascio NO-GO: approvazione identità, schema staging unico, E2E autenticato, DPO, QA AAB e autorizzazioni GO specifiche.
+
+
+## Tre correzioni DOB — migrazione candidata con triplo GO (08/11/2026)
+
+**Avanzamento del blocco anagrafico, SENZA scritture su dati reali:**
+il controllo SELECT-only su Supabase produzione ha confermato che
+Marco Grimaldi (Camera), Carlo Calenda (Senato) e Matteo Salvini
+(Senato) hanno **un solo account DEMOS per nome completo**, **una sola
+riga `user_profile` collegata**, **un mandato attivo per il seggio
+selezionato** e **almeno un follower attivo**. In tutti e tre i casi la
+data di nascita legacy errata appare *sia in `users.data_nascita` sia
+in `user_profile.data_nascita`*, e non esiste già un account con
+quella stessa anagrafica e la data corretta. Non correggere soltanto
+`users`: ciò lascerebbe dati incoerenti.
+
+L'audit ripetibile
+`api/database/20261108_three_selected_dob_preflight_READONLY.sql`
+è **solo SELECT**, restituisce gli UUID dei rappresentanti pubblici
+e il confronto fra date attuali e istituzionali, mai gli account
+follower. Eseguito sulla produzione con soli SELECT ha riportato
+`READY_FOR_SEPARATE_DPO_GO_AND_REAL_BACKUP` per **3/3**: tale stato
+indica soltanto la coerenza strutturale con la proposta, **non
+autorizza alcuna modifica**.
+
+È disponibile il candidato transazionale
+`api/database/20261108_selected_public_dob_correction_REQUIRES_GO.sql`.
+Le tre righe sono ancorate agli UUID DEMOS verificati nel preflight,
+nome/cognome, vecchia data, data ufficiale, ufficio e follower attivo.
+Il codice blocca l'intero batch se vi sono cambiamenti, profili
+duplicati, profili mancanti o DOB discordanti tra le due tabelle.
+Aggiorna atomically *soltanto* le date in `users` e
+`user_profile`. Non cambia ID, preferenze, mandato, account,
+storico, notifiche o crosswalk dei voti. Una nuova esecuzione dopo
+l'aggiornamento è idempotente. Il file **non** contiene istruzioni
+che impostino le tre variabili d'autorizzazione richieste:
+`demos.prod041_dob_approval`,
+`demos.prod041_backup_restore_proven` e
+`demos.prod041_official_registry_rechecked`.
+Se mancano, genera eccezione **prima di ogni UPDATE**.
+
+Il test
+`api/tests/prod041SelectedDobCandidate.postgres.js`, obbligato al
+PostgreSQL 16 **effimero GitHub Actions su localhost 55432**, crea un
+database temporaneo separato, usa esclusivamente dati di fixture e
+prova che: assenza GO impedisce ogni correzione; incoerenza nel terzo
+profilo provoca rollback anche dei primi due; una volta simulato
+il triplo GO le due date di tutte e tre le persone vengono aggiornate;
+l'operazione ripetuta non crea righe; selezioni e altro account sintetico
+restano invariati. Il primo run riuscito è [42528764461](https://github.com/Nictolas/DemosApp/actions/runs/42528764461)
+con `DOB CANDIDATE SYNTHETIC PG16 PASS`. Aggiunti controllo SQL
+statico e trigger CI per entrambi i file.
+
+**RESTANO SEPARATI**: (a) esplicito GO umano/DPO su queste sole
+tre date, (b) vero backup di produzione cifrato **e ripristino
+effettivamente verificato**, (c) nuova verifica dei tre documenti
+ufficiali prima dell'esecuzione, (d) bonifica cross-camera di Borghi e
+Della Vedova via issue #396, (e) identity links ufficiali, (f) E2E
+Android/Chrome, PE e release GO. **ZERO SQL UPDATE su Supabase
+produzione, ZERO deploy, staging unico invariato.**
