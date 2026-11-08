@@ -73,7 +73,7 @@ function parseItalianCurrentMepIds(rows) {
 }
 
 async function fetchCurrentItalianMepIds(client=axios) {
-  if (rosterCache.ids && rosterCache.expires>Date.now()) return new Set(rosterCache.ids);
+  if (client===axios && rosterCache.ids && rosterCache.expires>Date.now()) return new Set(rosterCache.ids);
   const rows=[];
   for (let offset=0;offset<1500;offset+=MAX_PAGE) {
     const url=BASE+'/meps/show-current?limit='+MAX_PAGE+'&offset='+offset;
@@ -84,7 +84,7 @@ async function fetchCurrentItalianMepIds(client=axios) {
     rows.push(...page);
     if (page.length<MAX_PAGE) {
       const ids=parseItalianCurrentMepIds(rows);
-      rosterCache.ids=ids;rosterCache.expires=Date.now()+TTL;
+      if(client===axios){rosterCache.ids=ids;rosterCache.expires=Date.now()+TTL;}
       return new Set(ids);
     }
   }
@@ -93,22 +93,24 @@ async function fetchCurrentItalianMepIds(client=axios) {
 
 async function fetchPastPlenarySittingDates(now=new Date(),client=axios) {
   const cutoff=dateOnly(now),year=cutoff.slice(0,4);
-  let promise=inflight.get(year);
+  // Never share injected test/client responses with the production Axios cache.
+  const cacheable=client===axios;
+  let promise=cacheable?inflight.get(year):null;
   if (!promise) {
-    const cached=sessionCache.get(year);
+    const cached=cacheable?sessionCache.get(year):null;
     if (cached?.expires>Date.now()) return parsePastPlenarySittings(cached.payload,now);
     promise=(async()=>{
       const url=BASE+'/meetings?year='+year+'&limit=250&offset=0';
       const res=await client.get(url,requestConfig());
       if (res.status!==200) throw new Error('EP_DISCOVERY_MEETINGS_UNAVAILABLE');
       parsePastPlenarySittings(res.data,now);
-      sessionCache.set(year,{payload:res.data,expires:Date.now()+TTL});
+      if(cacheable)sessionCache.set(year,{payload:res.data,expires:Date.now()+TTL});
       return res.data;
     })();
-    inflight.set(year,promise);
+    if(cacheable)inflight.set(year,promise);
   }
   try {return parsePastPlenarySittings(await promise,now);}
-  finally{inflight.delete(year);}
+  finally{if(cacheable)inflight.delete(year);}
 }
 
 /**
