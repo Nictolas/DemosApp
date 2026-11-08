@@ -29,6 +29,7 @@ on:
       - 'api/database/20261108_senate_identity_candidates_readonly.sql'
       - 'api/database/20261108_selected_mp_identity_review_readonly.sql'
       - 'api/database/20261108_selected_official_registry_audit_readonly.sql'
+      - 'api/database/20261108_selected_first_party_vs_openpolis_dob_READONLY.sql'
       - 'api/database/20261108_selected_senate_official_id_candidates_readonly.sql'
       - 'api/database/20261108_selected_public_dob_correction_REQUIRES_GO.sql'
       - 'api/tests/prod041SelectedDobCandidate.postgres.js'
