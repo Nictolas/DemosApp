@@ -1,3 +1,49 @@
+## Checkpoint integrazione PE↔writer reale #633 su PostgreSQL 16 — 8 novembre 2026
+
+**Test cross-PR reale superato su DB sintetico e isolato:**
+[GitHub Actions 42524446629](https://github.com/Nictolas/DemosApp/actions/runs/42524446629).
+Tutti e **3/3 job SUCCESS**, comprese build/reader, Chrome reale con
+dati sintetici e PostgreSQL 16. Nel job PG16 sono state
+scaricate tramite `refs/pull/633/head` (senza merge)
+le versioni **reali** della migration `institutional_current_nominal_votes`
+e del writer `institutionalCurrentNominalVotesService.js` dal ramo
+Draft #633. Integrazione verificata da
+`api/tests/epSelectedWriterRealPgSmoke.js`, codice e fixture
+interamente sintetici:
+- un follower attivo seleziona l'UUID canonico
+  `political_selections.eu.parliament.it`;
+- esiste un mandato europeo attivo e un'identità PE approvata
+  con revisore e URL istituzionale esatto;
+- il `prepareSelectedEuropeanCurrentOnlyPreview` di #635
+  fornisce **un solo candidato** con chiave `demos:<UUID>`;
+- il writer **vero** di #633 lo accetta e inserisce una sola riga;
+  replay identico, voto precedente e voto con ordine precedente
+  nella stessa seduta non la sostituiscono;
+- un voto più recente per ordine la sostituisce, senza archiviare
+  lo storico; revocare `review_state='VERIFIED'` blocca le
+  nuove acquisizioni (0 candidati, 0 HTTP);
+- l'intero test di scrittura termina in **ROLLBACK**, verificando
+  **0 righe di voto residue** nel database temporaneo.
+  Nessuna connessione o SQL DML sullo staging unificato o produzione.
+
+Un controllo cross-PR indipendente, [Actions 42523983225](https://github.com/Nictolas/DemosApp/actions/runs/42523983225),
+ha eseguito 4/4 test sul vero modulo del writer; il log mostra
+`EP_SHARED_WRITER_BLOCKER_UNLINKED_PE_KEY_STILL_ACCEPTED`.
+**Blocco rimasto:** #633 deve rifiutare le chiavi PE
+`pe:<MepId>` e utilizzare esclusivamente `demos:<UUID>`
+nell'adapter; inoltre deve confermare il link `PE + UUID + MepId`
+con `review_state='VERIFIED'` *nella medesima transazione*
+dell'UPSERT, per prevenire bypass del preview o cambi di identità
+nel frattempo. Handoff [commento #633](https://github.com/Nictolas/DemosApp/pull/633#issuecomment-6727266170).
+
+**Questo completa la prova di interoperabilità tecnica in ambiente
+sintetico.** NON prova i tre link PE in produzione/staging, NON
+autorizza la correzione dei dati anagrafici discordanti, e NON
+sostituisce l'E2E autenticato su staging unificato e il QA dell'AAB.
+Il progetto è ancora **NO-GO** per merge/deploy/release.
+
+---
+
 ## Proposta schema verificata su PostgreSQL 16 — 08/11/2026
 
 **Nuovo avanzamento, ancora NON applicato a DEMOS.** Preparato il file
