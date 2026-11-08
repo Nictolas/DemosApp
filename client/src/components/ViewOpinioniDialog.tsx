@@ -332,7 +332,8 @@ export function ViewOpinioniDialog({
              /^\d{4}-\d{2}-\d{2}$/.test(ultimoVotoEuropeo.date) &&
              ['Favorevole', 'Contrario', 'Astenuto'].includes(ultimoVotoEuropeo.vote) &&
              ['Approvato', 'Respinto'].includes(ultimoVotoEuropeo.outcome) &&
-             /^https:\/\/www\.europarl\.europa\.eu\/doceo\//.test(ultimoVotoEuropeo.sourceUrl) ? (
+             (/^https:\/\/www\.europarl\.europa\.eu\/doceo\//.test(ultimoVotoEuropeo.sourceUrl) ||
+              /^https:\/\/data\.europarl\.europa\.eu\/api\/v2\/meetings\/MTG-PL-20\d{2}-\d{2}-\d{2}\/decisions(?:[?#].*)?$/.test(ultimoVotoEuropeo.sourceUrl)) ? (
               <div className="space-y-1">
                 <p className="font-medium break-words">{ultimoVotoEuropeo.subject}</p>
                 <p>Data: {ultimoVotoEuropeo.date}</p>
