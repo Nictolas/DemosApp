@@ -4,6 +4,32 @@ Data controllo: 2026-11-08. Proprietario: fonte PE, attribuzione, API reader/UI 
 **Non è una dichiarazione GO per la prossima AAB. Nessun deploy o SQL applicato.**
 
 
+
+## QA Chrome reale sintetico, sicurezza log — 08/11/2026
+
+- [Workflow GitHub Actions 42512341439](https://github.com/Nictolas/DemosApp/actions/runs/42512341439)
+  **COMPLETED/SUCCESS** con due job, `ep-reader` e `ep-chrome-320-390`,
+  dopo l'aggiunta della prova automatica sull'effettivo componente
+  React `ViewOpinioniDialog` richiamato da `Rappresentanti`.
+- **Chrome preinstallato reale** lanciato con Playwright su Vite locale,
+  **quattro casi, zero fallimenti, zero skipped**: schermi
+  **320×568** e **390×844**, record ufficiale simulato `verified=true`
+  con data/voto/esito/URL della fonte, e `ultimo_voto_nominale=null`
+  con fallback «non verificabile». Verificate presenza e assenza
+  del link ufficiale, contenimento verticale della scheda lunga
+  a `max-height:35dvh`, mancata esposizione dei gruppi.
+  Dati e token di test esclusivamente sintetici. Nessun accesso a
+  staging, produzione, account reali o database.
+  Evidenza log `EP_CHROME_320_390_SYNTHETIC_PASS`.
+- Privacy frontend: eliminati i debug `console.log` contenenti risposte
+  personali e opinioni dal componente del dialogo e dalle schede di
+  selezione, oltre ai log di UUID e voti già eliminati lato server.
+  Il cambiamento è incluso nei test e nella build React validata.
+- **Non sostituisce** il test E2E reale autenticato con
+  `institutional_nominal_identity_links` popolata e writer della #633,
+  né una prova Android AAB firmata e Play Store. Staging e produzione
+  non sono stati modificati; il rilascio resta **NO-GO**.
+
 ## Verifica successiva 08/11/2026 — copertura PE COMPLETATA, rilascio ancora NO-GO
 
 **Questo aggiornamento prevale su tutti i riferimenti precedenti ai «30 MEP
