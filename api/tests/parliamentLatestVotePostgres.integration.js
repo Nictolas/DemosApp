@@ -613,4 +613,4 @@ async function main(){
     await pool.end();
   }
 }
-main().catch(error=>{console.error(error?.message||'PG_TEST_FAILED');process.exitCode=1});
+main().catch(error=>{console.error(error?.stack||error?.message||'PG_TEST_FAILED');process.exitCode=1});
