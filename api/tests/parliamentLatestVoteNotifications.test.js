@@ -148,6 +148,30 @@ test('one-row UPSERT resets reactions only when new vote really replaced the old
   assert.equal(queries.filter(q=>q.sql.startsWith('DELETE FROM reazioni')).length,1);
 });
 
+test('unfollowed verified MP is updated without a shared notification or FCM send', async () => {
+  const queries=[];
+  const fakeClient={
+    query:async(sql,args)=>{
+      queries.push({sql,args});
+      if(sql.includes('INSERT INTO public.institutional_current_nominal_votes'))
+        return {rows:[{ballot_id:'fixture'}]};
+      return {rows:[]};
+    },
+    release:()=>{}
+  };
+  const vote=finalVote('Camera','vs19_731_098');
+  const verified={voteId:vote.openpolis_id,chamber:'Camera',date:today,
+    source:{type:'official',url:'https://documenti.camera.it/record'},members};
+  const result=await persistLatestForChamber({connect:async()=>fakeClient},vote,verified,
+    [{...rep,has_followers:false}]);
+  assert.equal(result.changed,1,'canonical vote changed regardless of follower count');
+  assert.deepEqual(result.updated,[],'no push candidates for an unfollowed representative');
+  assert.equal(queries.filter(q=>q.sql.includes('INSERT INTO public.institutional_current_nominal_votes')).length,1);
+  assert.equal(queries.filter(q=>q.sql.includes('INSERT INTO notifiche_voti_parlamento')).length,0);
+  assert.equal(queries.filter(q=>q.sql.includes('DELETE FROM reazioni')).length,0);
+  assert.ok(queries.some(q=>q.sql==='COMMIT'));
+});
+
 test('feature remains disabled by default: no reads, writes, network or push', async () => {
   const before=process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
   delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
@@ -162,7 +186,7 @@ test('feature remains disabled by default: no reads, writes, network or push', a
   }
 });
 
-test('enabled orchestration uses only selected active representatives and one verified latest source', async () => {
+test('enabled orchestration considers verified active representatives and checks selection only for notifications', async () => {
   const before=process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
   process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED='true';
   const queries = [];
@@ -194,6 +218,8 @@ test('enabled orchestration uses only selected active representatives and one ve
     assert.deepEqual(outcome,{enabled:true,checked:1,changed:1,unavailable:0});
     assert.ok(queries.some(sql=>sql.includes('political_mandates')));
     assert.ok(queries.some(sql=>sql.includes('political_selections ps')));
+    assert.ok(queries.some(sql=>sql.includes('AS has_followers')));
+    assert.ok(queries.some(sql=>sql.includes('EXISTS (SELECT 1 FROM political_selections ps')));
     assert.ok(queries.some(sql=>sql.includes('ps.selection_kind')));
     assert.ok(queries.some(sql=>sql.includes('follower.status')));
   } finally {
