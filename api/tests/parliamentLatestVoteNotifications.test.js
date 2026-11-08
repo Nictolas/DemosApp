@@ -16,7 +16,7 @@ const finalVote = (chamber, id, date = today) => ({
 const members = Array.from({length: 125}, (_, i) =>
   ({ name: 'COMPONENTE PARLAMENTARE ' + i, group: 'GRUPPO', vote: 'Favorevole' }));
 members[3] = { name: 'DE LUCA MARIA', group: 'GRUPPO', vote: 'In missione', sourcePersonId:'https://documenti.camera.it/deputato/fixture-maria' };
-const rep = { id: '00000000-0000-4000-8000-000000000001', nome: 'Maria', cognome: 'De Luca', source_person_id:'https://documenti.camera.it/deputato/fixture-maria' };
+const rep = { id: '00000000-0000-4000-8000-000000000001', nome: 'Maria', cognome: 'De Luca', source_person_id:'https://documenti.camera.it/deputato/fixture-maria',has_followers:true };
 
 test('one most recent final ballot per chamber; numeric order beats string order on same day', () => {
   const votes = newestByChamber([
@@ -151,28 +151,16 @@ test('one-row UPSERT resets reactions only when new vote really replaced the old
   assert.equal(queries.filter(q=>q.sql.startsWith('DELETE FROM reazioni')).length,1);
 });
 
-test('unfollowed verified MP is updated without a shared notification or FCM send', async () => {
-  const queries=[];
-  const fakeClient={
-    query:async(sql,args)=>{
-      queries.push({sql,args});
-      if(sql.includes('INSERT INTO public.institutional_current_nominal_votes'))
-        return {rows:[{ballot_id:'fixture'}]};
-      return {rows:[]};
-    },
-    release:()=>{}
-  };
+test('unselected verified MP cannot be written even if the caller passes it explicitly', async () => {
+  let poolConnected=false;
   const vote=finalVote('Camera','vs19_731_098');
   const verified={voteId:vote.openpolis_id,chamber:'Camera',date:today,
     source:{type:'official',url:'https://documenti.camera.it/record'},members};
-  const result=await persistLatestForChamber({connect:async()=>fakeClient},vote,verified,
-    [{...rep,has_followers:false}]);
-  assert.equal(result.changed,1,'canonical vote changed regardless of follower count');
-  assert.deepEqual(result.updated,[],'no push candidates for an unfollowed representative');
-  assert.equal(queries.filter(q=>q.sql.includes('INSERT INTO public.institutional_current_nominal_votes')).length,1);
-  assert.equal(queries.filter(q=>q.sql.includes('INSERT INTO notifiche_voti_parlamento')).length,0);
-  assert.equal(queries.filter(q=>q.sql.includes('DELETE FROM reazioni')).length,0);
-  assert.ok(queries.some(q=>q.sql==='COMMIT'));
+  const result=await persistLatestForChamber({
+    connect:async()=>{poolConnected=true;throw Error('unselected write attempted');}
+  },vote,verified,[{...rep,has_followers:false}]);
+  assert.deepEqual(result,{changed:0,matched:0,updated:[]});
+  assert.equal(poolConnected,false,'no transaction, DB write, notification or FCM for unselected MP');
 });
 
 test('feature remains disabled by default: no reads, writes, network or push', async () => {
@@ -189,7 +177,7 @@ test('feature remains disabled by default: no reads, writes, network or push', a
   }
 });
 
-test('enabled orchestration considers verified active representatives and checks selection only for notifications', async () => {
+test('enabled orchestration refreshes only selected active MPs with explicitly vetted IDs', async () => {
   const before=process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
   process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED='true';
   const queries = [];
@@ -200,7 +188,7 @@ test('enabled orchestration considers verified active representatives and checks
     query: async sql=>{
       queries.push(sql);
       if(sql.includes('SELECT openpolis_id')) return {rows:[vote]};
-      if(sql.includes('SELECT DISTINCT p.id')) return {rows:[rep]};
+      if(sql.includes('SELECT p.id')) return {rows:[rep]};
       throw Error('unexpected SQL');
     },
     connect:async()=>({
@@ -222,6 +210,8 @@ test('enabled orchestration considers verified active representatives and checks
     assert.ok(queries.some(sql=>sql.includes('political_mandates')));
     assert.ok(queries.some(sql=>sql.includes('political_selections ps')));
     assert.ok(queries.some(sql=>sql.includes('AS has_followers')));
+    assert.equal(queries[0].includes('SELECT p.id'),true,'selection must precede loading final-vote candidates');
+    assert.ok(queries.some(sql=>sql.includes('TRUE AS has_followers')));
     assert.ok(queries.some(sql=>sql.includes("link.review_state = 'VERIFIED'")));
     assert.ok(queries.some(sql=>sql.includes('link.reviewed_by IS NOT NULL')));
     assert.ok(queries.some(sql=>sql.includes('link.reviewed_at IS NOT NULL')));
@@ -234,10 +224,33 @@ test('enabled orchestration considers verified active representatives and checks
   }
 });
 
+test('zero selected representatives: no ballot DB read, source HTTP, or writes', async () => {
+  const before=process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
+  process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED='true';
+  let selectedQueries=0;
+  const pool={
+    query:async sql=>{
+      if(sql.includes('SELECT p.id')){selectedQueries++;return {rows:[]};}
+      throw Error('should not query final ballots without followers');
+    },
+    connect:()=>{throw Error('should not open a write transaction');}
+  };
+  try{
+    const result=await refreshLatestParliamentVoteNotifications(pool,{
+      getVerifiedFinalBallots:()=>{throw Error('should not fetch live roll-call');}
+    });
+    assert.deepEqual(result,{enabled:true,checked:0,changed:0,unavailable:0});
+    assert.equal(selectedQueries,2,'one bounded selection query for each Italian chamber');
+  }finally{
+    if(before===undefined)delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
+    else process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED=before;
+  }
+});
+
 test('each selected deputy gets their own latest verified final vote, even if missing the chamber latest', async () => {
   const old=process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
   process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED='true';
-  const rep2={id:'00000000-0000-4000-8000-000000000010',nome:'Paolo',cognome:'Rossi',source_person_id:'https://documenti.camera.it/deputato/fixture-paolo'};
+  const rep2={id:'00000000-0000-4000-8000-000000000010',nome:'Paolo',cognome:'Rossi',source_person_id:'https://documenti.camera.it/deputato/fixture-paolo',has_followers:true};
   const latest=finalVote('Camera','vs19_732_003',today);
   const previous=finalVote('Camera','vs19_731_002',today);
   let fetched=0, committed=0;
@@ -250,7 +263,7 @@ test('each selected deputy gets their own latest verified final vote, even if mi
   const pool={
     query:async (sql,params=[])=>{
       if(sql.includes('SELECT openpolis_id'))return {rows:[previous,latest]};
-      if(sql.includes('SELECT DISTINCT p.id'))return {rows:params[0]==='it.camera'?[rep,rep2]:[]};
+      if(sql.includes('SELECT p.id'))return {rows:params[0]==='it.camera'?[rep,rep2]:[]};
       throw new Error('unexpected query');
     },
     connect:async()=>({
