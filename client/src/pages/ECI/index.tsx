@@ -54,6 +54,11 @@ export default function ECI() {
   const [sortBy, setSortBy] = useState<SortOption>("firme");
   const [viewItem, setViewItem] = useState<ECIItem | null>(null);
   const deepLinkHandled = useRef(false);
+  // The ID is public/official, not a personal token. A deep-linked closed
+  // initiative is fetched individually instead of loading ECI history.
+  const deepLinkId = useMemo(
+    () => new URLSearchParams(window.location.search).get("initiative"), []
+  );
 
   const {
     data: eciData,
@@ -62,9 +67,11 @@ export default function ECI() {
     error,
     refetch,
   } = useQuery<ECIDataResponse>({
-    queryKey: ["eci", "initiatives"],
+    queryKey: ["eci", "initiatives", deepLinkId],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/eci");
+      const query = deepLinkId
+        ? `?initiative=${encodeURIComponent(deepLinkId)}` : "";
+      const response = await apiRequest("GET", `/api/eci${query}`);
       if (!response?.ok || !response?.data) {
         throw new Error(
           response?.data?.error ||
@@ -144,12 +151,20 @@ export default function ECI() {
     if (!id) return;
     const item = baseList.find(entry => String(entry.id) === id);
     if (item) {
-      // Se il dato ufficiale non è ancora presente, il deep link rimane
-      // pendente per una successiva risposta/refetch invece di andare perso.
       deepLinkHandled.current = true;
       setViewItem(item);
+      return;
     }
-  }, [baseList, isLoading, isError, user]);
+    // An archived official record is returned only for a notification
+    // deep link. No extra SQL call is made on regular ECI navigation.
+    const archived = (eciData?.initiatives || []).find(
+      entry => String(entry.id) === id
+    );
+    if (archived) {
+      deepLinkHandled.current = true;
+      setViewItem(toItem(archived));
+    }
+  }, [baseList, eciData?.initiatives, isLoading, isError, user]);
 
   if (isAuthLoading) {
     return (
