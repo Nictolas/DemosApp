@@ -390,3 +390,47 @@ jobs:
             exit 1
           fi
           echo 'Verified: compiled release APK has no AdMob App ID or AD_ID permission'
+
+      # Last step: opt-in UNSIGNED candidate with public SAMPLE App ID and TEST unit.
+      # There is no Play upload, live ad serving, or real ad unit in CI.
+      - name: Build opt-in release candidate with Google TEST ads only
+        working-directory: client/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ./gradlew :app:help \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=false \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            -PdemosReleaseAdUnitId=ca-app-pub-3940256099942544/9257395921 \
+            --no-daemon > /tmp/demos-prod-ads-blocked.txt 2>&1; then
+            echo "::error::Real-ad build missing approval incorrectly passed"
+            exit 1
+          fi
+          echo 'PASS: unauthorized real-ad build rejected'
+          ./gradlew :app:assembleRelease \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=true \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            --no-daemon --console=plain
+          apk=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$apk"
+          build_config="$(find app/build/generated/source/buildConfig/release -name BuildConfig.java -print -quit)"
+          test -n "$build_config"
+          grep -Eq 'DEMOS_APP_OPEN_ADS_ENABLED = true;' "$build_config"
+          grep -Eq 'DEMOS_UMP_DEBUG_EEA = false;' "$build_config"
+          grep -Eq 'DEMOS_QA_FORCE_ADULT = false;' "$build_config"
+          grep -Fq 'ca-app-pub-3940256099942544/9257395921' "$build_config"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          "$aapt" dump xmltree "$apk" AndroidManifest.xml | grep -Fq 'com.google.android.gms.ads.APPLICATION_ID'
+          ./gradlew :app:dependencies --configuration releaseRuntimeClasspath \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=true \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            --no-daemon > /tmp/demos-opt-in-ads-deps.txt
+          grep -Fq 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk' /tmp/demos-opt-in-ads-deps.txt
+          grep -Fq 'com.google.android.ump:user-messaging-platform' /tmp/demos-opt-in-ads-deps.txt
+          echo 'PASS: opt-in unsigned release contains GMA/UMP with TEST unit only'
+          echo 'No Play release, real ads, device QA or DPO approval is inferred.'
