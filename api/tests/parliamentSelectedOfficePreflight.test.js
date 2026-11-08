@@ -82,6 +82,23 @@ test('profile candidates depend on public name and DOB and use safe limited HTTP
     'https://parlamento19.openpolis.it/persone/claudio-borghi-none'
   ]);
   assert.deepEqual(profileCandidates({nome:'Claudio',cognome:'Borghi',data_nascita:null}),[]);
+  const cached='https://parlamento19.openpolis.it/persone/peppe-de-cristofaro-1971-02-22';
+  assert.deepEqual(profileCandidates({
+    nome:'Peppe',cognome:'De Cristofaro',data_nascita:'1971-06-26',
+    secondary_profile_url:cached
+  }),[cached,'https://parlamento19.openpolis.it/persone/peppe-de-cristofaro-1971-06-26'],
+    'existing trusted profile is preferred over guessed date-slug URL');
+  assert.deepEqual(profileCandidates({
+    nome:'Peppe',cognome:'De Cristofaro',data_nascita:'1971-06-26',
+    secondary_profile_url:'https://evil.example/persone/peppe-de-cristofaro-1971-02-22'
+  }),[
+    'https://parlamento19.openpolis.it/persone/peppe-de-cristofaro-1971-06-26',
+    'https://parlamento19.openpolis.it/persone/peppe-de-cristofaro-none'
+  ],'untrusted cached hosts are not fetched');
+  assert.deepEqual(profileCandidates({
+    nome:'Peppe',cognome:'De Cristofaro',data_nascita:null,
+    secondary_profile_url:cached
+  }),[cached],'a cached URL can still reveal a source conflict but never verify missing DEMOS DOB');
 });
 
 test('feature switch off makes no DB/HTTP requests; when enabled scans only selected rows',async()=>{
@@ -151,6 +168,39 @@ test('wrong legacy DOB is counted without granting VERIFIED or writing personal 
   }finally{
     if(old===undefined)delete process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED;
     else process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED=old;
+  }
+});
+
+test('selected senator with correct first-party DOB is screened via cached stale source URL without guessing identity',async()=>{
+  const before=process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED;
+  process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED='true';
+  const sourceUrl='https://parlamento19.openpolis.it/persone/peppe-de-cristofaro-1971-02-22';
+  const sourceHtml=html('Giuseppe De Cristofaro','1971-02-22','Senatore');
+  const requests=[];
+  try{
+    const result=await preflightSelectedParliamentaryOffices({
+      query:async sql=>{
+        assert.match(sql,/public\.voti_camera/);
+        assert.match(sql,/COUNT\(DISTINCT v\.url_openpolis\)=1/);
+        return {rows:[{
+          id:'00000000-0000-4000-8000-000000000121',
+          nome:'Peppe',cognome:'De Cristofaro',data_nascita:'1971-06-26',
+          expected_office:'it.senato',secondary_profile_url:sourceUrl
+        }]};
+      }
+    },{fetchPage:async url=>{
+      requests.push(url);
+      assert.equal(url,sourceUrl,'use existing source evidence before guessed slug');
+      return sourceHtml;
+    }});
+    assert.deepEqual(result,{
+      enabled:true,checked:1,officeMismatches:0,secondarySourceDobConflicts:1,
+      candidates:0,unresolved:0
+    });
+    assert.ok(requests.length<=1,'never load a personal vote history or use more network requests after conflict');
+  }finally{
+    if(before===undefined)delete process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED;
+    else process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED=before;
   }
 });
 
