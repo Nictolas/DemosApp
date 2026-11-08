@@ -93,6 +93,11 @@ on:
       - 'client/src/pages/IniziativePopolari/index.tsx'
       - 'client/src/pages/ReferendumAbrogativi/index.tsx'
       - 'client/src/pages/ReferendumAbrogativi/types/index.ts'
+      - 'client/src/pages/IniziativePopolari/components/ViewDialog.tsx'
+      - 'client/src/pages/ReferendumAbrogativi/components/ViewDialog.tsx'
+      - 'client/src/components/civic/CivicOfficialInformation.tsx'
+      - 'client/src/lib/civic-official-sources.ts'
+      - 'client/tests/civicOfficialSources.test.mjs'
       - '.github/workflows/eci_sync.yml'
       - '.github/workflows/civic-new-initiative-notifications.yml'
   workflow_dispatch:
@@ -206,5 +211,7 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - name: Install pinned frontend dependencies
         run: npm ci --prefix client --no-audit --no-fund
+      - name: Civic official-source links and shared expandable detail contracts
+        run: node --experimental-strip-types --test client/tests/civicOfficialSources.test.mjs
       - name: Compile DEMOS frontend without deployment
         run: npm run build --prefix client

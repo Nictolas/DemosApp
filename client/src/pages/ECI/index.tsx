@@ -15,6 +15,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
+import { CivicOfficialInformation } from "@/components/civic/CivicOfficialInformation";
+import { civicOfficialSourceUrl } from "@/lib/civic-official-sources";
 import {
   Loader2,
   FileSignature,
@@ -314,7 +316,7 @@ export default function ECI() {
                         {item.url && (
                           <div className="mt-4 mt-auto pt-2">
                             <a
-                              href={item.url}
+                              href={civicOfficialSourceUrl("eci", item.id, item.url) || undefined}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
@@ -353,14 +355,12 @@ export default function ECI() {
           </DialogHeader>
           {viewItem && (
             <div className="space-y-4 bg-white overflow-y-auto">
-              {viewItem.obiettivi && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Obiettivi</h4>
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {viewItem.obiettivi}
-                  </p>
-                </div>
-              )}
+              <CivicOfficialInformation
+                category="eci"
+                description={viewItem.obiettivi}
+                officialId={viewItem.id}
+                sourceUrl={viewItem.url}
+              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-1">Firme raccolte</h4>
@@ -377,24 +377,6 @@ export default function ECI() {
                   </div>
                 )}
               </div>
-              {viewItem.url && (
-                <div>
-                  <a
-                    href={viewItem.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="bg-teal-600 hover:bg-teal-700 text-white"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Apri sul portale UE
-                    </Button>
-                  </a>
-                </div>
-              )}
             </div>
           )}
           <div className="flex justify-between mt-4 bg-white">
