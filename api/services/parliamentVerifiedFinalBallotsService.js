@@ -18,6 +18,30 @@ const maxCacheSize = 60;
 const cache = new Map();
 const inFlight = new Map();
 
+/**
+ * A name is NOT a source identity. Only an explicit person-profile link
+ * present in the exact verified official roll-call row can provide an ID.
+ * Missing/unrecognized href returns null: no attributed persistence.
+ */
+function sourcePersonHref(href, chamber) {
+  if (typeof href !== 'string' || !href.trim()) return null;
+  const base = chamber === 'Camera' ? 'https://documenti.camera.it' :
+    chamber === 'Senato' ? 'https://parlamento19.openpolis.it' : null;
+  if (!base) return null;
+  let url;
+  try { url = new URL(href, base); } catch { return null; }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.hash) return null;
+  const host = url.hostname.toLowerCase();
+  const allowed = chamber === 'Camera'
+    ? ['camera.it', 'www.camera.it', 'documenti.camera.it', 'dati.camera.it']
+    : ['parlamento19.openpolis.it', 'senato.it', 'www.senato.it', 'dati.senato.it'];
+  if (!allowed.includes(host) || !/\/(?:deputat|senat|person|ocd\/deputato)/i.test(url.pathname))
+    return null;
+  if (url.toString().length > 250) return null;
+  return url.toString();
+}
+
+
 function parseVerifiedFinalBallots(html, vote) {
   if (typeof html !== 'string' || !html || !voteIdPattern.test(vote?.openpolis_id || '')) {
     throw new Error('VOTE_SOURCE_INVALID_INPUT');
@@ -86,7 +110,10 @@ function parseVerifiedFinalBallots(html, vote) {
       const status = senate ? cells[1] : cells[2];
       if (!name || name.length < 4 || name.length > 150 || !statuses.has(status) ||
           !group || group.length > 90) throw new Error('VOTE_SOURCE_UNRECOGNIZED_ROW');
-      return { name, group, vote: status };
+      // Person link is optional in the source roster but compulsory before
+      // writing to the canonical latest-vote table.
+      const sourcePersonId = sourcePersonHref($(tr).find('td').first().find('a[href]').first().attr('href'), vote.camera);
+      return { name, group, vote: status, sourcePersonId };
     }).filter(Boolean);
   });
   if (!rows || rows.length < 120 || rows.length > 700) throw new Error('VOTE_SOURCE_ROLLCALL_MISSING');
@@ -144,4 +171,4 @@ async function getVerifiedFinalBallots(vote) {
   return promise;
 }
 
-module.exports = { parseVerifiedFinalBallots, fetchVerifiedFinalBallots, getVerifiedFinalBallots };
+module.exports = { parseVerifiedFinalBallots, fetchVerifiedFinalBallots, getVerifiedFinalBallots, sourcePersonHref };
