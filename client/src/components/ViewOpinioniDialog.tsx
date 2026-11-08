@@ -325,7 +325,7 @@ export function ViewOpinioniDialog({
         {/* La sola scheda del rappresentante mostra il voto corrente verificato.
             Il backend deve riconciliare ID DEMOS ↔ MepId ufficiale senza fuzzy matching. */}
         {categoria === 'europeo' && (
-          <section aria-label="Ultimo voto del Parlamento europeo" className="shrink-0 mx-4 mb-3 rounded-lg border border-gray-200 p-3 text-sm">
+          <section aria-label="Ultimo voto del Parlamento europeo" className="mx-4 mb-3 max-h-[35dvh] min-h-0 shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-gray-200 p-3 text-sm">
             <h3 className="font-semibold">Ultimo voto nominale verificato</h3>
             {ultimoVotoEuropeo?.verified === true &&
              /^\d+$/.test(ultimoVotoEuropeo.mepId) &&
