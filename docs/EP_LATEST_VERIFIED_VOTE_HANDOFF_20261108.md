@@ -669,3 +669,14 @@ Il percorso è: `political_selections` + identità PE `VERIFIED` → fetch uffic
 Test: `europeanParliamentSelectedCurrentVoteRefresh.test.js` prova OFF no-query/no-network, 0 link no HTTP e no DML, transazione unica, ROLLBACK se il writer fallisce, copertura ufficiale incompleta e ritorno non valido del writer. `epSelectedWriterRealPgSmoke.js` esercita l'intero flusso contro il **writer reale** ottenuto dalla HEAD PR #633 e PostgreSQL16 effimero, sempre all'interno di `ROLLBACK` con SAVEPOINT. Test Chrome sintetici preesistenti invariati.
 
 **NO-GO:** non sono stati approvati collegamenti PE reali, non è stata applicata la migrazione PE su staging o produzione e non è disponibile una prova end-to-end autenticata sulla release Android. La revisione delle tre identità, incluso il DOB discordante, precede ogni import reale. Solo l'Admin/DPO autorizza eventuali migrazioni, abilitazioni e release.
+
+
+## Gate di lettura PE allineato alle selezioni vive (08/11/2026)
+
+Nel Draft #635 il servizio `api/services/europeanRepresentativeCurrentVoteReader.js` non considera sufficiente la sola esistenza di un voto corrente: prima di chiamare l'API istituzionale, deve trovare il link PE della medesima coppia UUID DEMOS/MepId con `review_state='VERIFIED'`, revisore, timestamp di revisione e **`verified_at` presente**, oltre a un mandato `E/ACTIVE` valido nel tempo e ad almeno un utente attivo con selezione canonica `eu.parliament.it`. Non accetta follower legacy, omonimie, una selezione scaduta o una riga di voto isolata.
+
+La verifica è a carico di una singola query `SELECT` con `EXISTS`: non materializza né esporta gli ID dei follower, non salva storico, non genera nuove notifiche e **non effettua HTTP** quando un collegamento/mandato/selezione non è più eleggibile. Un voto eventualmente persistito resta fisicamente una sola riga corrente, ma non è esposto fino a che le condizioni autorizzate tornano valide; non sono eseguiti `DELETE` per nasconderlo.
+
+Evidenza: commit `2beb3b6d22d25f44234347d0ab9a602343aba2ac`, workflow [42531625287](https://github.com/Nictolas/DemosApp/actions/runs/42531625287), **3/3 job PASS** (unit/reader, Chrome sintetico, PostgreSQL16 sintetico). Nel test PostgreSQL reale con writer #633, l'ultimo follower rimosso rende GET `null` con 0 chiamate HTTP; lo stesso accade a mandato inattivo. Ripristinando selezione/mandato il GET validato ritorna disponibile senza creare una seconda riga o riimportare. Anche la revoca indipendente `VERIFIED` blocca la lettura e un successivo UPSERT.
+
+**Rimane NO-GO** per revisione umana delle tre identità reali (DOB Ceccardi discordante), approvazione migration PE nello staging unico, E2E autenticato, prova AAB Android, DPO e GO release. Nessun dato reale, configurazione runtime, merge/deploy o store sono stati modificati.
