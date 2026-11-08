@@ -1,0 +1,40 @@
+name: DEMOS — Citizen Notifications vs Operational Alerts
+
+on:
+  push:
+    branches: [test/parliament-notification-scale-gate-20261103]
+  pull_request:
+    branches: [feat/parliament-verified-ballots-20261103]
+    paths:
+      - 'api/routes/notifiche.js'
+      - 'api/tests/operationalAlerts.smoke.test.js'
+      - 'client/src/lib/notificationFeed.ts'
+      - '.github/workflows/notifiche-operational-isolation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notification-visibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Verify endpoint syntax and operational alert regression
+        run: |
+          node --check api/routes/notifiche.js
+          node --test api/tests/operationalAlerts.smoke.test.js
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend without deploying
+        run: npm run build --prefix client
