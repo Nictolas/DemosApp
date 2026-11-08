@@ -1,5 +1,5 @@
 -- PROD-041. DRAFT ONLY. Never run this migration automatically in production.
--- One CURRENT verified nominal vote per institution + stable representative key.
+-- One CURRENT verified nominal vote per stable representative key across institutions.
 -- There is no per-ballot nominal history, party field, or JSONB snapshot.
 BEGIN;
 CREATE TABLE IF NOT EXISTS public.institutional_current_nominal_votes (
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS public.institutional_current_nominal_votes (
   source_url text NOT NULL CHECK (source_url LIKE 'https://%'),
   source_type text NOT NULL CHECK (source_type IN ('camera_ufficiale', 'senato_openpolis', 'pe_ufficiale')),
   verified_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (institution, representative_key)
+  PRIMARY KEY (representative_key)
 );
 ALTER TABLE public.institutional_current_nominal_votes ENABLE ROW LEVEL SECURITY;
 -- Backend-only. No public Data API grants and no direct client-side access.
