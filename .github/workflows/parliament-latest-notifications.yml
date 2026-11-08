@@ -5,6 +5,8 @@ on:
     branches: [main, feat/parliament-verified-ballots-20261103]
     paths:
       - 'api/services/parliamentLatestVoteNotificationsService.js'
+      - 'api/services/parliamentSelectedOfficePreflightService.js'
+      - 'api/tests/parliamentSelectedOfficePreflight.test.js'
       - 'api/routes/voti-politici.js'
       - 'api/services/institutionalCurrentNominalVotesService.js'
       - 'api/services/europeanCurrentNominalVoteAdapter.js'
@@ -80,6 +82,8 @@ jobs:
       - name: Check syntax and execute replacement and fail-closed tests
         run: |
           node --check api/services/parliamentLatestVoteNotificationsService.js
+          node --check api/services/parliamentSelectedOfficePreflightService.js
+          node --test api/tests/parliamentSelectedOfficePreflight.test.js
           node --check api/services/parliamentFinalBallotPushService.js
           node --check api/jobs/openpolisVotazioniFinaliJob.js
           node --check api/routes/notifiche.js
