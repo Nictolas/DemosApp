@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
             Informativa sulla Privacy
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>DemosApp</strong> - Ultima modifica del testo: 05/11/2026
+            <strong>DemosApp</strong> - Ultima modifica del testo: 08/11/2026
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -313,7 +313,7 @@ export default function PrivacyPolicy() {
 
             <h3 id="eliminazione-account" className="text-xl font-medium mb-2 mt-6">5.5 Come richiedere l'eliminazione dell'account (DemosApp)</h3>
             <p className="text-gray-700 mb-3">
-              Se utilizzi l'app <strong>DemosApp</strong> (sviluppata da Demos / DemosApp Team) e desideri eliminare il tuo account e i dati associati, puoi farlo nel seguente modo.
+              Se utilizzi l'app <strong>DemosApp</strong> (gestita nell'ambito del progetto DEMOS) e desideri eliminare il tuo account e i dati associati, puoi farlo nel seguente modo.
             </p>
             <p className="text-gray-700 font-medium mb-2">Passaggi per richiedere l'eliminazione:</p>
             <ol className="list-decimal pl-6 mb-4 text-gray-700 space-y-2">
@@ -408,15 +408,17 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">8. Utilizzo di Dati Aggregati per Pubblicazione</h2>
             <p className="text-gray-700 mb-3">
-              Utilizziamo i dati aggregati e anonimi derivanti dai sondaggi e dalle votazioni 
-              della piattaforma per divulgare i risultati e promuovere la partecipazione democratica.
+              Quando appropriato, diffondiamo statistiche derivate da opinioni e scelte raccolte
+              sulla piattaforma per divulgare risultati e promuovere la partecipazione democratica.
+              Il trattamento delle risposte personali sottostanti è distinto dalla pubblicazione
+              dei risultati e resta soggetto ai consensi e alle altre condizioni applicabili.
             </p>
             
             <h3 className="text-xl font-medium mb-2">8.1 Pubblicazione sui Social Media</h3>
             <p className="text-gray-700 mb-3">
-              Pubbliciamo sui nostri canali social media (inclusi ma non limitati a Facebook, 
-              Instagram, Twitter, LinkedIn, TikTok e altre piattaforme digitali) dati statistici 
-              aggregati e anonimi per:
+              Possiamo pubblicare sui canali social e su altre piattaforme dati statistici
+              sufficientemente aggregati oppure effettivamente anonimi, con adeguate misure
+              di minimizzazione del rischio di identificazione, per:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li>Divulgare i risultati dei sondaggi e delle votazioni in forma aggregata</li>
@@ -425,27 +427,33 @@ export default function PrivacyPolicy() {
               <li>Incrementare la consapevolezza sui temi trattati dalla piattaforma</li>
             </ul>
             
-            <h3 className="text-xl font-medium mb-2">8.2 Garanzie di Anonimato</h3>
+            <h3 className="text-xl font-medium mb-2">8.2 Salvaguardie contro la Reidentificazione</h3>
             <p className="text-gray-700 mb-3">
-              I dati pubblicati sui social media e altre piattaforme contengono <strong>esclusivamente</strong>:
+              Prima di pubblicare statistiche sui social media e sulle altre piattaforme,
+              verifichiamo il rischio che dati anche aggregati consentano di identificare
+              indirettamente le persone. Le pubblicazioni possono comprendere:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li>Statistiche aggregate (percentuali, totali, medie, distribuzioni)</li>
-              <li>Dati anonimi che non permettono l'identificazione di singoli utenti</li>
+              <li>Risultati effettivamente anonimizzati, quando possibile e verificato</li>
               <li>Statistiche geografiche (nazionali, regionali, provinciali, comunali) solo quando 
-                  il campione è sufficientemente ampio da garantire l'anonimato</li>
+                  il campione e gli altri fattori di rischio consentono una diffusione adeguatamente protetta</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              <strong>Non pubblichiamo mai:</strong> nomi, email, dati anagrafici, codici fiscali, 
-              o qualsiasi altra informazione che permetta l'identificazione di singoli utenti.
+              <strong>Non includiamo intenzionalmente:</strong> nomi, email, dati anagrafici
+              o altre informazioni direttamente identificative nelle statistiche pubblicate.
+              I risultati su gruppi piccoli o facilmente riconoscibili non devono essere diffusi
+              senza adeguate protezioni.
             </p>
             
             <h3 className="text-xl font-medium mb-2">8.3 Base Giuridica</h3>
             <p className="text-gray-700 mb-3">
-              L'utilizzo di dati aggregati e anonimi per la pubblicazione si basa sull'
-              <strong>interesse legittimo</strong> (Art. 6.1.f GDPR) di promuovere la partecipazione 
-              democratica e divulgare informazioni di interesse pubblico. I dati sono sempre 
-              aggregati e anonimi, pertanto non richiedono consenso specifico.
+              Le opinioni e le scelte politiche riferibili a persone identificabili sono dati
+              personali che richiedono una base giuridica valida e una condizione applicabile
+              ai sensi dell'art. 9 GDPR, in particolare il consenso esplicito quando previsto.
+              Anche le operazioni necessarie a produrre statistiche devono essere lecite.
+              I risultati realmente anonimi non costituiscono più dati personali, mentre
+              semplici aggregazioni o pseudonimizzazioni non assicurano da sole l'anonimato.
             </p>
             <p className="text-gray-700 mb-3">
               Per ulteriori dettagli sull'utilizzo dei dati aggregati, consulta la sezione 
@@ -471,7 +479,7 @@ export default function PrivacyPolicy() {
                 dalla pagina <a href="/gdpr" className="text-blue-600 hover:text-blue-800 underline">Diritti GDPR</a> 
                 in formato <strong>JSON</strong> (formato standard, leggibile automaticamente) o <strong>CSV</strong> 
                 (formato tabellare, compatibile con Excel e altri software). I dati esportati includono: 
-                profilo utente, opinioni politiche, attività di voto (in forma aggregata per garantire l'anonimato), 
+                profilo utente, opinioni politiche, attività di voto nei limiti dei dati personali esportabili, 
                 comunicazioni, notifiche, consensi e log di audit. I dati sono esportati conformemente al GDPR Art. 20.1, 
                 in formato strutturato e comunemente usato. <strong>Nota:</strong> Il trasferimento diretto dei dati 
                 a un altro fornitore di servizi richiede standard tecnici comuni tra i fornitori; attualmente non è 
@@ -720,7 +728,7 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-none text-gray-700">
               <li><strong>Email:</strong> privacy@demos.community</li>
-              <li><strong>Responsabile del trattamento:</strong> DemosApp Team</li>
+              <li><strong>Titolare del trattamento:</strong> Nicolas Micheletti (progetto DEMOS)</li>
               <li><strong>Autorità di controllo:</strong> Garante per la Protezione dei Dati Personali</li>
             </ul>
           </section>
