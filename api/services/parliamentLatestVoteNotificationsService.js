@@ -156,6 +156,31 @@ async function selectedRepresentatives(pool, chamber) {
   const { rows } = await pool.query(sql, [office, mandateOffice, chamber]);
   return rows;
 }
+// Re-evaluate the selected representative INSIDE the write transaction.
+// An active selection or identity review may have been revoked during an
+// expensive official roll-call HTTP fetch. FOR SHARE of all five live rows
+// serializes opt-out, mandate/review edits and the current-vote commit.
+// It is not enough to trust an old has_followers:true value.
+const LOCK_SELECTED_NOMINAL_ELIGIBILITY_SQL = [
+  'SELECT p.id FROM public.political_selections ps',
+  'JOIN public.users follower ON follower.id=ps.user_id',
+  'JOIN public.users p ON p.id=ps.selected_user_id',
+  'JOIN public.political_mandates m ON m.user_id=p.id',
+  'JOIN public.institutional_nominal_identity_links l ON l.representative_id=p.id',
+  'WHERE p.id=$1::uuid',
+  "AND ps.selection_kind='representative'",
+  'AND ps.political_office_id=$2',
+  "AND lower(follower.status)='a'",
+  'AND m.office_code=$3',
+  "AND m.status='ACTIVE' AND m.starts_at<=now()",
+  'AND (m.ends_at IS NULL OR m.ends_at>now())',
+  'AND l.institution=$4 AND l.source_person_id=$5 AND l.evidence_url=$6',
+  "AND l.review_state='VERIFIED'",
+  'AND l.reviewed_by IS NOT NULL AND l.reviewed_at IS NOT NULL',
+  'AND l.verified_at IS NOT NULL',
+  'FOR SHARE OF ps,follower,p,m,l LIMIT 1'
+].join(' ');
+
 async function persistLatestForChamber(pool, vote, verified, reps) {
   const expectedSourceType = vote.camera === 'Camera' ? 'official' : 'openpolis';
   if (verified?.source?.type !== expectedSourceType ||
@@ -176,7 +201,20 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
   const updated = [];
   try {
     await client.query('BEGIN');
+    // The selection read before network I/O is never an authorization to
+    // write. Repeat the complete selected-only + duplicate-backfill gate
+    // at commit time, then lock the actual eligible rows until COMMIT.
+    const currentSelected = await selectedRepresentatives(client, vote.camera);
+    const eligibleNow = new Map(currentSelected.map(item => [String(item.id), item]));
     for (const { rep, ballot } of matches) {
+      const fresh = eligibleNow.get(String(rep.id));
+      if (!fresh || fresh.source_person_id !== rep.source_person_id ||
+          fresh.evidence_url !== rep.evidence_url) continue;
+      const office = vote.camera === 'Camera' ? 'it.camera' : 'it.senato';
+      const mandateOffice = vote.camera === 'Camera' ? 'C' : 'S';
+      const lock = await client.query(LOCK_SELECTED_NOMINAL_ELIGIBILITY_SQL,
+        [rep.id, office, mandateOffice, vote.camera, rep.source_person_id, rep.evidence_url]);
+      if (lock.rows.length !== 1) continue;
       // A single stable DEMOS representative UUID; verified source attribution
       // must already have passed the unique-member fail-closed guard above.
       // Both current state and in-app notification commit in this transaction.
@@ -316,6 +354,6 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
   }
   return { enabled: true, checked, changed, unavailable };
 }
-module.exports = { LATEST_FINAL_BALLOTS_SQL, normalizeName, memberNameVariants, voteOrder, isRecentFinal, newestByChamber,
+module.exports = { LOCK_SELECTED_NOMINAL_ELIGIBILITY_SQL, LATEST_FINAL_BALLOTS_SQL, normalizeName, memberNameVariants, voteOrder, isRecentFinal, newestByChamber,
   matchUniqueMember, selectedRepresentatives, persistLatestForChamber,
   refreshLatestParliamentVoteNotifications };
