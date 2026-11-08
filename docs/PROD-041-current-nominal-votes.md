@@ -649,3 +649,66 @@ ufficiali prima dell'esecuzione, (d) bonifica cross-camera di Borghi e
 Della Vedova via issue #396, (e) identity links ufficiali, (f) E2E
 Android/Chrome, PE e release GO. **ZERO SQL UPDATE su Supabase
 produzione, ZERO deploy, staging unico invariato.**
+
+
+## Selected-only current Italian vote: transaction-time eligibility lock — 08/11/2026
+
+**Race closed in the Draft Italian notification pipeline:** A representative
+could be deselected, suspended, re-mapped to a new institutional
+source-person ID or have their independent reviewer approval withdrawn
+*after* `selectedRepresentatives()` returned but *before* a slow
+external verified roll-call HTTP fetch completed. The initial
+`has_followers = true` flag is a **discovery hint**, not final authority.
+
+`persistLatestForChamber` now opens a DB transaction and:
+1. **Re-runs** `selectedRepresentatives(client, chamber)` inside the
+   transaction, including active citizens, exact office and active
+   mandate, institutional VERIFIED review, and issue #396 legacy
+   duplicated cross-house quarantine.
+2. Requires the exact same DEMOS representative UUID, institutional
+   source-person ID and independent official evidence URL as the
+   matched source candidate.
+3. **Re-runs `matchUniqueMember()` against the refreshed entire
+   selected cohort**, preventing a newly followed same-name Camera
+   account from making a previously unique *name-only* official
+   roster line ambiguous during the network delay.
+4. Executes `LOCK_SELECTED_NOMINAL_ELIGIBILITY_SQL` with
+   `FOR SHARE OF ps, follower, p, m, l` (canonical selection,
+   selecting active user, public representative account, active
+   mandate and manually reviewed identity link). If no row still
+   satisfies all predicates, **skips the write**. The lock holds
+   eligibility stable until `COMMIT`, so a simultaneous opt-out,
+   reviewer revocation or mandate mutation must serialize. A user
+   opt-out that has already committed cannot be ignored.
+5. Writes the sole latest verified vote and sole shared
+   in-app notification in the same existing transaction as before;
+   no history, party/group data or new tables are introduced.
+
+**Regressions:** synthetic PostgreSQL 16 tests verify that stale
+`has_followers:true` cannot write after a reviewer revoke,
+follower deactivation, last unfollow, mandate end or source-person
+remap. An actual second PG connection revokes the follower **after
+the transaction's fresh selection query, immediately before the
+`FOR SHARE` lock**; the candidate must still be rejected with
+zero current-vote rows. Unit tests add late same-name selection and
+review-state protection. A cross-house Camera → Senato → Camera
+synthetic transition now requires a genuinely updated mandate,
+active slot and independently VERIFIED institutional link, rather
+than merely changing a caller-provided source URL. PostgreSQL 16,
+synthetic encrypted backup+restore, live public source probe, unit
+tests and frontend build all passed in
+[CI run 42530607767](https://github.com/Nictolas/DemosApp/actions/runs/42530607767).
+
+**Coverage and release gates:** This protective lock is in the
+Camera/Senato *final-ballot notifier path*. The internal generic
+`upsertVerifiedCurrentVote` has separate source/format/chronology
+validation, and is not a public endpoint; any future independent
+Italian caller must go through the reviewed selected-only
+transactional entry point, not use the generic helper as authorization.
+The EU-specific writer already has its separate authorization SQL
+under the parallel integration work. The release remains Draft
+NO-GO; no production/staging data changes, merge, deploy, new
+staging instance or Android bundle release were made. Three DOB
+correction candidates remain explicitly gated on a real production
+backup+restore and DPO/ops GO, and cross-house legacy account cleanup
+is still owned by issue #396.
