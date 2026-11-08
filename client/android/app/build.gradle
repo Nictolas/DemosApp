@@ -19,6 +19,12 @@ def demosDebugQaForceAdult = demosDebugUmpEea &&
 // Google Play re-signs for testing; this APK must NEVER be a release.
 def demosDebugQaPlayInternalSharing = demosDebugUmpEea && demosDebugQaForceAdult &&
     (project.findProperty('demosDebugQaPlayInternalSharing') ?: 'false').toString() == 'true'
+// Same-package Play Internal App Sharing variant with REAL /auth/me age gate.
+// It is a debug-only QA APK: no synthetic adult, no real advertising units.
+// Using the Play package increases the chance of compatible Google login,
+// but tester/device OAuth and signing still require explicit verification.
+def demosDebugQaPlayRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&
+    (project.findProperty('demosDebugQaPlayRealAge') ?: 'false').toString() == 'true'
 // Separate opt-in QA package for REAL signed-in adult/minor/anonymous checks.
 // Unlike the synthetic UMP tester, it never bypasses authenticated age gates.
 def demosDebugQaRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&
@@ -114,7 +120,8 @@ android {
             // but is still a signed DEBUG APK with SAMPLE ads; NEVER publish it.
             if (demosDebugQaRealAge) {
                 applicationIdSuffix '.qaage'
-            } else if (demosDebugUmpEea && !demosDebugQaPlayInternalSharing) {
+            } else if (demosDebugUmpEea && !demosDebugQaPlayInternalSharing
+                && !demosDebugQaPlayRealAge) {
                 applicationIdSuffix '.qaopen'
             }
             // Test IDs ufficiali Google: in debug soltanto, con opt-in esplicito.
