@@ -23,7 +23,7 @@ function mockResponse() {
   };
 }
 
-function harness({legacyGraziaReview = false, inactiveOwner = false} = {}) {
+function harness({legacyGraziaReview = false, inactiveOwner = false, cieMissing = false} = {}) {
   const methods = {get: new Map(), post: new Map()};
   const queries = [];
   let connects = 0;
@@ -39,6 +39,9 @@ function harness({legacyGraziaReview = false, inactiveOwner = false} = {}) {
     if (sql.startsWith("SELECT id FROM users WHERE id=$1 AND status='a' FOR SHARE")) {
       const active = !inactiveOwner && args[0] === TEST_USER;
       return {rows: active ? [{id:TEST_USER}] : [],rowCount:active ? 1 : 0};
+    }
+    if (sql.startsWith("SELECT 1 FROM identity_verifications")) {
+      return {rows:cieMissing ? [] : [{'?column?':1}],rowCount:cieMissing?0:1};
     }
     if (sql.startsWith('SELECT * FROM subject_proposals')) {
       return {rows: legacyGraziaReview ? [{id: TEST_PROPOSAL, category: 'grazia', title: 'Persona sintetica', proposer_user_id: TEST_USER}] : []};
@@ -171,6 +174,21 @@ test('inactive proposer cannot submit a generic nomination with a cached session
   assert.equal(res.statusCode,401);
   assert.equal(app.queries.some(x=>x.sql.startsWith('INSERT INTO subject_proposals')),false);
   assert.equal(app.activeConnections,0);
+});
+
+test('self-profile nomination without a verified CIE is denied before insertion', async () => {
+  for (const category of ['attivisti','organizzazioni']) {
+    const app = harness({cieMissing:true});
+    const res = mockResponse();
+    await app.methods.post.get('/')({user:{id:TEST_USER},body:{
+      category,title:'Profilo sintetico personale',
+      source_url:'https://example.org/fonte'
+    }},res);
+    assert.equal(res.statusCode,403);
+    assert.equal(res.body.error,'VERIFICA_CIE_RICHIESTA');
+    assert.equal(app.queries.some(x=>x.sql.startsWith('INSERT INTO subject_proposals')),false);
+    assert.equal(app.activeConnections,0);
+  }
 });
 
 test('Other four category submissions still write only subject_proposals', async () => {
