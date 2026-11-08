@@ -1,8 +1,15 @@
 const express = require('express');
 const router = express.Router();
+
+// Database diagnostics must be explicitly opted into on local development only.
+// A production ALLOW_DEV_API_SURFACE override must never expose SQL metadata.
+const enableDbDiagnostics = process.env.NODE_ENV === 'development' &&
+  process.env.ALLOW_DB_DIAGNOSTICS === 'true';
+
 const { pool } = require('../config/db');
 
 // GET /api/test-db - Test connessione database
+if (enableDbDiagnostics) {
 router.get('/', async (req, res) => {
   try {
     console.log('🔍 Test connessione database...');
@@ -49,5 +56,7 @@ router.get('/', async (req, res) => {
     });
   }
 });
+
+}
 
 module.exports = router;

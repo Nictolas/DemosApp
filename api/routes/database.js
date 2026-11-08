@@ -3,7 +3,14 @@ const { Pool } = require('pg');
 
 const router = express.Router();
 
+// Database diagnostics must be explicitly opted into on local development only.
+// A production ALLOW_DEV_API_SURFACE override must never expose SQL metadata.
+const enableDbDiagnostics = process.env.NODE_ENV === 'development' &&
+  process.env.ALLOW_DB_DIAGNOSTICS === 'true';
+
+
 // Endpoint per verificare la struttura della tabella users
+if (enableDbDiagnostics) {
 router.get('/check-table-structure', async (req, res) => {
   try {
     console.log('🔍 Verificando struttura tabella users...');
@@ -98,5 +105,7 @@ router.get('/check-table-structure', async (req, res) => {
     });
   }
 });
+
+}
 
 module.exports = router;
