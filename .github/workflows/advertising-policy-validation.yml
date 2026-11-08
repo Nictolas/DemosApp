@@ -549,6 +549,33 @@ jobs:
             exit 1
           fi
           echo 'PASS: unauthorized real-ad build rejected'
+          # A Play closed-track bundle MUST NOT contain Google demo IDs.
+          # These checks must reject missing test-mode confirmation AND
+          # "confirmed" QA builds that still contain sample ad identifiers.
+          if ./gradlew :app:help \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleasePlayClosedQa=true \
+            -PdemosReleaseAdsTestOnly=false \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            -PdemosReleaseAdUnitId=ca-app-pub-3940256099942544/9257395921 \
+            --no-daemon > /tmp/demos-play-qa-unconfirmed.txt 2>&1; then
+            echo "::error::Unconfirmed Play closed QA was incorrectly allowed"
+            exit 1
+          fi
+          grep -Fq 'Play closed QA requires own AdMob IDs and explicit owner verification' /tmp/demos-play-qa-unconfirmed.txt
+          if ./gradlew :app:help \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleasePlayClosedQa=true \
+            -PdemosReleasePlayClosedQaOwnerConfirmed=true \
+            -PdemosReleaseAdsTestOnly=false \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            -PdemosReleaseAdUnitId=ca-app-pub-3940256099942544/9257395921 \
+            --no-daemon > /tmp/demos-play-qa-demo-id.txt 2>&1; then
+            echo "::error::Play closed QA with Google demo IDs was incorrectly allowed"
+            exit 1
+          fi
+          grep -Fq 'Google demo IDs are forbidden for Play closed QA' /tmp/demos-play-qa-demo-id.txt
+          echo 'PASS: closed Play QA rejects missing owner test-mode confirmation and Google demo IDs'
           ./gradlew :app:assembleRelease \
             -PdemosReleaseAppOpenAds=true \
             -PdemosReleaseAdsTestOnly=true \
