@@ -20,13 +20,16 @@ test('EP workflow correctly watches each relevant test file and runs all identit
     'europeanRepresentativeCurrentVoteReader.test.js',
     'europeanParliamentOfficialDiscovery.test.js',
     'europeanParliamentCurrentOnlyCandidateBridge.test.js',
-    'europeanParliamentSelectedCurrentOnlyReader.test.js'
+    'europeanParliamentSelectedCurrentOnlyReader.test.js',
+    'europeanParliamentIdentityReviewReadonly.test.js'
   ];
   for(const name of required){
     assert.ok(paths.includes("'api/tests/"+name+"'"),'Missing path for '+name);
     assert.ok(testBlock.includes('api/tests/'+name),'Missing real run for '+name);
   }
   assert.doesNotMatch(paths, /\.test\.js \w+\/\w+\.test\.js/, 'Two source paths improperly combined');
+  assert.ok(paths.includes("'api/database/20261108_ep_selected_identity_review_readonly.sql'"),
+    'Reviewer queue SQL must trigger tests when changed');
   assert.ok(paths.includes("'client/src/pages/Rappresentanti/components/CategoriaPrincipale.tsx'"),
     'EU primary representative tile must trigger Chrome QA');
   assert.match(workflow,/api\/services\/europeanParliamentCurrentOnlyCandidateBridge\.js/);
