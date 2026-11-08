@@ -1,3 +1,72 @@
+## CHECKPOINT CORRENTE — SOLO SELEZIONATI, compatibilità staging (08/11/2026)
+
+**Codice nuovo, verificato in CI:** `api/services/europeanParliamentSelectedCurrentOnlyReader.js`
+è un lettore **solo SELECT** per PR #633. Legge dal bridge ufficiale solamente
+`institution='PE'`, `review_state='VERIFIED'`, revisore e data presenti, con
+mandato `office_code='E'/status='ACTIVE'` e almeno una selezione fatta
+da un follower attivo (`users.status='a'`). La selezione viene abbinata
+**esclusivamente all'UUID DEMOS** nel bridge, non a nome/cognome.
+`prepareSelectedEuropeanCurrentOnlyPreview` ricava i MepId ufficiali
+di quei link, interroga l'API PE una sola volta per seduta condivisa,
+e produce candidati **unico voto corrente** sotto
+`representativeKey='demos:<UUID>'`. Nessun DML, nessuna nuova tabella,
+nessuno storico, nessuna API per singolo eurodeputato.
+
+**Zero follower/zero link verificati:** il lettore genera lista MepId
+vuota e fa **zero chiamate HTTP** al PE e zero scritture. Un link
+`PENDING`, senza revisore, ambiguo o prova istituzionale esatta
+viene respinto prima dell'interrogazione dell'API. Rimane possibile
+usare separatamente il controllo completo 76/76 delle fonti per QA,
+non il refresh di produzione.
+
+**Audit aggregato produzione, esclusivamente SELECT:** 10 selezioni
+europee attive, 7 valori distinti. 4 selezioni hanno il formato UUID
+(4 UUID distinti); solo **3** corrispondono ad account con mandato
+PE `ACTIVE`. Altre 6 selezioni sono valori legacy non-UUID
+(3 distinti) e richiedono riconciliazione controllata; nessuno
+è stato convertito per nome. Quindi il numero reale di identità da
+**verificare per prime** è inferiore a 76, ma attualmente ci sono
+**0 crosswalk approvati** nel database.
+
+**Schema staging divergente da produzione:** nello staging unificato
+`public.user_representatives` **non ha**
+`rappresentante_europeo` (ha soltanto `user_id`,
+`rappresentante_camera`, `candidato_comune`).
+Produzione possiede il campo `rappresentante_europeo text`.
+Il primo SELECT sullo staging falliva per colonna inesistente.
+Corretto in modo conservativo tramite
+`lower(trim(to_jsonb(r)->>'rappresentante_europeo'))`:
+quando il campo manca ritorna `NULL`, non inventa una selezione.
+PostgreSQL `EXPLAIN` reale su staging PASS, usando indici su
+identity link e mandati. Resta **impossibile** dimostrare
+l'importazione E2E degli europei finché PR #633 non porta il
+campo corretto nello staging unico. Nessun `ALTER` eseguito
+da questa PR. La migration della PR #633 deve anche ammettere
+`PE` e identificativi numerici EP corti.
+
+**Verifica automatizzata:** GitHub Actions
+[42519488733](https://github.com/Nictolas/DemosApp/actions/runs/42519488733)
+**SUCCESS**: unit test del lettore selettivo, identità certificate,
+zero API su lista vuota, rifiuto duplicati, build Vite e Chrome
+reale sintetico alle due risoluzioni. Il test di protezione del workflow
+verifica che questi file siano effettivamente eseguiti in CI.
+La verifica precedente delle fonti EP live dopo fail-closed,
+[42516420377](https://github.com/Nictolas/DemosApp/actions/runs/42516420377),
+ha confermato **76/76** voti nominali ultimi verificati, senza scritture;
+non implica 76 identità DEMOS abbinate.
+
+**Handoff al proprietario PR #633:** commento
+https://github.com/Nictolas/DemosApp/pull/633#issuecomment-6726610595.
+Restano tre gate NO-GO: (1) crosswalk verificato e writer canonico;
+(2) riallineamento staging + importazione e lettura autenticata reali;
+(3) QA AAB Android + DPO + autorizzazione separata al rilascio.
+**Nessun intervento tecnico richiesto all'Admin adesso**: dopo
+la predisposizione della coda di verifica, occorrerà una revisione
+umana istituzionale delle sole identità effettivamente seguite,
+poi il GO al rilascio. Non caricare ora AAB.
+
+---
+
 ## Checkpoint più recente — 8 novembre 2026, fonte PE ricontrollata dopo fail-closed
 
 **Audit ufficiale ripetuto e superato**: [GitHub Actions 42516420377](https://github.com/Nictolas/DemosApp/actions/runs/42516420377)
