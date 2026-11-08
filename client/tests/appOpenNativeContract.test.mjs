@@ -367,6 +367,8 @@ test('closed Google Play QA forbids demo IDs and requires owner test-mode confir
   assert.match(gradle, /demosReleaseAdMobAppId == demosSampleAppId/);
   assert.match(gradle, /demosReleaseAdUnitId == demosSampleAppOpenUnitId/);
   assert.match(gradle, /Google demo IDs are forbidden for Play closed QA/);
+  assert.match(gradle, /demosReleaseAdMobAppId\.split\('~', 2\)\[0\] != demosReleaseAdUnitId\.split\('\/', 2\)\[0\]/);
+  assert.match(gradle, /App ID and App Open unit must belong to the same publisher/);
   assert.match(gradle, /DEMOS_QA_FORCE_ADULT', 'false'/);
   assert.match(gradle, /DEMOS_UMP_DEBUG_EEA', 'false'/);
   // Google demo AAB is only for off-Play CI. On-Play closed-track QA uses
@@ -377,6 +379,8 @@ test('closed Google Play QA forbids demo IDs and requires owner test-mode confir
   assert.match(workflow, /-PdemosReleasePlayClosedQaOwnerConfirmed=true/);
   assert.match(workflow, /-PdemosReleaseAdsTestOnly=false/);
   assert.match(workflow, /PASS: closed Play QA rejects missing owner test-mode confirmation and Google demo IDs/);
+  assert.match(workflow, /PASS: Play closed QA Gradle config accepts matching same-publisher non-demo IDs/);
+  assert.match(workflow, /Play closed QA accepted mismatched AdMob publishers/);
 });
 
 test('isolated test release upgrade is signed for QA only and cannot use real ad IDs', () => {
