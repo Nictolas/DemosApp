@@ -1,0 +1,40 @@
+name: European Parliament verified RCV read-only source validation
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/europeanParliamentVerifiedRollCallReader.js'
+      - 'api/tests/europeanParliamentVerifiedRollCallReader.test.js'
+      - 'api/scripts/probeEuropeanParliamentOfficialRollCall.js'
+      - 'client/src/pages/VotiParlamentoEuropeo.tsx'
+      - '.github/workflows/european-parliament-verified-rollcall.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ep-reader:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install dependencies without scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Strict official identifier/source/absence/order/cache contracts
+        run: |
+          node --check api/services/europeanParliamentVerifiedRollCallReader.js
+          node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js
+      - name: Real read-only official July 2026 roll-call source
+        run: node api/scripts/probeEuropeanParliamentOfficialRollCall.js
+      - name: Frontend type/build regression
+        run: |
+          npm ci --prefix client --ignore-scripts --no-audit --no-fund
+          npm run build --prefix client
