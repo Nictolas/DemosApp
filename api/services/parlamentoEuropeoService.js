@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { getPool } = require('../config/database');
-const { getVotiMEPItalianiDaParltrack, salvaVotiMEPItaliani } = require('./parltrackService');
+const { getVotiMEPItalianiDaParltrack } = require('./parltrackService');
 
 const API_BASE = 'https://data.europarl.europa.eu/api/v2';
 
@@ -1244,8 +1244,7 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
           if (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0) {
             console.log(`✅ Trovati ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti dall'API ufficiale`);
             
-            // Salva nel database per la prossima volta
-            await salvaVotiMEPItaliani(uriVotazione, votiItaliani);
+            // PROD-041: data shown from fetched source; do not persist an individual-vote history on GET.
             
             return {
               ...votiItaliani,
@@ -1270,8 +1269,7 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
           if (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0) {
             console.log(`✅ Trovati voti dalla lista generale: ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti`);
             
-            // Salva nel database per la prossima volta
-            await salvaVotiMEPItaliani(uriVotazione, votiItaliani);
+            // PROD-041: data shown from fetched source; do not persist an individual-vote history on GET.
             
             return {
               ...votiItaliani,
@@ -1321,8 +1319,7 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
           if (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0) {
             console.log(`✅ Trovati ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti dall'API ufficiale`);
             
-            // Salva nel database per la prossima volta
-            await salvaVotiMEPItaliani(uriVotazione, votiItaliani);
+            // PROD-041: data shown from fetched source; do not persist an individual-vote history on GET.
             
             return {
               ...votiItaliani,
@@ -1347,8 +1344,7 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
           if (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0) {
             console.log(`✅ Trovati voti dalla lista generale: ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti`);
             
-            // Salva nel database per la prossima volta
-            await salvaVotiMEPItaliani(uriVotazione, votiItaliani);
+            // PROD-041: data shown from fetched source; do not persist an individual-vote history on GET.
             
             return {
               ...votiItaliani,
@@ -1408,8 +1404,7 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
             (votiEsterni.favorevoli.length > 0 || 
              votiEsterni.contrari.length > 0 || 
              votiEsterni.astenuti.length > 0)) {
-          // Salva i voti nel database per la prossima volta
-          await salvaVotiMEPItaliani(uriVotazione, votiEsterni);
+          // PROD-041: data shown from fetched source; do not persist an individual-vote history on GET.
           
           return {
             ...votiEsterni,
