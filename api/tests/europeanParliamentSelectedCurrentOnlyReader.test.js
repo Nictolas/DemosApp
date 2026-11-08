@@ -42,7 +42,7 @@ test('target query is only a SELECT of human-verified actively followed MEP UUID
   assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/l.reviewed_at IS NOT NULL/);
   assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/follower.status = 'a'/);
   assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/m.office_code = 'E' AND m.status = 'ACTIVE'/);
-  assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/lower\(trim\(r.rappresentante_europeo\)\) = l.representative_id::text/);
+  assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/lower\(trim\(to_jsonb\(r\)->>'rappresentante_europeo'\)\) = l.representative_id::text/);
   assert.doesNotMatch(SELECT_VERIFIED_SELECTED_MEP_LINKS,/\b(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP)\b/i);
   assert.doesNotMatch(SELECT_VERIFIED_SELECTED_MEP_LINKS,/parlamento_europeo_voti_nominali|cognome|nome|gruppo_politico|partito/i);
   assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/LIMIT 101/);
