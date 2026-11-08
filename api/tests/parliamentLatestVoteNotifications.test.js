@@ -74,6 +74,37 @@ test('name-only, absent source ID and duplicated source links never identify a v
   assert.equal(matchUniqueMember(rep,members,[rep,{...rep,id:'00000000-0000-4000-8000-000000000002'}]),null);
 });
 
+test('real Camera name-only official roster needs separately vetted institutional ID link', () => {
+  const canonical={...rep,evidence_url:'https://www.camera.it/deputati/scheda-ufficiale-verificata'};
+  const noPersonLinks=members.map(row=>({...row,sourcePersonId:null}));
+  const expected=matchUniqueMember(canonical,noPersonLinks,[canonical],
+    {chamber:'Camera',sourceType:'official'});
+  assert.equal(expected?.sourcePersonId,rep.source_person_id);
+  assert.equal(expected?.attributionMethod,'vetted_camera_official_identity');
+  assert.equal(matchUniqueMember({...canonical,evidence_url:null},noPersonLinks,[canonical],
+    {chamber:'Camera',sourceType:'official'}),null);
+  assert.equal(matchUniqueMember({...canonical,evidence_url:'https://attacker.example/deputati/abc'},
+    noPersonLinks,[canonical],{chamber:'Camera',sourceType:'official'}),null);
+  assert.equal(matchUniqueMember(canonical,noPersonLinks,[canonical],
+    {chamber:'Senato',sourceType:'openpolis'}),null);
+  assert.equal(matchUniqueMember(canonical,noPersonLinks,[canonical],
+    {chamber:'Camera',sourceType:'openpolis'}),null);
+  const ambiguous=[...noPersonLinks,
+    {name:'MARIA DE LUCA',vote:'Contrario',sourcePersonId:null}];
+  assert.equal(matchUniqueMember(canonical,ambiguous,[canonical],
+    {chamber:'Camera',sourceType:'official'}),null);
+  const anchoredToOther=noPersonLinks.map(row =>
+    row.name==='DE LUCA MARIA'
+      ? {...row,sourcePersonId:'https://documenti.camera.it/deputato/other'} : row);
+  assert.equal(matchUniqueMember(canonical,anchoredToOther,[canonical],
+    {chamber:'Camera',sourceType:'official'}),null);
+  assert.equal(matchUniqueMember(canonical,noPersonLinks,[
+    canonical,{...canonical,id:'00000000-0000-4000-8000-000000000099',
+      source_person_id:'https://www.camera.it/deputati/altro-99'}
+  ],{chamber:'Camera',sourceType:'official'}),null,
+  'two candidate mappings for the same official Camera name must never assign a vote');
+});
+
 test('verified identity, date, chamber and roster required before any write', async () => {
   let touched = false;
   const fake = { connect: () => { touched = true; throw new Error('unexpected database write'); } };
