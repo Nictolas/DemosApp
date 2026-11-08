@@ -33,7 +33,7 @@ export const SUBJECT_PROPOSAL_CATEGORIES = [
     nameLabel: "Nome della persona",
     placeholder: "Nome e cognome",
     sourceLabel: "Fonte pubblica HTTPS",
-    explanation: "Proporre un attivista non crea un profilo utente né certifica la sua identità.",
+    explanation: "Puoi proporre soltanto te stesso: per inviare la richiesta serve la CIE verificata. Prima della prima approvazione occorre una videocall privata con l'Admin per verificare la corrispondenza dell'identità. La proposta non crea automaticamente un profilo utente.",
     backPath: "/attivisti",
   },
   {
@@ -42,7 +42,7 @@ export const SUBJECT_PROPOSAL_CATEGORIES = [
     nameLabel: "Nome dell'organizzazione",
     placeholder: "Nome pubblico dell'organizzazione",
     sourceLabel: "Sito o fonte pubblica HTTPS",
-    explanation: "Proporre un'organizzazione non equivale a registrare un account in suo nome.",
+    explanation: "Può proporre l'organizzazione soltanto il suo presidente o rappresentante legale autorizzato. Servono la CIE verificata e una videocall privata con l'Admin, che verifica anche la carica tramite una fonte ufficiale. La proposta non crea automaticamente un account né attiva pagamenti.",
     backPath: "/organizzazioni",
   },
 ] as const;
