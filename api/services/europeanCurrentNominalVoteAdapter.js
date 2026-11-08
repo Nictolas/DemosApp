@@ -7,6 +7,23 @@
 const { upsertVerifiedCurrentVote } = require('./institutionalCurrentNominalVotesService');
 
 const SOURCE_HOST = 'data.europarl.europa.eu';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function reviewedDemosId(mep, mepId) {
+  const uuid=String(mep?.representativeId || mep?.representative_id || '');
+  const reviewer=String(mep?.reviewed_by || '');
+  const evidence=String(mep?.evidence_url || '');
+  const exact=evidence === 'https://data.europarl.europa.eu/person/'+mepId ||
+    evidence === 'https://data.europarl.europa.eu/person/'+mepId+'/';
+  const profile=evidence.match(/^https:\/\/www[.]europarl[.]europa[.]eu\/meps\/[a-z]{2}\/([1-9]\d{0,8})(?:\/[^?#]*)?$/);
+  if (!UUID.test(uuid) || mep?.review_state !== 'VERIFIED' ||
+      !UUID.test(reviewer) || !mep?.reviewed_at ||
+      !Number.isFinite(Date.parse(mep.reviewed_at)) ||
+      !(exact || (profile && profile[1]===mepId)))
+    throw new Error('EP_CURRENT_VERIFIED_DEMOS_LINK_REQUIRED');
+  return uuid.toLowerCase();
+}
+
 function stableMepId(raw) {
   const value = typeof raw === 'string' ? raw : raw && typeof raw === 'object'
     ? (raw.id || raw['@id'] || raw.person_id || raw.mep_id) : null;
@@ -31,13 +48,15 @@ function extractExplicitItalianVotes(voteResult, italianMepMap, meta) {
       meta.ballotOrder < 0 || typeof meta.sourceUrl !== 'string')
     throw new Error('EP_CURRENT_BALLOT_METADATA_MISSING');
 
-  const eligible = new Set();
+  const eligible = new Map(), seenUuids = new Set();
   for (const [rawKey, mep] of italianMepMap) {
     const fromKey = stableMepId(rawKey), fromValue = stableMepId(mep?.id);
-    if (!fromKey || (mep?.id && fromKey !== fromValue) || eligible.has(fromKey)) {
+    if (!fromKey || (mep?.id && fromKey !== fromValue) || eligible.has(fromKey))
       throw new Error('EP_CURRENT_AMBIGUOUS_MEP_ID');
-    }
-    eligible.add(fromKey);
+    const uuid = reviewedDemosId(mep, fromKey);
+    if (seenUuids.has(uuid)) throw new Error('EP_CURRENT_DUPLICATE_DEMOS_ID');
+    seenUuids.add(uuid);
+    eligible.set(fromKey,uuid);
   }
 
   const categories = [
@@ -61,7 +80,7 @@ function extractExplicitItalianVotes(voteResult, italianMepMap, meta) {
   }
   // People missing from all three lists are not asserted to be absent.
   return [...selected].map(([mepId, status]) => ({
-    institution: 'PE', representativeKey: 'pe:' + mepId,
+    institution: 'PE', representativeKey: 'demos:' + eligible.get(mepId),
     sourcePersonId: mepId, ballotId: String(meta.ballotId),
     voteDate: meta.voteDate, ballotOrder: meta.ballotOrder,
     status, ballotTitle: meta.ballotTitle,
