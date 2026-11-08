@@ -119,3 +119,57 @@ test('cache and concurrent deduplication are in-memory only',async()=>{
   assert.equal(a.length,1);
   assert.equal(b.length,1);
 });
+
+
+test('different injected official API clients never share cached source answers',async()=>{
+ let callsA=0,callsB=0;
+ const clientA={get:async url=>{
+   callsA++;
+   return {status:200,data:url.endsWith('/decisions')
+     ?body(rec('199901',{activity_label:{it:'Testo finale ufficiale A (insieme del testo)'}}))
+     :body()};
+ }};
+ const clientB={get:async url=>{
+   callsB++;
+   return {status:200,data:url.endsWith('/decisions')
+     ?body(rec('199902',{activity_label:{it:'Testo finale ufficiale B (insieme del testo)'}}))
+     :body()};
+ }};
+ const a=await fetchOfficialDecisionBallots(DAY,clientA);
+ const b=await fetchOfficialDecisionBallots(DAY,clientB);
+ assert.match(a[0].subject,/ufficiale A/);
+ assert.match(b[0].subject,/ufficiale B/);
+ assert.equal(callsA,2);
+ assert.equal(callsB,2);
+ await fetchOfficialDecisionBallots(DAY,clientA);
+ assert.equal(callsA,2);
+});
+
+test('cache supports 12 distinct latest-vote sitting dates without repeat HTTP calls',async()=>{
+ let calls=0;
+ const client={get:async url=>{
+   calls++;
+   const date=url.match(/MTG-PL-(20\d{2}-\d{2}-\d{2})/)?.[1];
+   assert.ok(date);
+   return {status:200,data:url.endsWith('/decisions')
+     ?body(rec('123456',{
+       activity_id:'MTG-PL-'+date+'-DEC-123456',
+       activity_label:{en:'Final vote on whole text '+date},
+       activity_order:12
+     }))
+     :body()};
+ }};
+ const dates=Array.from({length:13},(_,i)=>'2026-10-'+String(i+1).padStart(2,'0'));
+ for(const date of dates.slice(0,12)){
+   const r=await fetchOfficialDecisionBallots(date,client);
+   assert.equal(r.length,1);
+   assert.equal(r[0].date,date);
+ }
+ assert.equal(calls,24,'12 meetings × exactly 2 official calls');
+ await fetchOfficialDecisionBallots(dates[0],client);
+ assert.equal(calls,24,'Repeated profile within 6h uses cached official source');
+ await fetchOfficialDecisionBallots(dates[12],client);
+ assert.equal(calls,26,'13th meeting requires only 2 extra official requests');
+ await fetchOfficialDecisionBallots(dates[0],client);
+ assert.equal(calls,28,'Oldest entry evicted after bounded 12-sitting cache');
+});
