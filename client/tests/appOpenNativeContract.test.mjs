@@ -316,7 +316,8 @@ test('isolated test release upgrade is signed for QA only and cannot use real ad
   assert.match(gradle, /DEMOS_UMP_DEBUG_EEA', 'false'/);
   const workflow = read('../../.github/workflows/advertising-policy-validation.yml');
   assert.match(workflow, /Build isolated Ads-free to TEST-ads release upgrade pair/);
-  assert.match(workflow, /adb install -r "\$candidate"/);
+  assert.match(workflow, /adb install -r client\/android\/qa-isolated-apks\/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED\.apk/);
+  assert.doesNotMatch(workflow, /adb install -r "\$candidate"/);
   assert.match(workflow, /adb uninstall community\.demos\.qaadsrc/);
   assert.match(workflow, /Offline anonymous emulator smoke for real-age QA/);
 });
