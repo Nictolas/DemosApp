@@ -1,5 +1,8 @@
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, MagicMock
+import sys
+import os
+import io
 
 from api.scripts import sync_eci
 
@@ -84,6 +87,63 @@ class SyncEciUnitTests(unittest.TestCase):
                 {"recordsFound": 2, "entries": []},
             ]))
 
+    def test_changing_official_total_across_pages_rejects_entire_feed(self):
+        session = FakeSession([
+            {"recordsFound": 3, "entries": [
+                {"id": 1, "status": "ONGOING"},
+                {"id": 2, "status": "ONGOING"},
+            ]},
+            {"recordsFound": 4, "entries": [
+                {"id": 3, "status": "ONGOING"},
+            ]},
+        ])
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_TOTAL_CHANGED"):
+            sync_eci._fetch_ongoing_entries(session=session)
+        self.assertEqual(len(session.calls), 2)
+
+    def test_overlapping_source_pages_cannot_silently_deduplicate(self):
+        session = FakeSession([
+            {"recordsFound": 3, "entries": [
+                {"id": 1, "status": "ONGOING"},
+                {"id": 2, "status": "ONGOING"},
+            ]},
+            {"recordsFound": 3, "entries": [
+                {"id": 2, "status": "ONGOING"},
+                {"id": 3, "status": "ONGOING"},
+            ]},
+        ])
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SOURCE_DUPLICATE_ID"):
+            sync_eci._fetch_ongoing_entries(session=session)
+        self.assertEqual(len(session.calls), 2)
+
+    def test_cross_page_duplicate_with_mixed_int_string_id_fails(self):
+        session = FakeSession([
+            {"recordsFound": 2, "entries": [
+                {"id": 17, "status": "ONGOING"},
+            ]},
+            {"recordsFound": 2, "entries": [
+                {"id": "17", "status": "ONGOING"},
+            ]},
+        ])
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SOURCE_DUPLICATE_ID"):
+            sync_eci._fetch_ongoing_entries(session=session)
+
+    def test_invalid_source_ids_and_total_fail_closed(self):
+        for invalid_id in (None, "", "bad", True):
+            with self.subTest(invalid_id=invalid_id):
+                session = FakeSession([{"recordsFound": 1, "entries": [
+                    {"id": invalid_id, "status": "ONGOING"},
+                ]}])
+                with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SOURCE_ID_INVALID"):
+                    sync_eci._fetch_ongoing_entries(session=session)
+        for invalid_total in (None, "nan", True, 1.5):
+            with self.subTest(invalid_total=invalid_total):
+                session = FakeSession([{"recordsFound": invalid_total, "entries": [
+                    {"id": 1, "status": "ONGOING"},
+                ]}])
+                with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_TOTAL_INVALID"):
+                    sync_eci._fetch_ongoing_entries(session=session)
+
     def test_record_uses_italian_detail_and_direct_official_signing_link(self):
         entry = {
             "id": 9173,
@@ -125,6 +185,46 @@ class SyncEciUnitTests(unittest.TestCase):
         self.assertEqual(record[6], "Obiettivo ufficiale")
         self.assertEqual(record[7], "https://eci.ec.europa.eu/066/public/?lg=it")
 
+    def test_supporters_must_be_true_nonnegative_integers(self):
+        self.assertEqual(sync_eci._normalize_number(17), 17)
+        self.assertEqual(sync_eci._normalize_number("17"), 17)
+        for invalid in (True, False, 1.5, "1.5", None, -1):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SUPPORTERS_"):
+                    sync_eci._normalize_number(invalid)
+
+    def test_support_link_cannot_redirect_citizens_to_non_eu_host(self):
+        base = {
+            "year": "2026", "number": "000011", "totalSupporters": 17,
+            "title": "Titolo ufficiale",
+        }
+        for untrusted in (
+            "https://attacker.example/collect",
+            "https://eci.ec.europa.eu.attacker.example/collect",
+            "https://eci.ec.europa.eu@attacker.example/collect",
+            "http://eci.ec.europa.eu/collect",
+            "https://eci.ec.europa.eu:444/collect",
+        ):
+            with self.subTest(url=untrusted):
+                record = sync_eci._normalize_record(
+                    base, {"status": "ONGOING", "linguisticVersions": [
+                        {"languageCode": "IT", "title": "Titolo",
+                         "supportLink": untrusted},
+                    ]}
+                )
+                self.assertEqual(record[7],
+                    "https://citizens-initiative.europa.eu/initiatives/details/2026/000011_it")
+        self.assertEqual(sync_eci._official_support_url(
+            "https://eci.ec.europa.eu/066/public/?lg=it", "fallback"),
+            "https://eci.ec.europa.eu/066/public/?lg=it")
+
+    def test_detail_register_number_must_match_search_identity_when_present(self):
+        entry = {"year": "2026", "number": "000011", "totalSupporters": 1}
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_DETAIL_ID_MISMATCH"):
+            sync_eci._normalize_record(entry, {
+                "status": "ONGOING", "pubRegNum": "ECI(2026)000012",
+            })
+
     def test_record_rejects_non_ongoing_detail_or_invalid_identity(self):
         entry = {
             "year": "2026",
@@ -133,8 +233,30 @@ class SyncEciUnitTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(RuntimeError, "non ONGOING"):
             sync_eci._normalize_record(entry, {"status": "REGISTERED", "linguisticVersions": []})
-        with self.assertRaisesRegex(RuntimeError, "Identificatore ECI ufficiale non valido"):
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_REGISTER_ID_INVALID"):
             sync_eci._normalize_identity({"pubRegNum": "bad"})
+
+    def test_search_identifiers_must_agree_with_public_registration(self):
+        valid = {"year": "2026", "number": "000011",
+                 "pubRegNum": "ECI(2026)000011"}
+        self.assertEqual(sync_eci._normalize_identity(valid), ("2026", "000011"))
+        self.assertEqual(sync_eci._normalize_identity(
+            {"pubRegNum": "ECI(2026)000011"}), ("2026", "000011"))
+        self.assertEqual(sync_eci._normalize_identity(
+            {"year": "2026", "pubRegNum": "ECI(2026)000011"}),
+            ("2026", "000011"))
+        for invalid in (
+            {**valid, "pubRegNum": "ECI(2026)000012"},
+            {**valid, "pubRegNum": "ECI(2025)000011"},
+            {**valid, "pubRegNum": "ECI_BAD"},
+            {"year": "2025", "pubRegNum": "ECI(2026)000011"},
+            {"number": "000012", "pubRegNum": "ECI(2026)000011"},
+        ):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(
+                    RuntimeError, "ECI_OFFICIAL_REGISTER_ID_(INVALID|MISMATCH)"
+                ):
+                    sync_eci._normalize_identity(invalid)
 
     def test_dry_run_never_calls_database_replace(self):
         fake_records = [
@@ -173,9 +295,173 @@ class SyncEciUnitTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "^CIVIC_DATABASE_IDENTITY_UNAVAILABLE$"):
             sync_eci._verify_civic_database_identity(cursor, expected)
 
+    def test_initial_eci_baseline_is_always_suppressed(self):
+        choose = sync_eci.classify_new_eci_event_status
+        self.assertEqual(choose(
+            previous_ids=set(), guard_blocked=False, reason_code=None,
+        ), "suppressed")
+        self.assertEqual(choose(
+            previous_ids={"2026-000011"}, guard_blocked=True, reason_code=None,
+        ), "suppressed")
+        self.assertEqual(choose(
+            previous_ids={"2026-000011"}, guard_blocked=False,
+            reason_code="EMERGENCY_STOP",
+        ), "suppressed")
+        self.assertEqual(choose(
+            previous_ids={"2026-000011"}, guard_blocked=False, reason_code=None,
+        ), "pending")
+
+    def test_cache_write_checks_identity_even_when_event_collection_disabled(self):
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchall.return_value = [
+            ("00000000-0000-4000-8000-000000000540",)
+        ]
+        psycopg2_stub = MagicMock()
+        psycopg2_stub.connect.return_value = conn
+        extras_stub = MagicMock()
+        expected_id = "00000000-0000-4000-8000-000000000539"
+        rows = [(
+            "2026-000011", "Official entry", 1, "eci-2026-000011",
+            "ONGOING", "2027-08-25", "Official objective",
+            "https://eci.ec.europa.eu/066/public/?lg=it",
+        )]
+        with patch.dict(sys.modules, {
+            "psycopg2": psycopg2_stub,
+            "psycopg2.extras": extras_stub,
+        }), patch.dict(os.environ, {
+            "CIVIC_RUNTIME_DATABASE_ID": expected_id,
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "false",
+        }):
+            with self.assertRaisesRegex(RuntimeError, "CIVIC_DATABASE_IDENTITY_MISMATCH"):
+                sync_eci._replace_cache("postgresql://dummy.test/db", rows)
+        statements = [
+            str(call.args[0]) for call in cursor.execute.call_args_list
+        ]
+        self.assertTrue(any("civic_runtime_identity" in sql for sql in statements))
+        self.assertFalse(any("DELETE FROM eci" in sql for sql in statements))
+        extras_stub.execute_values.assert_not_called()
+
+    def test_staging_runtime_sync_never_deletes_or_requeues_historical_eci(self):
+        identity = "00000000-0000-4000-8000-000000000539"
+        previous_id = "2026-000011"
+        new_id = "2026-000012"
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchall.side_effect = [
+            [(identity,)],  # Exact database identity.
+            [(previous_id,)],  # Existing historical baseline.
+        ]
+        cursor.fetchone.side_effect = [
+            (2,),  # Current ONGOING count after the upsert.
+            (True, "EMERGENCY_STOP"),  # The guard is blocked.
+        ]
+        psycopg2_stub = MagicMock()
+        psycopg2_stub.connect.return_value = conn
+        execute_values = MagicMock()
+        rows = [
+            (previous_id, "Existing official ECI", 100,
+             "eci-2026-000011", "ONGOING", "2027-08-25",
+             "Existing objective", "https://eci.ec.europa.eu/011"),
+            (new_id, "New official ECI", 200,
+             "eci-2026-000012", "ONGOING", "2027-08-26",
+             "New objective", "https://eci.ec.europa.eu/012"),
+        ]
+        with patch.dict(sys.modules, {
+            "psycopg2": psycopg2_stub,
+            "psycopg2.extras": MagicMock(execute_values=execute_values),
+        }), patch.dict(os.environ, {
+            "CIVIC_RUNTIME_DATABASE_ID": identity,
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "true",
+        }):
+            sync_eci._replace_cache("postgresql://staging-only/db", rows)
+
+        sql_statements = [str(call.args[0]) for call in cursor.execute.call_args_list]
+        self.assertFalse(any("DELETE FROM eci" in q or "TRUNCATE" in q
+                             for q in sql_statements))
+        self.assertTrue(any("UPDATE eci" in q and "NOT_ONGOING" in q
+                            for q in sql_statements))
+        self.assertEqual(execute_values.call_count, 2)
+        cache_sql, cache_rows = execute_values.call_args_list[0].args[1:3]
+        event_sql, event_rows = execute_values.call_args_list[1].args[1:3]
+        self.assertIn("ON CONFLICT (id) DO UPDATE", cache_sql)
+        self.assertEqual(cache_rows, rows)
+        self.assertIn("ON CONFLICT (category, official_id) DO NOTHING", event_sql)
+        self.assertEqual(event_rows, [
+            ("eci", new_id, "New official ECI", "/eci", "suppressed"),
+        ])
+        conn.close.assert_called_once()
+
+    def test_duplicate_official_ids_rejected_before_any_upsert(self):
+        identity = "00000000-0000-4000-8000-000000000539"
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cur
+        cur.fetchall.return_value = [(identity,)]
+        psycopg2_stub = MagicMock()
+        psycopg2_stub.connect.return_value = conn
+        execute_values = MagicMock()
+        row = ("2026-000011", "Official title", 1, "eci-2026-000011",
+               "ONGOING", "2027-08-25", None,
+               "https://eci.ec.europa.eu/011")
+        with patch.dict(sys.modules, {
+            "psycopg2": psycopg2_stub,
+            "psycopg2.extras": MagicMock(execute_values=execute_values),
+        }), patch.dict(os.environ, {
+            "CIVIC_RUNTIME_DATABASE_ID": identity,
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "false",
+        }):
+            with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_IDS_NOT_UNIQUE"):
+                sync_eci._replace_cache("postgresql://staging-only/db", [row, row])
+        execute_values.assert_not_called()
+        self.assertFalse(any("UPDATE eci" in str(call.args[0])
+                             for call in cur.execute.call_args_list))
+
+    def test_public_eci_and_ice_routes_only_show_ongoing(self):
+        from pathlib import Path
+        api_dir = Path(__file__).resolve().parents[1]
+        for route in ("eci.js", "ice.js"):
+            content = (api_dir / "routes" / route).read_text(encoding="utf8")
+            self.assertIn("WHERE status = 'ONGOING'", content, route)
+            self.assertIn("ORDER BY end_date ASC NULLS LAST", content, route)
+
     def test_main_returns_nonzero_on_sync_failure(self):
         with patch.object(sync_eci, "sync", side_effect=RuntimeError("boom")):
             self.assertEqual(sync_eci.main(["--dry-run"]), 1)
+
+    def test_main_never_logs_database_credentials_or_private_diagnostics(self):
+        # Deliberately include synthetic passwords, query parameters, and
+        # a fake personal identifier in an exception from the source layer.
+        private_exception = RuntimeError(
+            "could not connect postgresql://fake_user:TOP_SECRET_TEST_PASSWORD"
+            "@localhost:5432/fake_db?token=FAKE_SECRET_QUERY "
+            "data=PRIVATE_TEST_RECORD")
+        for argv in ([], ["--dry-run"]):
+            with self.subTest(argv=argv):
+                stderr = io.StringIO()
+                with patch.object(sync_eci, "sync", side_effect=private_exception), \
+                     patch.object(sys, "stderr", stderr):
+                    self.assertEqual(sync_eci.main(argv), 1)
+                self.assertEqual(stderr.getvalue().strip(),
+                                 "[ERR] ECI_SYNC_FAILED")
+                self.assertNotIn("TOP_SECRET_TEST_PASSWORD", stderr.getvalue())
+                self.assertNotIn("FAKE_SECRET_QUERY", stderr.getvalue())
+                self.assertNotIn("PRIVATE_TEST_RECORD", stderr.getvalue())
+
+    def test_main_does_not_convert_or_interpolate_unsafe_exception(self):
+        class UnsafeError(Exception):
+            def __str__(self):
+                raise AssertionError("SECURITY: exception must not be printed")
+        stderr = io.StringIO()
+        with patch.object(sync_eci, "sync", side_effect=UnsafeError()), \
+             patch.object(sys, "stderr", stderr):
+            self.assertEqual(sync_eci.main(["--dry-run"]), 1)
+        self.assertEqual(stderr.getvalue().strip(), "[ERR] ECI_SYNC_FAILED")
 
 
 if __name__ == "__main__":

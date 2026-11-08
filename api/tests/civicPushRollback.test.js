@@ -112,7 +112,10 @@ test('all official collectors suppress new events during emergency stop', () => 
   const eci = read('api/scripts/sync_eci.py');
   assert.match(italian, /guard\.reason_code = 'EMERGENCY_STOP'/);
   assert.match(italian, /FOR SHARE/);
-  assert.match(eci, /guard\[0\] is True or guard\[1\] == "EMERGENCY_STOP"/);
+  assert.match(eci, /def classify_new_eci_event_status/);
+  assert.match(eci, /if not previous_ids or guard_blocked or reason_code == "EMERGENCY_STOP"/);
+  assert.match(eci, /guard_blocked=guard\[0\] is True/);
+  assert.match(eci, /reason_code=guard\[1\]/);
   assert.match(eci, /FOR SHARE/);
 });
 

@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, requireAdmin } = require('../middleware/auth');
-const { mapToLegacyFormat, buildQueryForTipo, mapReferendumAbrogativiToLegacyFormat } = require('../utils/iniziativeMinisteroMapper');
+const { mapToLegacyFormat, buildQueryForTipo } = require('../utils/iniziativeMinisteroMapper');
+const {selectNextOfficialReferendum} = require('../utils/selectNextOfficialReferendum');
 const { getPool } = require('../config/database');
 require('dotenv').config();
 
@@ -444,167 +445,30 @@ router.delete('/vota', verifyToken, async (req, res) => {
   return referendumPriorityRetired(res);
 });
 
-// GET /api/referendum-abrogativi/prossima - Ottieni il referendum con scadenza più vicina
+// GET /api/referendum-abrogativi/prossima — nearest active OFFICIAL referendum.
+// The legacy manual proposals and retired priority vote are not valid sources.
 router.get('/prossima', verifyToken, async (req, res) => {
   try {
-    debugLog('🔍 GET /api/referendum-abrogativi/prossima - Richiesta referendum più imminente');
-
-    const userId = req.userId;
-
-    // Ottieni il ruolo dell'utente
-    let userRole = null;
-    try {
-      const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
-      const userResult = await pool.query(userQuery, [userId]);
-      if (userResult.rows.length > 0) {
-        userRole = userResult.rows[0].ruolo;
-        debugLog(`🔍 Ruolo utente: ${userRole}`);
-      }
-    } catch (authError) {
-      debugLog('⚠️ Errore nel recupero ruolo utente:', authError.message);
-    }
-
-    // Usa la stessa logica dell'endpoint principale per iniziative_ministero
-    // soloInCorso = true per mostrare solo referendum in corso
-    const votaOnly = false;
-    const soloInCorso = true;
-    const { query, params } = buildQueryForTipo('referendum', userRole, userId, votaOnly, soloInCorso);
-
-    debugLog('🔍 Query iniziative_ministero (usando buildQueryForTipo):', query.substring(0, 200) + '...');
-    const resultMinistero = await pool.query(query, params);
-    debugLog(`✅ Trovati ${resultMinistero.rows.length} referendum da iniziative_ministero`);
-
-    // Query per referendum_abrogativi: usa la stessa logica dell'endpoint principale
-    // soloInCorso = true per mostrare solo referendum in corso
-    let referendumAbrogativiResult = { rows: [] };
-    try {
-      let referendumAbrogativiQuery;
-      let referendumAbrogativiParams = [];
-
-      if (soloInCorso) {
-        // Per listing: solo quelle con status = 'P' o 'p' (pending, in corso)
-        referendumAbrogativiQuery = `
-          SELECT
-            id, nome, descrizione, data_inizio, data_fine,
-            firme, sito_web, status, quorum, firestore_id_backup
-          FROM referendum_abrogativi
-          WHERE (status = 'P' OR status = 'p')
-          ORDER BY
-            CASE WHEN data_fine IS NULL THEN 1 ELSE 0 END,
-            CASE WHEN data_fine IS NULL THEN '9999-12-31'::date ELSE data_fine END ASC,
-            firme DESC NULLS LAST
-          LIMIT 5
-        `;
-      } else {
-        // Per admin o altre viste: tutte tranne le proposte (status != NULL)
-        referendumAbrogativiQuery = `
-          SELECT
-            id, nome, descrizione, data_inizio, data_fine,
-            firme, sito_web, status, quorum, firestore_id_backup
-          FROM referendum_abrogativi
-          WHERE status IS NOT NULL
-          ORDER BY
-            CASE WHEN data_fine IS NULL THEN 1 ELSE 0 END,
-            CASE WHEN data_fine IS NULL THEN '9999-12-31'::date ELSE data_fine END ASC,
-            firme DESC NULLS LAST
-          LIMIT 5
-        `;
-      }
-
-      debugLog('🔍 Query referendum_abrogativi:', referendumAbrogativiQuery);
-      // F12-26: le liste pubbliche derivano esclusivamente dalla fonte ufficiale Ministero.
-      referendumAbrogativiResult = { rows: [] };
-      debugLog(`✅ Trovati ${referendumAbrogativiResult.rows.length} referendum da referendum_abrogativi`);
-    } catch (error) {
-      debugWarn(`⚠️ Errore nel recupero referendum_abrogativi:`, error.message);
-      // Continua senza referendum_abrogativi se c'è un errore
-    }
-
-    // Normalizza i referendum dal ministero (mapToLegacyFormat già azzera i sentinel 9999)
-    const referendumMinistero = resultMinistero.rows.map(row => {
-      const mapped = mapToLegacyFormat(row, 'referendum');
-      return {
-        ...mapped,
-        source: 'ministero',
-        dataFine: mapped.dataFine ? new Date(mapped.dataFine) : null,
-        firme: row.firme_raccolte || 0
-      };
-    });
-
-    // Normalizza i referendum abrogativi
-    const referendumAbrogativi = referendumAbrogativiResult.rows.map(row => {
-      const mapped = mapReferendumAbrogativiToLegacyFormat(row);
-      return {
-        ...mapped,
-        source: 'abrogativi',
-        dataFine: mapped.dataFine ? new Date(mapped.dataFine) : null,
-        firme: row.firme || 0
-      };
-    });
-
-    // Unisci tutti i referendum
-    const tuttiReferendum = [...referendumMinistero, ...referendumAbrogativi];
-
-    if (tuttiReferendum.length === 0) {
-      debugLog('📭 Nessun referendum in corso trovato');
-      debugLog('🔍 Debug: resultMinistero.rows.length =', resultMinistero.rows.length);
-      debugLog('🔍 Debug: referendumAbrogativiResult.rows.length =', referendumAbrogativiResult.rows.length);
-      return res.json({
-        success: true,
-        data: null,
-        message: 'Nessun referendum in corso trovato'
-      });
-    }
-
-    // Ordina per: 1) scadenza più vicina (data_fine ASC), 2) più firme (firme DESC)
-    // I referendum senza data_fine vanno in fondo
-    tuttiReferendum.sort((a, b) => {
-      // Se uno non ha data_fine, mettilo in fondo
-      if (!a.dataFine && !b.dataFine) {
-        return b.firme - a.firme; // Ordina per firme se entrambi senza data
-      }
-      if (!a.dataFine) return 1; // a senza data va in fondo
-      if (!b.dataFine) return -1; // b senza data va in fondo
-
-      // Entrambi hanno data_fine, ordina per scadenza più vicina (anche se passata)
-      const dataDiff = a.dataFine.getTime() - b.dataFine.getTime();
-      if (dataDiff !== 0) {
-        return dataDiff; // Scadenza più vicina prima
-      }
-      return b.firme - a.firme; // Più firme prima (se stessa scadenza)
-    });
-
-    debugLog('🔍 Tutti i referendum trovati:', tuttiReferendum.map(r => ({
-      nome: r.nome || r.titolo,
-      data_fine: r.dataFine,
-      firme: r.firme,
-      source: r.source
-    })));
-
-    const referendum = tuttiReferendum[0];
-
-    // Aggiungi emoji automatica
-    referendum.emoji = getEmojiAutomaticaReferendum(referendum);
-
-    debugLog(`✅ Referendum più imminente trovato (${referendum.source}):`, referendum.nome || referendum.titolo);
-    debugLog('🔍 Dettagli referendum:', {
-      nome: referendum.nome || referendum.titolo,
-      data_fine: referendum.data_fine || referendum.dataFine,
-      firme: referendum.firme || referendum.firme_raccolte,
-      source: referendum.source,
-      allKeys: Object.keys(referendum)
-    });
-
-    res.json({
+    res.set('Cache-Control', 'no-store');
+    const {query, params} = buildQueryForTipo('referendum', null, null, false, true);
+    const result = await pool.query(query, params);
+    const official = result.rows.map(row => ({
+      ...mapToLegacyFormat(row, 'referendum'),
+      source: 'ministero'
+    }));
+    const referendum = selectNextOfficialReferendum(official);
+    if (referendum) referendum.emoji = getEmojiAutomaticaReferendum(referendum);
+    return res.json({
       success: true,
-      data: referendum
+      data: referendum,
+      ...(referendum ? {} : {message: 'Nessun referendum in corso trovato'})
     });
-  } catch (error) {
-    console.error('❌ Errore nel recupero referendum più imminente:', error);
-    res.status(500).json({
+  } catch (_error) {
+    // Do not expose database errors, SQL or internal details in the API.
+    console.error('Impossibile recuperare il prossimo referendum ufficiale');
+    return res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore nel recupero referendum più imminente'
     });
   }
 });

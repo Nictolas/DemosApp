@@ -160,3 +160,41 @@ test('bootstrap caps batches to 500 devices and never handles per-user queries',
   assert.ok(queries.some(sql => sql.includes('LEFT JOIN notifiche_preferenze')));
   assert.ok(queries.every(sql => !sql.includes('SELECT * FROM users')));
 });
+
+test('bootstrap dry-run rejects success when advisory unlock is not confirmed',async()=>{
+  const db=pool();
+  const originalConnect=db.connect;
+  let released;
+  db.connect=async()=>{
+    const original=await originalConnect();
+    return {
+      query:async(sql,...args)=>sql.includes('pg_advisory_unlock(')
+        ? {rows:[{unlocked:false}]} : original.query(sql,...args),
+      release:discard=>{released=discard;},
+    };
+  };
+  await assert.rejects(reconcileAllCivicTopics(db,{
+    dryRun:true,batchSize:2,
+  }),/CIVIC_BOOTSTRAP_LOCK_RELEASE_UNCONFIRMED/);
+  assert.equal(released,true);
+});
+
+test('bootstrap refuses success after applied topic changes with uncertain unlock',async()=>{
+  const db=pool();
+  const originalConnect=db.connect;
+  let released;
+  db.connect=async()=>{
+    const original=await originalConnect();
+    return {
+      query:async(sql,...args)=>sql.includes('pg_advisory_unlock(')
+        ? {rows:[]} : original.query(sql,...args),
+      release:discard=>{released=discard;},
+    };
+  };
+  const messaging=fcm();
+  await assert.rejects(reconcileAllCivicTopics(db,{
+    dryRun:false,enabled:true,messaging,batchSize:2,
+  }),/CIVIC_BOOTSTRAP_LOCK_RELEASE_UNCONFIRMED/);
+  assert.ok(messaging.calls.length>0,'bootstrap did attempt synthetic Firebase updates');
+  assert.equal(released,true);
+});

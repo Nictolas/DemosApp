@@ -22,6 +22,31 @@ test('complete pagination with zero-based first page and official totals', () =>
   assert.equal(b.items.length,1);
 });
 
+test('official Ministry elementCount is authoritative for completeness', () => {
+  const page = {
+    content: Array.from({length:87}, (_,i)=>item(i+1)),
+    infoPaginazione:{elementCount:87,pageIndex:1,pageSize:10},
+  };
+  const observed = inspectMinisteroPage(page,{
+    currentPage:0,pageSize:100,priorItems:0,expectedTotal:null,
+  });
+  assert.equal(observed.expectedTotal,87);
+  assert.equal(observed.hasMore,false);
+  assert.equal(observed.items.length,87);
+
+  const truncated = inspectMinisteroPage({
+    content:page.content.slice(0,86),
+    infoPaginazione:{elementCount:87,pageIndex:1,pageSize:10},
+  },{currentPage:0,pageSize:100,priorItems:0,expectedTotal:null});
+  assert.equal(truncated.expectedTotal,87);
+  assert.equal(truncated.hasMore,true);
+  assert.throws(()=>inspectMinisteroPage({
+    content:[],
+    infoPaginazione:{elementCount:87,pageIndex:2,pageSize:10},
+  },{currentPage:1,pageSize:100,priorItems:86,expectedTotal:87}),
+  /MINISTERO_PAGINATION_EARLY_EMPTY_PAGE/);
+});
+
 test('reject empty or malformed official feed before any write', () => {
   for (const payload of [null,{}, {content:null}, {content:{}},
       {content:[]}, {data:[]}, {content:[null]}, {content:[1]},

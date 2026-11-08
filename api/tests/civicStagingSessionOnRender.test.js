@@ -50,6 +50,31 @@ test('accepts only the exact stage pooler session endpoint (syntax check, not lo
   }
 });
 
+test('cannot redirect a staging-only diagnostic to the production project', async () => {
+  const productionRef = 'wxnblcqoyjqxktwkcqok';
+  const alternativeRef = 'aaaaaaaaaaaaaaaaaaaa';
+  for (const otherRef of [productionRef, alternativeRef]) {
+    const alteredConnection = CONNECTION.replace(PROJECT, otherRef);
+    assert.throws(
+      () => assertCivicStagingSessionEndpoint({
+        connectionString: alteredConnection, projectRef: otherRef,
+        expectedPoolerHost: HOST,
+      }),
+      error => error.message === 'CIVIC_STAGING_SESSION_WRONG_PROJECT' &&
+        !error.message.includes(otherRef)
+    );
+    let poolsCreated = 0;
+    await assert.rejects(runCivicStagingSessionCheck({
+      ...approved,
+      CIVIC_STAGING_PROJECT_REF: otherRef,
+      CIVIC_STAGING_SESSION_DATABASE_URL: alteredConnection,
+    }, {
+      createPool: () => { poolsCreated++; throw new Error('unexpected database access'); },
+    }), /CIVIC_STAGING_SESSION_WRONG_PROJECT/);
+    assert.equal(poolsCreated, 0, 'Invalid project must be rejected before DB connection');
+  }
+});
+
 test('refuses production DB variables, push flags and malformed staging metadata', () => {
   const badEnv = [
     {DATABASE_URL: 'postgresql://actual-prod-secret'},
@@ -116,7 +141,9 @@ test('required stage-only confirmation prevents any network access', async () =>
   assert.equal(calls, 0);
 });
 
-function syntheticPool({pids = [['101'], ['202']], throwError = false} = {}) {
+function syntheticPool({
+  pids = [['101'], ['202']], throwError = false, probeError = false, identity = {},
+} = {}) {
   let created = 0;
   const queries = [];
   let ended = 0;
@@ -128,8 +155,19 @@ function syntheticPool({pids = [['101'], ['202']], throwError = false} = {}) {
       return {
         async query(sql) {
           queries.push(sql);
-          if (throwError) throw new Error('provider RAW PASSWORD ci-FakePass');
-          const source = pids[index];
+          if (throwError || (probeError && sql.includes('pg_backend_pid()')))
+            throw new Error('provider RAW PASSWORD ci-FakePass');
+          if (sql === 'BEGIN READ ONLY' || sql === 'ROLLBACK') return {rows: []};
+          if (sql.includes('current_user::text AS role_name')) {
+            return { rows: [{
+              role_name: 'demos_staging_runtime',
+              database_name: 'postgres',
+              identity_hash: '0cbb6ace68a9f11956904e2a37898ec8',
+              delivery_blocked: true,
+              ...identity,
+            }] };
+          }
+          const source = pids[index - 1];
           return {rows: [{pid: source[Math.min(n++, source.length - 1)]}]};
         },
         release() {},
@@ -140,6 +178,47 @@ function syntheticPool({pids = [['101'], ['202']], throwError = false} = {}) {
   return {pool, queries, get created() {return created;}, get ended() {return ended;}};
 }
 
+
+test('actual PostgreSQL identity must match staging role, DB, hash and blocked guard', async () => {
+  const wrong = [
+    {role_name: 'postgres'},
+    {role_name: 'demos_staging_preflight'},
+    {database_name: 'production'},
+    {identity_hash: '00000000000000000000000000000000'},
+    {identity_hash: null},
+    {delivery_blocked: false},
+    {delivery_blocked: null}
+  ];
+  for (const identity of wrong) {
+    const stub = syntheticPool({identity});
+    let probeCalls = 0;
+    await assert.rejects(
+      runCivicStagingSessionCheck(approved, {
+        createPool: () => stub.pool,
+        runProbe: async () => { probeCalls++; throw new Error('must not probe'); }
+      }),
+      err => err.message === 'CIVIC_STAGING_SESSION_RUNTIME_IDENTITY_UNVERIFIED'
+        && !err.message.includes('ci-FakePass')
+    );
+    assert.equal(probeCalls, 0);
+    assert.equal(stub.created, 1);
+    assert.equal(stub.ended, 1);
+    assert.equal(stub.queries[0], 'BEGIN READ ONLY');
+    assert.equal(stub.queries.at(-1), 'ROLLBACK');
+  }
+});
+
+test('provider failures during identity query are sanitized and never probe', async () => {
+  const stub = syntheticPool({throwError:true});
+  let probeCalls = 0;
+  await assert.rejects(runCivicStagingSessionCheck(approved, {
+    createPool: () => stub.pool,
+    runProbe: () => { probeCalls++; throw new Error('must not probe'); }
+  }), err => err.message === 'CIVIC_STAGING_SESSION_RUNTIME_IDENTITY_UNVERIFIED');
+  assert.equal(probeCalls, 0);
+  assert.equal(stub.ended, 1);
+});
+
 test('two staging-only clients observe backend PIDs but never approve delivery', async () => {
   const stub = syntheticPool();
   let captured;
@@ -149,9 +228,12 @@ test('two staging-only clients observe backend PIDs but never approve delivery',
   assert.equal(result.result, 'INCONCLUSIVE');
   assert.equal(result.compatible, false);
   assert.equal(result.operatorReviewRequired, true);
-  assert.equal(stub.created, 2);
-  assert.equal(stub.queries.length, 12);
-  assert.ok(stub.queries.every(sql => sql === 'SELECT pg_backend_pid()::text AS pid'));
+  assert.equal(stub.created, 3);
+  assert.equal(stub.queries.length, 15);
+  assert.deepEqual(stub.queries.slice(0,3).map(sql => sql === 'BEGIN READ ONLY'
+    ? 'begin' : sql === 'ROLLBACK' ? 'rollback' : sql.includes('current_user::text AS role_name') ? 'identity' : 'other'),
+    ['begin','identity','rollback']);
+  assert.ok(stub.queries.slice(3).every(sql => sql === 'SELECT pg_backend_pid()::text AS pid'));
   assert.equal(stub.ended, 1);
   assert.equal(captured.max, 2);
   assert.equal(captured.ssl.rejectUnauthorized, true);
@@ -168,11 +250,44 @@ test('unsafe affinity or driver error cannot become a GO and always closes pool'
   assert.equal(result.compatible, false);
   assert.equal(mismatch.ended, 1);
 
-  const failed = syntheticPool({throwError: true});
+  const failed = syntheticPool({probeError: true});
   await assert.rejects(
     runCivicStagingSessionCheck(approved, {createPool: () => failed.pool}),
     err => err.message === 'CIVIC_SESSION_PROBE_UNAVAILABLE' &&
       !err.message.includes('ci-FakePass')
   );
   assert.equal(failed.ended, 1);
+});
+
+test('malformed environment and percent-encoded credentials fail closed without leaking secrets', () => {
+  for (const env of [null, false, 'staging', [], 0]) {
+    assert.throws(() => assertCivicStagingSessionEndpoint({...options, env}),
+      err => err.message === 'CIVIC_STAGING_SESSION_UNSAFE_ENVIRONMENT');
+  }
+  for (const credential of ['bad%ZZ', '%E0%A4%A']) {
+    const connectionString = CONNECTION.replace('ci-FakePass', credential);
+    assert.throws(() => assertCivicStagingSessionEndpoint({...options, connectionString}),
+      err => err.message === 'CIVIC_STAGING_SESSION_URL_INVALID' &&
+        !err.message.includes(credential));
+  }
+});
+
+test('password-only Render staging credential works with readonly session diagnostic', async()=>{
+  const password='synthetic-safe-password-only-@#+'+'w'.repeat(30);
+  const stub=syntheticPool();
+  let captured=null;
+  const result=await runCivicStagingSessionCheck({
+    ...approved,CIVIC_STAGING_SESSION_DATABASE_URL:password,
+    CIVIC_STAGING_EXPECTED_POOLER_HOST:'aws-1-eu-central-1.pooler.supabase.com',
+  },{
+    createPool:options=>{captured=options;return stub.pool;},
+  });
+  assert.equal(result.result,'INCONCLUSIVE');
+  assert.equal(result.compatible,false);
+  assert.equal(stub.ended,1);
+  const url=new (require('node:url').URL)(captured.connectionString);
+  assert.equal(decodeURIComponent(url.password),password);
+  assert.equal(url.hostname,'aws-1-eu-central-1.pooler.supabase.com');
+  assert.equal(url.port,'5432');
+  assert.equal(url.pathname,'/postgres');
 });
