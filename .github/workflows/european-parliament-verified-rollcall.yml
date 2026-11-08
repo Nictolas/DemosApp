@@ -11,6 +11,9 @@ on:
       - 'api/services/europeanParliamentOfficialDiscovery.js'
       - 'api/tests/europeanParliamentOfficialDiscovery.test.js'
       - 'api/tests/europeanRepresentativeCurrentVoteReader.test.js'
+      - 'api/tests/europeanRepresentativeChrome.synthetic.e2e.test.js'
+      - 'client/src/pages/Rappresentanti/hooks/useRappresentantiData.ts'
+      - 'client/src/pages/Rappresentanti/components/RappresentanteCard.tsx'
       - 'api/routes/rappresentanti.js'
       - 'api/scripts/verifyEuropeanParliamentOfficialDecisionAPI.js'
       - 'api/scripts/probeEuropeanParliamentOfficialRollCall.js'
@@ -64,3 +67,31 @@ jobs:
       - name: Complete Italian MEP latest verified whole-text ballots (manual release gate)
         if: github.event_name == 'workflow_dispatch'
         run: node api/scripts/verifyEuropeanParliamentLatestSitting.js
+
+  ep-chrome-320-390:
+    name: European representative current vote — real Chrome mobile synthetic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install UI dependencies without scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Install isolated Playwright against preinstalled Google Chrome
+        run: |
+          command -v google-chrome
+          mkdir -p /tmp/demos-ep-chrome
+          npm install --prefix /tmp/demos-ep-chrome --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+      - name: Real Chrome 320x568 and 390x844 verified/fail-closed representative card
+        env:
+          DEMOS_PLAYWRIGHT_MODULE: /tmp/demos-ep-chrome/node_modules/playwright
+          CI: 'true'
+        run: node --test api/tests/europeanRepresentativeChrome.synthetic.e2e.test.js
