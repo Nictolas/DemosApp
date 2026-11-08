@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'api/services/parliamentLatestVoteNotificationsService.js'
+      - 'api/services/institutionalCurrentNominalVotesService.js'
+      - 'api/database/20261108_institutional_current_nominal_votes.sql'
+      - 'api/tests/institutionalCurrentNominalVotes.test.js'
       - 'api/services/parliamentFinalBallotPushService.js'
       - 'api/tests/parliamentFinalBallotPush.test.js'
       - 'api/tests/parliamentLatestVotePostgres.integration.js'
@@ -65,6 +68,8 @@ jobs:
           node --check api/jobs/openpolisVotazioniFinaliJob.js
           node --check api/routes/notifiche.js
           node --test api/tests/parliamentLatestVoteNotifications.test.js api/tests/parliamentFinalBallotPush.test.js api/tests/parliamentVerifiedFinalBallots.test.js
+          node --check api/services/institutionalCurrentNominalVotesService.js
+          node --test api/tests/institutionalCurrentNominalVotes.test.js
           node --check api/services/parlamentoEuropeoService.js
           node --check api/services/parltrackService.js
           node --test api/tests/europeanVoteLatestOnlyContract.test.js
