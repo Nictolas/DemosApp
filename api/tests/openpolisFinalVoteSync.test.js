@@ -128,6 +128,14 @@ test('legacy vote detail cannot persist parliamentary nominal-vote history on GE
     'viewing a parliamentary detail must not append nominal vote snapshots');
   assert.match(detailRoute, /Latest-only policy PROD-041/,
     'document policy intent near the old persistence call');
+  assert.doesNotMatch(route, /async function saveVotiNominaliToCache\s*\(/,
+    'remove dead legacy writer, not just its current invocation');
+  assert.doesNotMatch(route, /async function creaNotificheParlamentoDaVotiNominali\s*\(/,
+    'retroactive notifications must not be generated from old nominal cache');
+  assert.doesNotMatch(route, /INSERT INTO parlamento_voti_nominali/,
+    'no historical nominal inserts should exist in the legacy routes');
+  assert.doesNotMatch(route, /queryWithAccountModelFallback/,
+    'unused account-query fallback was solely a dependency of legacy notification writer');
 });
 
 test('scheduled sync uses balanced source importer, not a global 50-ballot quota', () => {
