@@ -16,12 +16,6 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   onNavigate,
   onOpenOpinioni
 }) => {
-  // Separate native controls: outer clickable div selects a representative;
-  // inner button opens the current representative's profile. This avoids
-  // invalid nested button elements and touch event retargeting on mobile.
-  const isDetailsTarget = (target: EventTarget | null) =>
-    target instanceof Element && target.closest('[data-representative-details]') !== null;
-
   const renderRappresentante = (categoriaId: string) => {
     // Controlli di sicurezza per evitare TypeError
     if (!data || !data.rappresentanti || !data.idMap) {
@@ -76,19 +70,14 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
         </div>
         <div className="text-center">
           {rappresentanteData && rappresentanteData.nome && rappresentanteData.cognome ? (
-            <button
-              type="button"
-              data-representative-details
-              className="font-medium text-primary cursor-pointer hover:underline text-sm text-center"
-              onClick={(e) => {
-                e.stopPropagation();
+            <p className="font-medium text-primary cursor-pointer hover:underline text-sm" onClick={(e) => {
+                e.stopPropagation(); // Previeni l'apertura del modal di cambio
                 if (rappresentanteUid && rappresentanteData) {
                   onOpenOpinioni(rappresentanteUid, rappresentanteData.nome, rappresentanteData.cognome, rappresentanteData.avatar_config, categoriaId);
                 }
-              }}
-            >
+            }}>
               {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
-            </button>
+            </p>
           ) : (
             <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
           )}
@@ -113,37 +102,27 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   const color = colorMap[categoria.color as keyof typeof colorMap] || colorMap.blue;
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Scegli rappresentante per ${categoria.nome}`}
+    <button
+      type="button"
       className="relative flex w-full h-full min-h-0 items-center justify-center rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
-      onClick={handleClick}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleClick();
-        }
-      }}
       onMouseDown={(e) => {
-        if (isDetailsTarget(e.target)) return;
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
       onMouseUp={(e) => {
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
+        setTimeout(handleClick, 100);
       }}
       onMouseLeave={(e) => {
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
       }}
       onTouchStart={(e) => {
-        if (isDetailsTarget(e.target)) return;
-        // Do NOT preventDefault: the native click must reach the inner MEP
-        // details control, which stops propagation before card navigation.
+        e.preventDefault();
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
       onTouchEnd={(e) => {
+        e.preventDefault();
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
+        setTimeout(handleClick, 100);
       }}
       onContextMenu={e => e.preventDefault()}
     >
@@ -158,6 +137,6 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
         </div>
         {renderRappresentante(categoria.id)}
       </div>
-    </div>
+    </button>
   );
 };
