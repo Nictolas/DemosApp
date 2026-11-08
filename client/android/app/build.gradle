@@ -25,6 +25,34 @@ def demosDebugQaRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&
     (project.findProperty('demosDebugQaRealAge') ?: 'false').toString() == 'true'
 
 
+// Ad-capable RELEASE is strictly opt-in. Default release remains SDK-free.
+def demosReleaseAppOpenAds = (project.findProperty('demosReleaseAppOpenAds') ?: 'false').toString() == 'true'
+def demosReleaseAdsTestOnly = (project.findProperty('demosReleaseAdsTestOnly') ?: 'true').toString() == 'true'
+def demosReleaseAdsApproved = (project.findProperty('demosReleaseAdsApproved') ?: 'false').toString() == 'true'
+def demosReleaseAdMobAppId = (project.findProperty('demosReleaseAdMobAppId') ?: '').toString()
+def demosReleaseAdUnitId = (project.findProperty('demosReleaseAdUnitId') ?: '').toString()
+def demosSampleAppId = 'ca-app-pub-3940256099942544~3347511713'
+def demosSampleAppOpenUnitId = 'ca-app-pub-3940256099942544/9257395921'
+if (demosReleaseAppOpenAds) {
+    if (!(demosReleaseAdMobAppId ==~ /ca-app-pub-\d{16}~\d{10}/)) {
+        throw new GradleException('Ad-capable release requires a valid App ID supplied outside source control')
+    }
+    if (demosReleaseAdsTestOnly) {
+        if (demosReleaseAdUnitId && demosReleaseAdUnitId != demosSampleAppOpenUnitId) {
+            throw new GradleException('Test-only candidate must use the Google TEST App Open unit')
+        }
+    } else {
+        if (!demosReleaseAdsApproved) {
+            throw new GradleException('Real AdMob release requires explicit approval and reviewed build opt-in')
+        }
+        if (demosReleaseAdMobAppId == demosSampleAppId
+            || !(demosReleaseAdUnitId ==~ /ca-app-pub-\d{16}\/\d{10}/)
+            || demosReleaseAdUnitId == demosSampleAppOpenUnitId) {
+            throw new GradleException('Real AdMob release requires non-test App ID and App Open unit')
+        }
+    }
+}
+
 def keystorePropertiesFile = rootProject.file("keystore.properties")
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
@@ -35,6 +63,17 @@ android {
     namespace "community.demos"
     compileSdk rootProject.ext.compileSdkVersion
     buildFeatures { buildConfig true }
+
+    // The opt-in candidate shares the debug manager implementation but disables
+    // all synthetic-age and debug-EEA flags. Normal release uses the no-op stub.
+    sourceSets {
+        release {
+            java.setSrcDirs([demosReleaseAppOpenAds ? 'src/debug/java' : 'src/release/java'])
+            if (demosReleaseAppOpenAds) {
+                manifest.srcFile 'src/debug/AndroidManifest.xml'
+            }
+        }
+    }
 
     signingConfigs {
         release {
@@ -79,12 +118,15 @@ android {
             buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '"ca-app-pub-3940256099942544/9257395921"'
         }
         release {
-            // Fail closed: nessuna pubblicità in build distribuite ai tester.
-            buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', 'false'
-            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '""'
+            // Default release is SDK-free; candidate build requires Gradle opt-in.
+            buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', demosReleaseAppOpenAds.toString()
+            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', "\"${demosReleaseAppOpenAds ? demosReleaseAdMobAppId : ''}\""
             buildConfigField 'boolean', 'DEMOS_UMP_DEBUG_EEA', 'false'
             buildConfigField 'boolean', 'DEMOS_QA_FORCE_ADULT', 'false'
-            buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '""'
+            buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', "\"${demosReleaseAppOpenAds ? (demosReleaseAdsTestOnly ? demosSampleAppOpenUnitId : demosReleaseAdUnitId) : ''}\""
+            if (demosReleaseAppOpenAds) {
+                manifestPlaceholders['demosAdMobAppId'] = demosReleaseAdMobAppId
+            }
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
@@ -110,6 +152,11 @@ dependencies {
     // GMA Next-Gen e UMP sono presenti esclusivamente in build DEBUG.
     debugImplementation 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.6.0'
     debugImplementation 'com.google.android.ump:user-messaging-platform:4.0.0'
+
+    if (demosReleaseAppOpenAds) {
+        releaseImplementation 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.6.0'
+        releaseImplementation 'com.google.android.ump:user-messaging-platform:4.0.0'
+    }
 
     // Login Google nativo: Credential Manager restituisce un Google ID token
     // che viene verificato dal backend DEMOS esistente.
