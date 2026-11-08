@@ -19,7 +19,7 @@ WITH active_selections AS (
 selected AS (
   SELECT raw_selection,
          CASE
-           WHEN raw_selection ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+           WHEN raw_selection ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
            THEN raw_selection::uuid ELSE NULL::uuid
          END AS potential_uuid
   FROM active_selections
