@@ -54,17 +54,24 @@ function profileEvidence(html,rep,expectedOffice,url){
   // stored public date of birth AND the current parliamentary office label.
   const dob=birthIso(rep.data_nascita);
   if(!dob)return {state:'DOB_MISSING'};
-  const text=$('body').text().replace(/\s+/g,' ').trim();
+  // Openpolis separates office and "dal" across adjacent HTML nodes.
+  // Cheerio .text() concatenates them ("Senatoredal"); add an actual
+  // whitespace for each removed HTML tag before parsing the visible header.
+  const body=$('body').clone();
+  body.find('script,style,noscript').remove();
+  const separated=(body.html()||'').replace(/<[^>]+>/g,' ');
+  const text=cheerio.load('<div>'+separated+'</div>')('div').text()
+    .replace(/\s+/g,' ').trim();
   const i=text.toLowerCase().indexOf($('h1').first().text().trim().toLowerCase());
   if(i<0)return {state:'UNAVAILABLE'};
-  const header=text.slice(i,i+2200);
+  const header=text.slice(i,i+2600);
   const birth=header.match(/\bNato il\s+(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})\b/i);
   if(!birth)return {state:'DOB_UNAVAILABLE'};
   const sourceDob=birth[3]+'-'+MONTHS.get(birth[2].toLowerCase())+'-'+birth[1].padStart(2,'0');
   if(sourceDob!==dob)return {state:'DOB_MISMATCH'};
-  const officeMatches=[...header.matchAll(/\b(Deputato|Senatore)\s+dal\s+\d{2}\/\d{2}\/\d{4}\b/g)];
+  const officeMatches=[...header.matchAll(/\b(Deputato|Senatore)\s+dal\s+\d{1,2}\/\d{1,2}\/\d{4}\b/gi)];
   if(officeMatches.length!==1)return {state:'OFFICE_UNAVAILABLE'};
-  const office=officeMatches[0][1]==='Deputato'?'it.camera':'it.senato';
+  const office=officeMatches[0][1].toLowerCase()==='deputato'?'it.camera':'it.senato';
   return office===expectedOffice
     ? {state:'CANDIDATE_ONLY',office,profileUrl:url}
     : {state:'OFFICE_MISMATCH',office,profileUrl:url};
