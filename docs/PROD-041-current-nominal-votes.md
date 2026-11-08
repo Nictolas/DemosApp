@@ -6,8 +6,10 @@
 
 A representative has **one current nominal vote**, not a timeline. A chamber or institutional transition cannot leave two rows for the same DEMOS identity; same-day ballots from different institutions are not ordered by unrelated sequence numbers. The
 database enforces a single row per `representative_key` (also across office transitions);
-the writer atomically replaces it only when `(vote_date, ballot_order)`
-is newer. An older or equal-order replay cannot overwrite current state.
+the writer atomically replaces it when the verified vote date is newer,
+or on the same date and in the **same institution** its verified ballot
+sequence is newer. Different institutions' same-day sequence numbers
+cannot be compared. An older or equal-order replay cannot overwrite current state.
 Same-day ambiguous sequencing must remain unresolved rather than guessed.
 No party, political group, source roster, or individual history is stored.
 
@@ -17,8 +19,11 @@ No party, political group, source roster, or individual history is stored.
   is **not** the person's name. Attribution against historical source
   identifiers remains a release QA gate, especially for homonyms.
 - European Parliament: reserved `pe:<official MEP id>` with official
-  source only. The UI is outside this PR. The separate EP importer must
-  be connected and tested before claiming live EP coverage.
+  source only. Draft adapter `api/services/europeanCurrentNominalVoteAdapter.js`
+  checks exact official MEP IDs and explicitly present voting categories;
+  it never invents absences or copies political groups. It is **not yet
+  wired to the independent EP import job**, so production coverage is
+  **not implemented**. The European UI is outside this PR.
 - Absent/mission/president statuses are preserved exactly when published
   as nominal status. No inference from party or political group; secret
   votes or missing source rows result in no new current record.
@@ -33,7 +38,9 @@ No party, political group, source roster, or individual history is stored.
 Files: `api/database/20261108_institutional_current_nominal_votes.sql`,
 `api/services/institutionalCurrentNominalVotesService.js`,
 `api/services/parliamentLatestVoteNotificationsService.js`,
-`api/routes/voti-politici.js`, unit tests, PostgreSQL ephemeral integration.
+`api/routes/voti-politici.js`, the European standalone adapter,
+unit tests and PostgreSQL ephemeral integration (including concurrent
+writes, later EP ballots, and Camera-to-Senato office transitions).
 
 ## Supabase inventory (read-only, 8 November 2026)
 
