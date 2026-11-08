@@ -52,11 +52,14 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     // CI database is disposable. All app tables are isolated from other CI suites.
     await setup.query('CREATE SCHEMA ' + SCHEMA);
     await setup.query("CREATE TABLE " + SCHEMA + ".users (id uuid PRIMARY KEY, is_admin boolean NOT NULL DEFAULT false, ruolo text NOT NULL DEFAULT 'U', status text NOT NULL DEFAULT 'a')");
+    // CIE status is synthetic; no real identity, document or external provider.
+    await setup.query("CREATE TABLE " + SCHEMA + ".identity_verifications (user_id uuid PRIMARY KEY REFERENCES " + SCHEMA + ".users(id), provider text, status text, verified_at timestamptz)");
     await setup.query("CREATE TABLE " + SCHEMA + ".notifiche_demos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), id_utente uuid, titolo text, testo text NOT NULL)");
     await setup.query("CREATE TABLE " + SCHEMA + ".amnistia (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), legge text, articolo text, descrizione text, fonte_url text, attiva boolean)");
     await setup.query("CREATE TABLE " + SCHEMA + ".voti_capo_stato (id serial PRIMARY KEY, nome text NOT NULL)");
     await setup.query("CREATE TABLE " + SCHEMA + ".voti_amnistia (id serial PRIMARY KEY, legge text NOT NULL)");
     await setup.query("INSERT INTO " + SCHEMA + ".users(id,is_admin) VALUES ($1,false),($2,false),($3,true)", [A,B,ADMIN]);
+    await setup.query("INSERT INTO " + SCHEMA + ".identity_verifications(user_id,provider,status,verified_at) VALUES ($1,'CIE','verified',now() - interval '1 day'), ($2,'CIE','verified',now() - interval '1 day')", [A,B]);
     // Supabase roles are ordinarily present; provision them ONLY in ephemeral CI.
     await setup.query("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$");
     const migration = fs.readFileSync(path.join(__dirname, '../migrations/20261031_subject_proposals_review_gate.sql'), 'utf8');
@@ -281,6 +284,13 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const publishedBefore=await req('/api/subject-proposals/approved?category=organizzazioni');
     assert.match(publishedBefore.cacheControl,/no-store/,'public approved directory must never be cached');
     assert.equal(publishedBefore.body.data.length,0);
+    const deniedOrg = await req('/api/subject-proposals/admin/'+org.body.proposal.id+'/decision','admin','POST',{decision:'approve'});
+    assert.equal(deniedOrg.status,409,'no published organization without verified videocall and legal role');
+    assert.equal(deniedOrg.body.error,'VERIFICA_IDENTITA_VIDEO_MANCANTE');
+    await pool.query(
+      "INSERT INTO subject_self_profile_verifications(proposal_id,proposer_user_id,category,identity_match_confirmed,call_verified_at,call_verified_by,representative_role,role_verified_at,role_verified_by,role_evidence_kind) VALUES($1,$2,'organizzazioni',TRUE,now(),$3,'presidente',now(),$3,'official_registry')",
+      [org.body.proposal.id,B,ADMIN]
+    );
     assert.equal((await req('/api/subject-proposals/admin/'+org.body.proposal.id+'/decision','admin','POST',{decision:'approve'})).status,200);
     const publishedAfter=await req('/api/subject-proposals/approved?category=organizzazioni');
     assert.equal(publishedAfter.body.data.length,1);
@@ -410,8 +420,19 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       proposal('attivisti','Persona fittizia segnalata da terzi'));
     assert.equal(thirdParty.status,201);
     const thirdId=thirdParty.body.proposal.id;
-    assert.equal((await req('/api/subject-proposals/admin/'+thirdId+
-      '/decision','admin','POST',{decision:'approve'})).status,200);
+    const deniedThird = await req('/api/subject-proposals/admin/'+thirdId+
+      '/decision','admin','POST',{decision:'approve'});
+    assert.equal(deniedThird.status,409,'third-party activist nomination must lack self-profile video proof');
+    assert.equal(deniedThird.body.error,'VERIFICA_IDENTITA_VIDEO_MANCANTE');
+    const unpublishedThird=await req('/api/subject-proposals/approved?category=attivisti');
+    assert.equal(unpublishedThird.body.data.some(x=>x.id===thirdId),false);
+    // Legacy synthetic third-party publication: seed directly on disposable
+    // PostgreSQL to verify emergency withdrawal remains functional. This
+    // deliberately does NOT pass through the protected approval endpoint.
+    await pool.query(
+      "UPDATE subject_proposals SET status='approved', reviewed_by=$2, reviewed_at=now(), published_ref=id::text WHERE id=$1",
+      [thirdId,ADMIN]
+    );
     const visibleThird=await req('/api/subject-proposals/approved?category=attivisti');
     assert.equal(visibleThird.status,200);
     assert.match(visibleThird.cacheControl,/no-store/);
