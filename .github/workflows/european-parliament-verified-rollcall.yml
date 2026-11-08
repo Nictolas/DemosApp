@@ -64,16 +64,10 @@ jobs:
         run: |
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
           npm run build --prefix client
-      # One-off 8-sitting read-only source coverage was verified in run
-      # 42511232120 (76/76). Keep external API calls as a MANUAL release gate
-      # rather than a permanent requirement of each Draft PR push.
-      # One-time live regression after the stronger chronological and roster
-      # fail-closed guards. REMOVE this step after recording the source result;
-      # the permanent gate immediately below stays manual pre-release.
-      - name: One-time read-only real EP latest-vote 76 MEP coverage audit
-        continue-on-error: true
-        timeout-minutes: 6
-        run: node api/scripts/verifyEuropeanParliamentLatestSitting.js
+      # Last live full-source QA run 42516420377: 76/76 Italian MEPs,
+      # 6 recent plenary sittings checked, zero personal IDs logged/written.
+      # Keep this expensive official source check manual on pre-release,
+      # not repeated for each Draft PR push.
       - name: Complete Italian MEP latest verified whole-text ballots (manual release gate)
         if: github.event_name == 'workflow_dispatch'
         run: node api/scripts/verifyEuropeanParliamentLatestSitting.js
