@@ -463,7 +463,7 @@ async function main(){
     // Camera and Senate user IDs, both marked ACTIVE by a fake backfill.
     // Even a VERIFIED person link must not authorize a vote while the
     // selected active mandate still comes only from that legacy backfill.
-    const ghost='00000000-0000-4000-8000-000000000006';
+    const ghost='00000000-0000-4000-8000-000000000016';
     await pool.query(
       "UPDATE users SET data_nascita='1977-04-09' WHERE id=$1",[rep]);
     await pool.query(
