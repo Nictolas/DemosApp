@@ -65,6 +65,7 @@ function extractExplicitItalianVotes(voteResult, italianMepMap, meta) {
     sourcePersonId: mepId, ballotId: String(meta.ballotId),
     voteDate: meta.voteDate, ballotOrder: meta.ballotOrder,
     status, ballotTitle: meta.ballotTitle,
+    ballotOutcome: meta.ballotOutcome || null,
     sourceUrl: meta.sourceUrl, sourceType: 'pe_ufficiale', verified: true
   }));
 }
