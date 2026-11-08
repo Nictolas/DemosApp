@@ -9,7 +9,7 @@ on:
       - 'api/services/europeanParliamentOfficialDecisionReader.js'
       - 'api/services/europeanRepresentativeCurrentVoteReader.js'
       - 'api/services/europeanParliamentOfficialDiscovery.js'
-      - 'api/tests/europeanParliamentOfficialDiscovery.test.js api/tests/europeanParliamentCurrentOnlyCandidateBridge.test.js'
+      - 'api/tests/europeanParliamentOfficialDiscovery.test.js'
       - 'api/tests/europeanRepresentativeCurrentVoteReader.test.js'
       - 'api/services/europeanParliamentCurrentOnlyCandidateBridge.js'
       - 'api/tests/europeanParliamentCurrentOnlyCandidateBridge.test.js'
@@ -59,7 +59,7 @@ jobs:
           node --check api/services/europeanParliamentCurrentOnlyCandidateBridge.js
           node --check api/scripts/verifyEuropeanParliamentLatestSitting.js
           node --check api/scripts/probeEuropeanParliamentRecentCoverage.js
-          node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js api/tests/europeanParliamentOfficialDecisionReader.test.js api/tests/europeanRepresentativeCurrentVoteReader.test.js api/tests/europeanParliamentOfficialDiscovery.test.js
+          node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js api/tests/europeanParliamentOfficialDecisionReader.test.js api/tests/europeanRepresentativeCurrentVoteReader.test.js api/tests/europeanParliamentOfficialDiscovery.test.js api/tests/europeanParliamentCurrentOnlyCandidateBridge.test.js
       - name: Frontend type/build regression
         run: |
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
@@ -67,6 +67,13 @@ jobs:
       # One-off 8-sitting read-only source coverage was verified in run
       # 42511232120 (76/76). Keep external API calls as a MANUAL release gate
       # rather than a permanent requirement of each Draft PR push.
+      # One-time live regression after the stronger chronological and roster
+      # fail-closed guards. REMOVE this step after recording the source result;
+      # the permanent gate immediately below stays manual pre-release.
+      - name: One-time read-only real EP latest-vote 76 MEP coverage audit
+        continue-on-error: true
+        timeout-minutes: 6
+        run: node api/scripts/verifyEuropeanParliamentLatestSitting.js
       - name: Complete Italian MEP latest verified whole-text ballots (manual release gate)
         if: github.event_name == 'workflow_dispatch'
         run: node api/scripts/verifyEuropeanParliamentLatestSitting.js
