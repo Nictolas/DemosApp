@@ -9,8 +9,21 @@ const axios = require('axios');
 const { canonicalMepId } = require('./europeanParliamentVerifiedRollCallReader');
 const API_HOST = 'https://data.europarl.europa.eu';
 const TTL = 6 * 60 * 60 * 1000;
-const cache = new Map();
-const pending = new Map();
+// The 76 latest Italian MEP votes span multiple sittings. Keep enough
+// decisions for the last 12 meeting dates to avoid reloading them for each
+// profile; bounded storage, never a persistent vote history.
+const MAX_CACHED_SITTINGS = 12;
+// Injected test/custom HTTP clients must not see each other's caches or
+// accidentally poison the live Axios source cache.
+const clientStates = new WeakMap();
+function stateFor(client) {
+  let state=clientStates.get(client);
+  if (!state) {
+    state={cache:new Map(),pending:new Map()};
+    clientStates.set(client,state);
+  }
+  return state;
+}
 
 function decisionUrl(sittingDate) {
   if (!/^20\d\d-(0[1-9]|1[012])-([012]\d|3[01])$/.test(String(sittingDate))) throw new Error('EP_INVALID_DATE');
@@ -157,6 +170,7 @@ function selectLatestFinalRollCall(recordsBySitting, italianMepIds) {
 
 async function fetchOfficialDecisionBallots(sittingDate, client=axios) {
   const url = decisionUrl(sittingDate);
+  const {cache,pending}=stateFor(client);
   const stored = cache.get(sittingDate);
   if (stored && stored.expires > Date.now()) return stored.records;
   if (pending.has(sittingDate)) return pending.get(sittingDate);
@@ -176,7 +190,8 @@ async function fetchOfficialDecisionBallots(sittingDate, client=axios) {
     const records = aggregate.status === 200
       ? joinOfficialAgendaSubjects(rollCalls, aggregate.data) : rollCalls;
     if (!records.length) throw new Error('EP_OFFICIAL_API_NO_VALID_ROLLCALLS');
-    if (cache.size >= 3) cache.delete(cache.keys().next().value);
+    if (cache.size >= MAX_CACHED_SITTINGS)
+      cache.delete(cache.keys().next().value);
     cache.set(sittingDate,{records,expires:Date.now()+TTL});
     return records;
   })();
