@@ -19,6 +19,12 @@ const urls = [
       const obj = response.data;
       const entries = Array.isArray(obj) ? obj : obj?.data || obj?.['@graph'] || obj?.results || [];
       const first = entries?.[0] || {};
+      if (url.includes('/vote-results') && Array.isArray(entries)) {
+        console.log('EP_VOTE_RESULT_LABEL_EXAMPLES', JSON.stringify(entries.slice(0, 3).map(d => ({
+          id: d.activity_id,label:d.activity_label,kind:d.had_activity_type,
+          consists_of: d.consists_of,structuredLabel:d.structuredLabel
+        }))));
+      }
       if (url.includes('/decisions') && Array.isArray(entries)) {
         const rollCalls = entries.filter(d => d.had_voter_favor || d.had_voter_against || d.had_voter_abstention);
         function brief(value) {
@@ -26,6 +32,12 @@ const urls = [
             count: Array.isArray(value) ? value.length : null,
             sample: Array.isArray(value) ? value.slice(0, 2) : value == null ? null : String(value).slice(0, 120) };
         }
+        console.log('EP_DECISION_LABEL_EXAMPLES', JSON.stringify(rollCalls.slice(0, 9).map(d => ({
+          id: d.activity_id, order: d.activity_order,
+          label: d.activity_label, heading: d.headingLabel,
+          about: d.decisionAboutId, method: d.decision_method,
+          outcome: d.decision_outcome
+        }))));
         for (const d of rollCalls.slice(0, 3)) {
           console.log('EP_DECISION_SHAPE', JSON.stringify({
             path: new URL(url).pathname,
