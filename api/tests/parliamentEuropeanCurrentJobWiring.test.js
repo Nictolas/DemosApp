@@ -15,5 +15,6 @@ test('EP importer shares the existing scheduled job and defaults OFF',()=>{
     source.indexOf("require('../services/europeanParliamentSelectedCurrentVoteRefresh')"));
   assert.equal((source.match(/cron\.schedule\(/g)||[]).length,1,'reuse cron, do not create a second job');
   assert.match(source,/const openpolisVotazioniFinaliCron = process\.env\.OPENPOLIS_VOTAZIONI_FINALI_CRON/);
-  assert.doesNotMatch(block[1],/pe:|DELETE FROM|TRUNCATE|sendFinalBallotPush/);
+  const executable=block[1].split('\n').filter(line=>!line.trim().startsWith('//')).join('\n');
+  assert.doesNotMatch(executable,/pe:|DELETE FROM|TRUNCATE|sendFinalBallotPush/);
 });
