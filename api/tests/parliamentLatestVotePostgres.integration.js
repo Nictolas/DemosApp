@@ -12,6 +12,7 @@ const {
 } = require('../services/parliamentLatestVoteNotificationsService');
 const { sendFinalBallotPush } = require('../services/parliamentFinalBallotPushService');
 const { upsertVerifiedCurrentVote } = require('../services/institutionalCurrentNominalVotesService');
+const { persistExplicitItalianEuropeanVotes } = require('../services/europeanCurrentNominalVoteAdapter');
 
 const connection = new URL(process.env.TEST_PARLIAMENT_PG_URL || 'postgres://invalid');
 if (process.env.TEST_PARLIAMENT_PG_EPHEMERAL !== 'true' ||
@@ -139,6 +140,57 @@ async function main(){
       sourceUrl:'https://documenti.camera.it/fixture',sourceType:'camera_ufficiale',verified:true
     });
     assert.equal(replay.changed,false,'newer current record cannot regress');
+
+    // A person moving Camera -> Senato retains ONE current row by stable ID.
+    const moved=await upsertVerifiedCurrentVote(pool,{
+      institution:'Senato', representativeKey:'demos:'+rep,
+      sourcePersonId:'https://dati.senato.it/senatore/fixture',
+      ballotId:'19-470-3', voteDate:'2026-10-23', ballotOrder:47000003,
+      status:'Contrario', ballotTitle:'Later Senate verified fixture',
+      sourceUrl:'https://parlamento19.openpolis.it/votazioni/19-470-3',
+      sourceType:'senato_openpolis',verified:true
+    });
+    assert.equal(moved.changed,true);
+    current=(await pool.query(
+      "SELECT institution,ballot_id FROM public.institutional_current_nominal_votes WHERE representative_key=$1",
+      ['demos:'+rep]
+    )).rows;
+    assert.equal(current.length,1,'no second current row across chamber transfer');
+    assert.equal(current[0].institution,'Senato');
+    assert.equal(current[0].ballot_id,'19-470-3');
+    const staleCamera=await upsertVerifiedCurrentVote(pool,{
+      institution:'Camera', representativeKey:'demos:'+rep,
+      ballotId:'vs19_733_001', voteDate:'2026-10-22', ballotOrder:73300001,
+      status:'Favorevole', ballotTitle:'Stale Camera fixture',
+      sourceUrl:'https://documenti.camera.it/fixture',
+      sourceType:'camera_ufficiale',verified:true
+    });
+    assert.equal(staleCamera.changed,false,'old Camera vote cannot regress new Senate office');
+    const italianMepMap=new Map([['12345',{id:'12345'}],['12346',{id:'12346'}]]);
+    const epBase={voteDate:'2026-10-20',ballotOrder:10,
+      ballotTitle:'Official EP fixture',
+      sourceUrl:'https://data.europarl.europa.eu/api/v2/vote-results/fixture',
+      sourceType:'pe_ufficiale',verified:true};
+    let epResult=await persistExplicitItalianEuropeanVotes(pool,
+      {votedFor:['12345'],votedAgainst:['12346']},italianMepMap,
+      {...epBase,ballotId:'MTG-PL-2026-10-20-ITM-10'});
+    assert.deepEqual(epResult,{considered:2,changed:2});
+    epResult=await persistExplicitItalianEuropeanVotes(pool,
+      {votedAbstained:['12345']},italianMepMap,
+      {...epBase,ballotId:'MTG-PL-2026-10-21-ITM-11',voteDate:'2026-10-21',ballotOrder:11});
+    assert.deepEqual(epResult,{considered:1,changed:1});
+    epResult=await persistExplicitItalianEuropeanVotes(pool,
+      {votedFor:['12345'],votedAgainst:['12346']},italianMepMap,
+      {...epBase,ballotId:'MTG-PL-2026-10-20-ITM-10'});
+    assert.equal(epResult.changed,0,'older EP ballot cannot replace newest');
+    const epRows=(await pool.query(
+      "SELECT representative_key,ballot_id,vote FROM public.institutional_current_nominal_votes WHERE institution='PE' ORDER BY representative_key"
+    )).rows;
+    assert.equal(epRows.length,2,'one EP current vote per official stable MEP ID');
+    assert.equal(epRows[0].representative_key,'pe:12345');
+    assert.equal(epRows[0].vote,'Astenuto');
+    assert.equal(epRows[1].vote,'Contrario');
+
     result=await persistLatestForChamber(pool,second,verified(second),reps);
     assert.equal(result.changed,0,'replay idempotent');
     assert.equal((await read()).rows[0].openpolis_id,second.openpolis_id);
