@@ -6,6 +6,49 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..', '..');
 const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 
+
+test('Grazia CIE verifier does not log provider or SQL exception content', async () => {
+  const vm = require('node:vm');
+  const source = read('api/middleware/civicIdentity.js');
+  const grazia = read('api/routes/grazia.js');
+  assert.match(grazia, /requireVerifiedCivicIdentity/, 'Grazia voting uses the shared identity middleware');
+  const logs = [];
+  const contextModule = { exports: {} };
+  const sensitiveFixture = 'SYNTHETIC-IDENTITY-METADATA-NOT-FOR-LOGS';
+  const stubs = {
+    '../services/identityVerificationStore': {
+      getIdentityVerificationStatus: async () => { throw new Error(sensitiveFixture); },
+    },
+    '../constants/identityVerification': { IDENTITY_PROVIDERS: { CIE: 'CIE' } },
+    '../services/civicIdentityPolicy': { isCieRequiredForCivicActions: () => true },
+  };
+  vm.runInNewContext(source, {
+    module: contextModule,
+    require(name) {
+      assert.ok(Object.hasOwn(stubs, name), 'unexpected middleware dependency: ' + name);
+      return stubs[name];
+    },
+    console: { error: (...args) => logs.push(args.join(' ')) },
+  }, { filename: 'civicIdentity.js' });
+  const response = {
+    code: null,
+    payload: null,
+    status(code) { this.code = code; return this; },
+    json(payload) { this.payload = payload; return this; },
+  };
+  let nextCalls = 0;
+  await contextModule.exports.requireVerifiedCivicIdentity(
+    { userId: 'synthetic-user', user: { isAdmin: false } },
+    response,
+    () => { nextCalls++; },
+  );
+  assert.equal(response.code, 503);
+  assert.equal(response.payload.code, 'CIVIC_IDENTITY_CHECK_UNAVAILABLE');
+  assert.equal(nextCalls, 0);
+  assert.deepEqual(logs, ['CIVIC_IDENTITY_CHECK_UNAVAILABLE']);
+  assert.doesNotMatch(JSON.stringify({ logs, response: response.payload }), /SYNTHETIC-IDENTITY-METADATA/);
+});
+
 test('political consent route logs no account identifiers or raw SQL errors', () => {
   const source = read('api/routes/user/political-opinions-consent.js');
   assert.ok(!source.includes('console.log('), 'no per-user success/count logs');
