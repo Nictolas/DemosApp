@@ -19,6 +19,29 @@ const urls = [
       const obj = response.data;
       const entries = Array.isArray(obj) ? obj : obj?.data || obj?.['@graph'] || obj?.results || [];
       const first = entries?.[0] || {};
+      if (url.includes('/decisions') && Array.isArray(entries)) {
+        const rollCalls = entries.filter(d => d.had_voter_favor || d.had_voter_against || d.had_voter_abstention);
+        function brief(value) {
+          return { type: Array.isArray(value) ? 'array' : typeof value,
+            count: Array.isArray(value) ? value.length : null,
+            sample: Array.isArray(value) ? value.slice(0, 2) : value == null ? null : String(value).slice(0, 120) };
+        }
+        for (const d of rollCalls.slice(0, 3)) {
+          console.log('EP_DECISION_SHAPE', JSON.stringify({
+            path: new URL(url).pathname,
+            activity_id: brief(d.activity_id),
+            method: brief(d.decision_method),
+            outcome: brief(d.decision_outcome),
+            activityType: brief(d.had_activity_type),
+            label: brief(d.activity_label),
+            voteId: brief(d.notation_votingId),
+            favor: brief(d.had_voter_favor),
+            against: brief(d.had_voter_against),
+            abstention: brief(d.had_voter_abstention),
+            note: brief(d.headingLabel)
+          }));
+        }
+      }
       console.log('EP_PUBLIC_API_READ_ONLY', JSON.stringify({
         path: new URL(url).pathname,
         status: response.status,
