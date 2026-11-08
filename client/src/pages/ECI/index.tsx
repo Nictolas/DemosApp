@@ -36,6 +36,7 @@ interface ECIItem {
   end_date?: string | null;
   obiettivi?: string | null;
   url?: string | null;
+  status?: string | null;
 }
 
 interface ECIDataResponse {
@@ -105,6 +106,7 @@ export default function ECI() {
     end_date: item.end_date ?? null,
     obiettivi: item.obiettivi ?? null,
     url: item.url ?? null,
+    status: item.status ?? null,
   });
 
   const formatScadenza = (d: string | null | undefined): string => {
@@ -370,6 +372,12 @@ export default function ECI() {
           </DialogHeader>
           {viewItem && (
             <div className="space-y-4 bg-white overflow-y-auto">
+              {viewItem.status === "NOT_ONGOING" && (
+                <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-gray-800">
+                  La raccolta firme non risulta più in corso. Le informazioni riportate sono quelle conservate da DEMOS;
+                  verifica lo stato aggiornato sul registro ufficiale della Commissione europea.
+                </p>
+              )}
               <CivicOfficialInformation
                 category="eci"
                 description={viewItem.obiettivi}

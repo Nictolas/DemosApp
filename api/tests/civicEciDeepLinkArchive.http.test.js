@@ -113,5 +113,6 @@ test('ECI frontend requests a missing official archive by ID without another pag
   assert.match(client,/encodeURIComponent\(deepLinkId\)/);
   assert.match(client,/const archived = \(eciData\?\.initiatives \|\| \[\]\)\.find/);
   assert.match(client,/setViewItem\(toItem\(archived\)\)/);
+  assert.match(client,/viewItem\.status === "NOT_ONGOING"/);
   assert.match(client,/const item = baseList\.find/);
 });
