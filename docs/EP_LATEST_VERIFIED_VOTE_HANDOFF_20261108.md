@@ -1,3 +1,43 @@
+## Checkpoint più recente — 8 novembre 2026, fonte PE ricontrollata dopo fail-closed
+
+**Audit ufficiale ripetuto e superato**: [GitHub Actions 42516420377](https://github.com/Nictolas/DemosApp/actions/runs/42516420377)
+step `EP_LAST_VERIFIED_COVERAGE_REAL_PASS`:
+`latestSitting=2026-10-22`, **76/76** MepId italiani correnti con
+ultimo voto nominale definitivo verificato, **6** sedute PE consultate,
+**0** ignoti, **0** scritture DB, **0** ID personali nei log. Questo audit
+si è svolto **dopo** i controlli più rigorosi su cronologia e elenchi
+ufficiali definitivi. Il precedente [run 42511232120](https://github.com/Nictolas/DemosApp/actions/runs/42511232120)
+aveva controllato 8 sedute.
+
+**CI integrata corretta**: le prove
+`api/tests/europeanParliamentCurrentOnlyCandidateBridge.test.js`
+erano inizialmente presenti ma non eseguite a causa di una riga
+`paths` malformata e di un comando di test incompleto nel workflow.
+Il problema è stato corretto prima del run 42516420377; il job
+`ep-reader` con i test del crosswalk e il job `ep-chrome-320-390`
+sono entrambi **SUCCESS**. Anche build React/Vite e parsing Node superati.
+Dopo la ricognizione live, l'audit esterno è tornato
+**manuale `workflow_dispatch`** come gate pre-release, evitando
+richieste API ripetute su ogni push Draft.
+
+**Persistenza reale non completata**: PR #633 è ancora proprietaria della
+migration PE, del mapping certificato MepId↔UUID e del writer attuale.
+Staging unificato: **0/76** associazioni revisionate, **0** voti
+nominali PE correnti; nessuna scrittura eseguita in questo ramo.
+Non confondere la copertura 76/76 di voti ufficiali con il numero di
+persone già collegate ai profili DEMOS. In assenza del crosswalk
+la scheda espone `null`, non un voto attribuito per nome.
+
+**Azioni utente**: non serve oggi caricare un'AAB, configurare Render
+o attivare nuove risorse. Una volta disponibile la procedura di revisione,
+un reviewer umano autorizzato (eventualmente l'Admin/DPO) deve
+confermare le prove d'identità istituzionale prima di marcare
+`review_state=VERIFIED`. Il GO a merge/deploy/Android richiede
+un'approvazione espressa **dopo** il test E2E con dati reali su
+staging e la revisione privacy.
+
+---
+
 ## Ulteriore controllo fonte e costi — 08/11/2026 (ultimo aggiornamento)
 
 **Nuovi test e guardrail nel Draft #635:**
