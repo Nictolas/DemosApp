@@ -178,7 +178,7 @@ const LOCK_SELECTED_NOMINAL_ELIGIBILITY_SQL = [
   "AND l.review_state='VERIFIED'",
   'AND l.reviewed_by IS NOT NULL AND l.reviewed_at IS NOT NULL',
   'AND l.verified_at IS NOT NULL',
-  'FOR SHARE OF ps,follower,p,m,l LIMIT 1'
+  'LIMIT 1 FOR SHARE OF ps,follower,p,m,l'
 ].join(' ');
 
 async function persistLatestForChamber(pool, vote, verified, reps) {
