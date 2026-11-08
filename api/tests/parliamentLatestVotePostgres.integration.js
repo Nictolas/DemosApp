@@ -128,28 +128,6 @@ async function main(){
     assert.equal(rows[0].voto,'In missione','no invented against vote');
     await pool.query('INSERT INTO reazioni (comunicazione_id,utente_id) VALUES ($1,$2)',[noteId,follower]);
 
-    // A direct writer call cannot bypass a revoked review, a different MepId
-    // or the lack of any active canonical selection.
-    const epAttempt=(id,person)=>({
-      institution:'PE', representativeKey:'demos:'+epPeople[0],
-      sourcePersonId:person,ballotId:id,
-      voteDate:'2026-10-24',ballotOrder:44,status:'Favorevole',
-      ballotTitle:'Security regression fixture',
-      sourceUrl:'https://data.europarl.europa.eu/api/v2/vote-results/fixture',
-      sourceType:'pe_ufficiale',verified:true
-    });
-    await pool.query("UPDATE public.institutional_nominal_identity_links SET review_state='PENDING',reviewed_by=NULL,reviewed_at=NULL WHERE institution='PE' AND representative_id=$1",[epPeople[0]]);
-    assert.equal((await upsertVerifiedCurrentVote(pool,epAttempt('MTG-PL-2026-10-24-DEC-20','12345'))).changed,false,
-      'revoked VERIFIED identity must block writer directly');
-    await pool.query("UPDATE public.institutional_nominal_identity_links SET review_state='VERIFIED',reviewed_by=$2,reviewed_at=now() WHERE institution='PE' AND representative_id=$1",[epPeople[0],other]);
-    assert.equal((await upsertVerifiedCurrentVote(pool,epAttempt('MTG-PL-2026-10-24-DEC-21','12346'))).changed,false,
-      'another official MepId cannot overwrite this UUID');
-    await pool.query("DELETE FROM political_selections WHERE political_office_id='eu.parliament.it' AND selected_user_id=$1",[epPeople[0]]);
-    assert.equal((await upsertVerifiedCurrentVote(pool,epAttempt('MTG-PL-2026-10-24-DEC-22','12345'))).changed,false,
-      'zero active followers prevents a new vote even with a VERIFIED identity');
-    assert.equal((await pool.query("SELECT count(*)::int n FROM public.institutional_current_nominal_votes WHERE representative_key=$1",['demos:'+epPeople[0]])).rows[0].n,1,
-      'failed authorization cannot append another vote');
-    await pool.query("INSERT INTO political_selections(user_id,selected_user_id,selection_kind,political_office_id) VALUES ($1,$2,'representative','eu.parliament.it')",[follower,epPeople[0]]);
 
     result=await persistLatestForChamber(pool,second,verified(second),reps);
     assert.equal(result.changed,1);
@@ -291,6 +269,30 @@ async function main(){
     assert.equal(latestEp.length,1,'concurrent writers cannot append duplicate vote');
     assert.equal(latestEp[0].ballot_id,'MTG-PL-2026-10-22-ITM-2');
     assert.equal(latestEp[0].vote,'Favorevole');
+
+    // A direct writer call cannot bypass a revoked review, a different MepId
+    // or the lack of any active canonical selection.
+    const epAttempt=(id,person)=>({
+      institution:'PE', representativeKey:'demos:'+epPeople[0],
+      sourcePersonId:person,ballotId:id,
+      voteDate:'2026-10-24',ballotOrder:44,status:'Favorevole',
+      ballotTitle:'Security regression fixture',
+      sourceUrl:'https://data.europarl.europa.eu/api/v2/vote-results/fixture',
+      sourceType:'pe_ufficiale',verified:true
+    });
+    await pool.query("UPDATE public.institutional_nominal_identity_links SET review_state='PENDING',reviewed_by=NULL,reviewed_at=NULL WHERE institution='PE' AND representative_id=$1",[epPeople[0]]);
+    assert.equal((await upsertVerifiedCurrentVote(pool,epAttempt('MTG-PL-2026-10-24-DEC-20','12345'))).changed,false,
+      'revoked VERIFIED identity must block writer directly');
+    await pool.query("UPDATE public.institutional_nominal_identity_links SET review_state='VERIFIED',reviewed_by=$2,reviewed_at=now() WHERE institution='PE' AND representative_id=$1",[epPeople[0],other]);
+    assert.equal((await upsertVerifiedCurrentVote(pool,epAttempt('MTG-PL-2026-10-24-DEC-21','12346'))).changed,false,
+      'another official MepId cannot overwrite this UUID');
+    await pool.query("DELETE FROM political_selections WHERE political_office_id='eu.parliament.it' AND selected_user_id=$1",[epPeople[0]]);
+    assert.equal((await upsertVerifiedCurrentVote(pool,epAttempt('MTG-PL-2026-10-24-DEC-22','12345'))).changed,false,
+      'zero active followers prevents a new vote even with a VERIFIED identity');
+    assert.equal((await pool.query("SELECT count(*)::int n FROM public.institutional_current_nominal_votes WHERE representative_key=$1",['demos:'+epPeople[0]])).rows[0].n,1,
+      'failed authorization cannot append another vote');
+    await pool.query("INSERT INTO political_selections(user_id,selected_user_id,selection_kind,political_office_id) VALUES ($1,$2,'representative','eu.parliament.it')",[follower,epPeople[0]]);
+
 
     result=await persistLatestForChamber(pool,second,verified(second),reps);
     assert.equal(result.changed,0,'replay idempotent');
