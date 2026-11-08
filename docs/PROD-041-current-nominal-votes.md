@@ -402,3 +402,53 @@ e nessuna modifica in Supabase produzione durante il controllo.
 Il codice `VERIFIED` con revisore autorizzato resta l'unico
 ingresso nel writer dei voti. Non deve essere abilitato prima di
 una verifica QA delle fonti live e dell'integrazione nella release.
+
+
+## Legacy C/S identity double quarantine — 8 November 2026
+
+**Existing canonical issue, not a newly authorized merge:** GitHub
+[issue #396](https://github.com/Nictolas/DemosApp/issues/396) and
+[Draft #397](https://github.com/Nictolas/DemosApp/pull/397)
+already documented **36 same-name, same-DOB active legacy C/S
+double-profile groups** and retired unsafe importer SQL. Draft #398
+separately guards re-running the migration that fabricated
+`LEGACY_BACKFILL/ACTIVE` historical mandates. Do not duplicate their
+user-merging or migration work in PROD-041.
+
+**New read-only check on production:** there are 1,485 active DEMOS
+Camera/Senato representative IDs and 36 pairs (72 IDs) matching by
+public name+DOB with C/S `LEGACY_BACKFILL/ACTIVE` mandates.
+Exactly **2 of the 7 currently selected Italian representatives**
+are in those cross-office legacy-duplicate groups (one of the three
+selected Camera accounts, one of the four selected Senate accounts).
+The accounts involved are Claudio Borghi and Benedetto Della Vedova.
+A previous identity review warned that the Camera profile of
+Claudio Borghi has authentication and personal preferences attached:
+**never merge/delete it automatically**.
+
+**New fail-closed writer gate:** `selectedRepresentatives` now
+refuses a selected profile that has (a) a matching birth date and
+the exact same first and last name as a *different* DEMOS user,
+(b) a corresponding simultaneously active legacy-backfilled mandate
+in the opposite house, and (c) its own selected mandate also
+`LEGACY_BACKFILL/ACTIVE`. A **reviewed source-person link by itself
+does not override** this provenance problem. Only after an independently
+verified current-office mandate has been reconciled does the user
+become eligible for selected-only current nominal votes. Same name
+alone or different date of birth does not trigger this quarantine.
+This does not merge users, remove existing notifications, change
+selections, delete historical records or silently switch the house.
+The reviewer-only queue
+`api/database/20261108_selected_mp_identity_review_readonly.sql`
+now returns `QUARANTINED_CROSS_CHAMBER_LEGACY_DUPLICATE` for such
+selected cases; no follower IDs or private DOB is emitted.
+
+**Regressions:** isolated real PG16 synthetic tests create a pair
+of separately keyed C/S accounts with the same full name and DOB
+and overlapping legacy mandates. Tests require quarantine even
+with a manually VERIFIED identity link; an officially reconciled
+current mandate lifts quarantine, while a same-name/different-DOB
+pair is not automatically classified as one person. The entire
+change remains Draft and has **not** been executed in production.
+A user-profile merge and remediation of selected slots belongs to
+issue #396 and requires an independent DPO/operations GO.
