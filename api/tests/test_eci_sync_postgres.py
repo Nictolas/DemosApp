@@ -64,7 +64,7 @@ class EciTransactionalLockPostgresTest(unittest.TestCase):
                         CREATE TABLE eci (
                             id TEXT PRIMARY KEY, title TEXT NOT NULL,
                             signature_count BIGINT, slug TEXT, status TEXT,
-                            end_date DATE, obiettivi TEXT, url TEXT
+                            end_date DATE, obiettivi TEXT, url TEXT, updated_at TIMESTAMPTZ DEFAULT now()
                         );
                         CREATE TABLE civic_new_initiative_notifications (
                             id BIGSERIAL PRIMARY KEY,
