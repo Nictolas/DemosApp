@@ -7,7 +7,7 @@
  */
 const { fetchOfficialDecisionBallots, decisionUrl } =
   require('./europeanParliamentOfficialDecisionReader');
-const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function projectVerifiedEuropeanCurrentVote(row, officialRecords) {
   if (!row || !Array.isArray(officialRecords)) return null;
