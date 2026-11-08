@@ -195,7 +195,7 @@ export default function ECI() {
               Le Iniziative dei Cittadini Europei (ECI) sono uno strumento per permettere ai cittadini europei di proporre nuove leggi. Devono essere raccolte un milione di firme, in un anno, in almeno 7 paesi dell'Unione Europea.
             </p>
             <p className="text-gray-500 text-sm max-w-2xl mx-auto mt-2">
-              I numeri delle firme vengono aggiornati ogni 2 ore. Per il dato in tempo reale usa il pulsante &quot;Vai al sito UE&quot; sotto ogni iniziativa.
+              I dati potrebbero non essere aggiornati in tempo reale. Per verificare il numero attuale delle firme consulta il portale ufficiale della Commissione europea.
             </p>
           </div>
 

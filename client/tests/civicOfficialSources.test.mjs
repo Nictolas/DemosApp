@@ -45,6 +45,7 @@ test("the three existing detail dialogs reuse one information component without 
     ["client/src/pages/ReferendumAbrogativi/components/ViewDialog.tsx", "referendum_abrogativi"],
     ["client/src/pages/ECI/index.tsx", "eci"],
   ];
+  assert.doesNotMatch(read("client/src/pages/ECI/index.tsx"), /aggiornati ogni 2 ore/i);
   assert.match(component, /<details/);
   assert.match(component, /<summary/);
   assert.match(component, /civicOfficialSourceUrl/);
