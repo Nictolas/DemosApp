@@ -44,6 +44,15 @@ test('source date and office are independently verified; no grouping heuristics'
     'OFFICE_UNAVAILABLE');
 });
 
+test('HTML nodes splitting the current-office label must still be recognized',()=>{
+  const rep={nome:'Claudio',cognome:'Borghi',data_nascita:'1970-06-06'};
+  const url='https://parlamento19.openpolis.it/persone/claudio-borghi-1970-06-06';
+  const markup=html('Claudio Borghi','1970-06-06','Senatore')
+    .replace('<p>Senatore dal 13/10/2022</p>',
+      '<p><span>Senatore</span><span>dal 13/10/2022</span></p>');
+  assert.equal(profileEvidence(markup,rep,'it.camera',url).state,'OFFICE_MISMATCH');
+});
+
 test('profile candidates depend on public name and DOB and use safe limited HTTPS hosts',()=>{
   assert.deepEqual(profileCandidates({nome:'Claudio',cognome:'Borghi',data_nascita:'1970-06-06'}),[
     'https://parlamento19.openpolis.it/persone/claudio-borghi-1970-06-06',
