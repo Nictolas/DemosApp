@@ -328,11 +328,11 @@ export function ViewOpinioniDialog({
           <section aria-label="Ultimo voto del Parlamento europeo" className="shrink-0 mx-4 mb-3 rounded-lg border border-gray-200 p-3 text-sm">
             <h3 className="font-semibold">Ultimo voto nominale verificato</h3>
             {ultimoVotoEuropeo?.verified === true &&
-             /^\\d+$/.test(ultimoVotoEuropeo.mepId) &&
-             /^\\d{4}-\\d{2}-\\d{2}$/.test(ultimoVotoEuropeo.date) &&
+             /^\d+$/.test(ultimoVotoEuropeo.mepId) &&
+             /^\d{4}-\d{2}-\d{2}$/.test(ultimoVotoEuropeo.date) &&
              ['Favorevole', 'Contrario', 'Astenuto'].includes(ultimoVotoEuropeo.vote) &&
              ['Approvato', 'Respinto'].includes(ultimoVotoEuropeo.outcome) &&
-             /^https:\/\/www\\.europarl\\.europa\\.eu\/doceo\//.test(ultimoVotoEuropeo.sourceUrl) ? (
+             /^https:\/\/www\.europarl\.europa\.eu\/doceo\//.test(ultimoVotoEuropeo.sourceUrl) ? (
               <div className="space-y-1">
                 <p className="font-medium break-words">{ultimoVotoEuropeo.subject}</p>
                 <p>Data: {ultimoVotoEuropeo.date}</p>
