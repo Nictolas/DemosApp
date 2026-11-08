@@ -321,6 +321,50 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # Both installable APKs use the same isolated package and Android DEBUG key,
+      # but compile the real RELEASE code path (BuildConfig.DEBUG=false).
+      # Google SAMPLE app ID + TEST unit only; no Play or real ad traffic.
+      - name: Build isolated Ads-free to TEST-ads release upgrade pair
+        working-directory: client/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=app/build/outputs/apk/release/isolated-qa
+          mkdir -p "$out"
+          ./gradlew :app:assembleRelease \
+            -PdemosReleaseQaIsolated=true \
+            --no-daemon --console=plain
+          apk=app/build/outputs/apk/release/app-release.apk
+          test -s "$apk"
+          cp "$apk" "$out/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk"
+          ./gradlew :app:assembleRelease \
+            -PdemosReleaseQaIsolated=true \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=true \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            --no-daemon --console=plain
+          test -s "$apk"
+          cp "$apk" "$out/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          for file in "$out"/*.apk; do
+            "$aapt" dump badging "$file" | grep -Fq "package: name='community.demos.qaadsrc'"
+          done
+          if "$aapt" dump xmltree "$out/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk" AndroidManifest.xml | grep -Fq 'com.google.android.gms.ads.APPLICATION_ID'; then
+            echo "::error::Ads-free isolated baseline includes AdMob"
+            exit 1
+          fi
+          "$aapt" dump xmltree "$out/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk" AndroidManifest.xml | grep -Fq 'com.google.android.gms.ads.APPLICATION_ID'
+          build_config="$(find app/build/generated/source/buildConfig/release -name BuildConfig.java -print -quit)"
+          test -n "$build_config"
+          grep -Eq 'DEMOS_APP_OPEN_ADS_ENABLED = true;' "$build_config"
+          grep -Eq 'DEMOS_QA_FORCE_ADULT = false;' "$build_config"
+          grep -Eq 'DEMOS_UMP_DEBUG_EEA = false;' "$build_config"
+          grep -Fq 'ca-app-pub-3940256099942544/9257395921' "$build_config"
+          sha256sum "$out"/*.apk
+          echo 'PASS: isolated release upgrade pair built using Google TEST ad unit only'
+
       # Real-age QA differs from the forced-adult .qaopen smoke above.
       # On a fresh, OFFLINE device without an authenticated user, not even the
       # UMP request or the test ad SDK may start. No user account is used.
@@ -349,6 +393,32 @@ jobs:
             adb logcat -d -s DemosAdsQA:I > /tmp/demos-qaage-anonymous-logcat.txt
             if grep -Eq 'sdk-initialize-approved|app-open-test-request-started|app-open-test-loaded|form-complete' /tmp/demos-qaage-anonymous-logcat.txt; then echo 'ERROR: advertising or consent started for an unauthenticated QA user'; exit 1; fi
             echo 'Anonymous real-age QA: installed, cold start and foreground return OK, no ad/consent start log'
+
+            # Test a release-mode upgrade and a fresh install in the SAME isolated
+            # package. It cannot touch community.demos or the Play tester build.
+            baseline=client/android/app/build/outputs/apk/release/isolated-qa/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk
+            candidate=client/android/app/build/outputs/apk/release/isolated-qa/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk
+            test -s "$baseline" && test -s "$candidate"
+            adb install "$baseline"
+            adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
+            sleep 4
+            test -n "$(adb shell pidof community.demos.qaadsrc | tr -d '\r')"
+            # The app's data is NOT cleared: this exercises APK replacement.
+            adb install -r "$candidate"
+            adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
+            sleep 5
+            test -n "$(adb shell pidof community.demos.qaadsrc | tr -d '\r')"
+            echo 'PASS: isolated Ads-free to TEST-ads RELEASE APK replacement survived'
+            adb uninstall community.demos.qaadsrc
+            adb install "$candidate"
+            adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
+            sleep 5
+            test -n "$(adb shell pidof community.demos.qaadsrc | tr -d '\r')"
+            if adb logcat -d -s AndroidRuntime:E | grep -Fq 'community.demos.qaadsrc'; then
+              echo "::error::Fatal AndroidRuntime exception for isolated ad candidate"
+              exit 1
+            fi
+            echo 'PASS: isolated TEST-ads release first installation and startup survived offline (anonymous)'
 
       - name: Confirm release runtime does not include AdMob or UMP
         working-directory: client/android
