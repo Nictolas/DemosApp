@@ -103,6 +103,22 @@ test('balanced importer stops on repeated pages and fails closed on empty first 
     /OPENPOLIS_FINAL_VOTES_PARSE_EMPTY/);
 });
 
+test('authenticated final-vote feed is read-only, with a fail-closed empty cache', () => {
+  const route = fs.readFileSync(path.join(__dirname, '../routes/voti-politici.js'), 'utf8');
+  const start = route.indexOf("router.get('/votazioni-finali-decisive', verifyToken");
+  const end = route.indexOf("router.post('/sync-votazioni-finali-decisive'", start);
+  assert.ok(start >= 0 && end > start, 'feed and Admin sync routes must be distinct');
+  const feed = route.slice(start, end);
+  assert.match(feed, /loadOpenpolisVotazioniFinali\(pool, limit\)/);
+  assert.match(feed, /rows\.length === 0/);
+  assert.match(feed, /res\.status\(503\)\.json/);
+  assert.doesNotMatch(feed, /fetchVotazioniFinaliDecisive|saveOpenpolisVotazioniFinaliToDb|INSERT INTO|UPDATE /,
+    'authenticated GET must never fetch and persist upstream source data');
+  const sync = route.slice(end, route.indexOf("router.get('/ultime'", end));
+  assert.match(sync, /requireAdmin/);
+  assert.match(sync, /runOpenpolisVotazioniFinaliSync\(\)/);
+});
+
 test('scheduled sync uses balanced source importer, not a global 50-ballot quota', () => {
   const job=fs.readFileSync(path.join(__dirname,'../jobs/openpolisVotazioniFinaliJob.js'),'utf8');
   assert.match(job,/fetchVotazioniFinaliPerCamera\(50\)/);
