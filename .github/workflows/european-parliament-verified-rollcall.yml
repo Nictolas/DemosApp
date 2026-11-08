@@ -19,6 +19,8 @@ on:
       - 'api/database/20261108_ep_selected_identity_review_readonly.sql'
       - 'docs/operations/PROD041_EP_BRIDGE_MIGRATION_PROPOSAL.sql'
       - 'api/tests/epBridgeProposalPgSmoke.sh'
+      - 'api/tests/fixtures/epSelectedWriterPgFixture.sql'
+      - 'api/tests/epSelectedWriterRealPgSmoke.js'
       - 'api/tests/europeanParliamentIdentityReviewReadonly.test.js'
       - 'api/tests/europeanParliamentWorkflow.test.js'
       - 'api/tests/europeanRepresentativeChrome.synthetic.e2e.test.js'
@@ -162,3 +164,33 @@ jobs:
           PGPASSWORD: synthetic_fixture_only
           PGDATABASE: ep_bridge_ci_fixture
         run: bash api/tests/epBridgeProposalPgSmoke.sh
+      - name: Fetch the actual current-vote writer and schema from PR #633
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: Nictolas/DemosApp
+          ref: refs/pull/633/head
+          path: .interop-pr633
+          persist-credentials: false
+          sparse-checkout: |
+            api/services/institutionalCurrentNominalVotesService.js
+            api/database/20261108_institutional_current_nominal_votes.sql
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install backend dependencies for isolated PostgreSQL tests
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Prove actual canonical followed-PE write, replay protection, review revocation, ROLLBACK
+        env:
+          EP_SCHEMA_FIXTURE_ONLY: 'true'
+          EP_CURRENT_WRITER_PATH: .interop-pr633/api/services/institutionalCurrentNominalVotesService.js
+          PGHOST: 127.0.0.1
+          PGPORT: '55434'
+          PGUSER: ep_fixture
+          PGPASSWORD: synthetic_fixture_only
+          PGDATABASE: ep_bridge_ci_fixture
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -q -f .interop-pr633/api/database/20261108_institutional_current_nominal_votes.sql
+          psql -X -v ON_ERROR_STOP=1 -q -f api/tests/fixtures/epSelectedWriterPgFixture.sql
+          node api/tests/epSelectedWriterRealPgSmoke.js
