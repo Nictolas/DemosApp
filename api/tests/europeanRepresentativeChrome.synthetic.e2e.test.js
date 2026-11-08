@@ -104,6 +104,21 @@ test('Chrome 320/390: real European representative card, one verified vote and f
           await page.goto(origin+'/rappresentanti',{waitUntil:'domcontentloaded'});
           const rep=page.getByText(name,{exact:true}).first();
           await rep.waitFor({timeout:30000});
+          // Captured event target types are synthetic UI-only diagnostics;
+          // do not log names, IDs, API payloads, or credentials.
+          await page.evaluate(()=>{
+            window.__epQaEvents=[];
+            for(const kind of ['touchstart','touchend','pointerdown','pointerup','click']){
+              document.addEventListener(kind,event=>{
+                const el=event.target;
+                window.__epQaEvents.push({
+                  kind,tag:el?.tagName||null,
+                  details:!!el?.closest?.('[data-representative-details]'),
+                  outer:!!el?.closest?.('[role="button"]')
+                });
+              },true);
+            }
+          });
           if(screen.width===320) await rep.tap();
           else await rep.click();
           const card=page.locator('[aria-label="Ultimo voto del Parlamento europeo"]');
@@ -115,7 +130,8 @@ test('Chrome 320/390: real European representative card, one verified vote and f
             console.log('EP_CHROME_SYNTHETIC_NAV_DIAG',JSON.stringify({
               width:screen.width,hasVote:full,route:new URL(page.url()).pathname,
               selectedNameControls:await page.locator('[data-representative-details]').count(),
-              visibleDialogSections:await card.count(),authenticatedRequests:authenticated
+              visibleDialogSections:await card.count(),authenticatedRequests:authenticated,
+              clickTargets:await page.evaluate(()=>window.__epQaEvents||[]).catch(()=>[])
             }));
             throw error;
           }
