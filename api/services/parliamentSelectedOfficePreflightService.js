@@ -5,6 +5,7 @@
 // Openpolis is useful for screening; institutional evidence is needed for approval.
 const axios=require('axios');
 const cheerio=require('cheerio');
+const { memberNameVariants }=require('./parliamentLatestVoteNotificationsService');
 
 const MONTHS=new Map(Object.entries({
   gennaio:'01',febbraio:'02',marzo:'03',aprile:'04',maggio:'05',giugno:'06',
@@ -48,8 +49,9 @@ function profileEvidence(html,rep,expectedOffice,url){
     return {state:'UNAVAILABLE'};
   const $=cheerio.load(html);
   const actualName=norm($('h1').first().text());
-  const selectedName=norm(rep.nome+' '+rep.cognome);
-  if(!actualName||actualName!==selectedName)return {state:'NAME_MISMATCH'};
+  // A documented institutional alias (Peppe/Giuseppe De Cristofaro) is
+  // acceptable, but no generic fuzzy name matching or guesswork.
+  if(!actualName||!memberNameVariants(rep).has(actualName))return {state:'NAME_MISMATCH'};
   // A public name is not sufficient; require agreement with independently
   // stored public date of birth AND the current parliamentary office label.
   const dob=birthIso(rep.data_nascita);
