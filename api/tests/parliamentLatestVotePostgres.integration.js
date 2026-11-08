@@ -66,6 +66,8 @@ async function main(){
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_nominal_votes.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_nominal_identity_links.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_nominal_identity_links.sql'),'utf8'));
+    await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_identity_review_gate.sql'),'utf8'));
+    await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_identity_review_gate.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_vote_outcome.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_vote_outcome.sql'),'utf8'));
     // Regression: 65 new Camera votes must NOT push a less frequent Senate
@@ -103,6 +105,14 @@ async function main(){
     await pool.query('INSERT INTO user_devices (user_id,fcm_token,is_active) VALUES ($1,$2,TRUE)',[follower,token]);
 
     await assert.rejects(pool.query("INSERT INTO public.institutional_nominal_identity_links(institution,representative_id,source_person_id,evidence_url) VALUES('Camera',$1,$2,$3)",[other,'https://documenti.camera.it/deputato/fixture-maria','https://documenti.camera.it/fixture']),{code:'23505'});
+    assert.deepEqual(await selectedRepresentatives(pool,'Camera'),[],
+      'identity links must be explicitly reviewed before any vote attribution');
+    await assert.rejects(pool.query(
+      "UPDATE public.institutional_nominal_identity_links SET review_state='VERIFIED' WHERE representative_id=$1",
+      [rep]), {code:'23514'});
+    await pool.query(
+      "UPDATE public.institutional_nominal_identity_links SET review_state='VERIFIED', reviewed_by=$2, reviewed_at=now() WHERE representative_id=$1",
+      [rep,other]);
     const reps=await selectedRepresentatives(pool,'Camera');
     assert.equal(reps[0].source_person_id,'https://documenti.camera.it/deputato/fixture-maria');
     assert.deepEqual(reps.map(r=>r.id),[rep], 'only current active selected MP');
@@ -350,6 +360,11 @@ async function main(){
     await pool.query("INSERT INTO public.institutional_nominal_identity_links(institution,representative_id,source_person_id,evidence_url) VALUES('Camera',$1,$2,$3)",
       [unfollowed,'https://documenti.camera.it/deputato/fixture-no-followers',
         'https://www.camera.it/deputati/fixture-no-followers']);
+    assert.equal((await selectedRepresentatives(pool,'Camera')).some(p=>p.id===unfollowed),false,
+      'PENDING identity cannot enter canonical vote ingest even with an exact name');
+    await pool.query(
+      "UPDATE public.institutional_nominal_identity_links SET review_state='VERIFIED', reviewed_by=$2, reviewed_at=now() WHERE representative_id=$1",
+      [unfollowed,other]);
     const activeVetted=await selectedRepresentatives(pool,'Camera');
     const lone=activeVetted.find(p=>p.id===unfollowed);
     assert.ok(lone,'unfollowed verified active MP must be eligible for a current vote');
