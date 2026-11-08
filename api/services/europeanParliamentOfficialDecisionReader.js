@@ -110,7 +110,7 @@ function joinOfficialAgendaSubjects(records, voteResults) {
     const title = labelText(item.activity_label);
     if (!title || title.length > 500 || !Array.isArray(item.consists_of)) continue;
     for (const link of item.consists_of) {
-      const id = typeof link === 'string' && link.match(/^eli\\/dl\\/event\\/(MTG-PL-20\\d{2}-\\d{2}-\\d{2}-DEC-\\d+)$/);
+      const id = typeof link === 'string' && link.match(/^eli\/dl\/event\/(MTG-PL-20\d{2}-\d{2}-\d{2}-DEC-\d+)$/);
       if (!id) continue;
       if (byDecision.has(id[1]) && byDecision.get(id[1]) !== title) ambiguous.add(id[1]);
       else byDecision.set(id[1], title);
@@ -169,7 +169,7 @@ async function fetchOfficialDecisionBallots(sittingDate, client=axios) {
     // Two official calls per sitting; no N+1 requests per MEP.
     const [res, aggregate] = await Promise.all([
       client.get(url,request),
-      client.get(url.replace(/\\/decisions$/, '/vote-results'),request)
+      client.get(url.replace(/\/decisions$/, '/vote-results'),request)
     ]);
     if (res.status !== 200) throw new Error('EP_OFFICIAL_API_UNAVAILABLE');
     const rollCalls = parseOfficialDecisionBallots(res.data,sittingDate);
