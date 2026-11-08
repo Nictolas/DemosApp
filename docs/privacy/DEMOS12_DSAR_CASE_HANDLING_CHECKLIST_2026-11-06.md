@@ -222,3 +222,16 @@ La combinazione di dati politici, nominativi di terzi e possibile rivelazione di
 - **Test sintetico:** commit `f848fe19907e6887c7f59a7d4a0b85b1a9f8f9db` nel contratto esistente `api/tests/d12AuthMiddlewarePrivacy.synthetic.test.js` già eseguito dalla CI Civic privacy/moderation. VM con JWT e Redis fittizi: cached Admin declassato, sospeso, eliminato, lookup fallito, cached Admin ancora valido e Admin senza cache; controlla l'assenza di PII/log, negazione fail-closed e una sola query fresca totale per ogni accesso Admin. **Non prova la revoca reale Redis/DB o un test Android**.
 - **Stato CI:** all'inserimento, 15 workflow PR avviati sullo SHA del test `f848fe19`, nessun esito verde ancora verificato. Controllare il nuovo SHA dopo il commit documentale; **non riutilizzare i 15/15 verdi della baseline** `fed14fed`.
 - **Gate e limiti:** il DPO ha autorizzato le misure ma non sono conclusi DSAR-02..06 operativi, valutazioni giuridiche su basi informative e dati di terzi, retention/DPIA, collaudi su staging unificato DEMOS10 e Android fisico, né autorizzazione separata al merge/deploy. Non sono stati toccati account reali, database reale, produzione, staging, feature flag, migrazioni o email.
+
+
+## 08/11/2026 — Decisioni prodotto confermate e limiti di applicazione
+
+Decisioni espresse dal titolare e recepite **come requisiti di prodotto**, non come attestazioni di liceità o collaudo:
+
+- **Categorie indipendenti:** la pubblicazione di soggetti terzi è decisa dal titolare caso per caso, secondo criteri specifici per ciascuna sezione. Non derivare una base giuridica comune dalla sola approvazione Admin; prima di abilitare una categoria documentare finalità, base ex art. 6, eventuali condizioni artt. 9/10, informativa art. 14 e diritti.
+- **Grazia — minimizzazione visibile:** il titolare richiede che per le persone sia mostrato soltanto **nome e cognome**, senza dettagli di reati o condanne. Questa scelta **non dimostra** che l'associazione del nominativo alla sezione Grazia sia fuori dall'art. 10: mantenere i due flag OFF fino a verifica normativa documentata. Non modificare automaticamente i campi privati di moderazione senza analizzare le dipendenze.
+- **Voti:** il titolare richiede conservazione delle preferenze finché permane l'account. Tale requisito è **subordinato** alla base giuridica, alla revoca del consenso politico applicabile e ai diritti di cancellazione: dopo revoca non attendere la cancellazione dell'account. Distinguere i voti dai cooldown, dagli audit amministrativi e dai registri DSAR. Non interpretare questa scelta come approvazione delle durate RP-18/19/20.
+- **Retention non decisa:** proposte pending/rejected/approved/withdrawn, fonti, note Admin, flag notifiche, backup e registro DSAR richiedono durate separate, motivazione, trigger tecnici e prove di eliminazione. Nessun default di 90 giorni o 36 mesi è stato approvato.
+- **DSAR-01:** la ricezione tecnica sintetica già attestata non va ripetuta senza necessità; DSAR-02..06 rimangono NON TESTATI. Staging unico DEMOS 10 e Android fisico richiedono autorizzazioni e prove indipendenti. Nessuna modifica a dati reali o flag autorizzata da questa nota.
+
+**Stato:** documento di riconciliazione decisionale, non implementazione runtime né test. Gate giuridici/operativi e rilascio **NO-GO**.
