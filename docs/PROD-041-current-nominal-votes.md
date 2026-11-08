@@ -360,3 +360,45 @@ used; same-day replay, cross-chamber transition, reaction reset and
 FCM consent tests remain active. Human identity review, end-to-end QA,
 EU job integration, DPO and explicit production/release GO remain open.
 
+
+
+## Selezioni future: controllo automatico dell'istituzione, senza approvazioni cieche
+
+**Problema realmente verificato il 8 novembre 2026:** tra le 7 persone
+seguite vi sono due selezioni istituzionali storicamente incongruenti
+nel DB DEMOS, entrambe con `political_mandates.source='LEGACY_BACKFILL'`:
+- **Claudio Borghi**, associato alla Camera in DEMOS ma senatore in XIX
+  legislatura. Fonte ufficiale pubblica:
+  https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=00033070
+- **Benedetto Della Vedova**, associato al Senato in DEMOS ma deputato
+  nella XIX legislatura. Fonte ufficiale pubblica:
+  https://www.camera.it/deputati/elenco/19-301577
+
+La causa principale qui **non è l'omonimia**: è un attributo di
+istituzione/mandato errato nel backfill. Non si devono riportare
+voti da un'assemblea all'altra, né mutare in automatico le selezioni
+degli utenti; i mandati errati vanno rettificati con una migrazione
+distinta e testata, documentando la provenienza istituzionale.
+Le 7 selezioni non equivalgono a 7 collegamenti istituzionali verificati.
+
+**Preflight economico:** `api/services/parliamentSelectedOfficePreflightService.js`
+è collegato al cron esistente `openpolisVotazioniFinaliJob.js` ma è
+**DISABILITATO di default** (`PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED`).
+Scansiona **soltanto rappresentanti seguiti da utenti attivi con
+mandato attivo** e mappatura ID non ancora approvata, con una pagina
+di 12 candidati per ciclo e rotazione della pagina tra cicli, al massimo
+due URL pubblici dedotti da nome+data di nascita per candidato.
+Cache volatile 24 ore di massimo 64 pagine; niente servizi a pagamento,
+nessuna tabella aggiuntiva e nessuna registrazione di dati personali
+in log. Da un profilo pubblico Openpolis verifica **nome, data
+di nascita e Camera dichiarata**, con rigetto per profilo indisponibile,
+omonimo non risolto, data incoerente o Camera non riconoscibile.
+Il risultato è **solo un riepilogo di conteggi**, non un'autorizzazione
+di voto; `CANDIDATE_ONLY` rimane non validato finché manca un riscontro
+istituzionale. `OFFICE_MISMATCH` segnala un potenziale errore e non
+aggiorna automaticamente un mandato o una preferenza cittadina.
+Nessuna inserzione/approvazione in `institutional_nominal_identity_links`
+e nessuna modifica in Supabase produzione durante il controllo.
+Il codice `VERIFIED` con revisore autorizzato resta l'unico
+ingresso nel writer dei voti. Non deve essere abilitato prima di
+una verifica QA delle fonti live e dell'integrazione nella release.
