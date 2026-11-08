@@ -680,3 +680,16 @@ La verifica è a carico di una singola query `SELECT` con `EXISTS`: non material
 Evidenza: commit `2beb3b6d22d25f44234347d0ab9a602343aba2ac`, workflow [42531625287](https://github.com/Nictolas/DemosApp/actions/runs/42531625287), **3/3 job PASS** (unit/reader, Chrome sintetico, PostgreSQL16 sintetico). Nel test PostgreSQL reale con writer #633, l'ultimo follower rimosso rende GET `null` con 0 chiamate HTTP; lo stesso accade a mandato inattivo. Ripristinando selezione/mandato il GET validato ritorna disponibile senza creare una seconda riga o riimportare. Anche la revoca indipendente `VERIFIED` blocca la lettura e un successivo UPSERT.
 
 **Rimane NO-GO** per revisione umana delle tre identità reali (DOB Ceccardi discordante), approvazione migration PE nello staging unico, E2E autenticato, prova AAB Android, DPO e GO release. Nessun dato reale, configurazione runtime, merge/deploy o store sono stati modificati.
+
+
+## Decisione di rilascio ridotto: identità PE non bloccanti per la AAB (09/11/2026)
+
+**Decisione del titolare: non attendere la verifica manuale delle tre identità europee per assemblare e collaudare la AAB cumulativa.** Il lavoro sulla crosswalk Ceccardi/De Meo/Gualmini viene rinviato, *non approvato per supposizione*. Questa riduzione di perimetro riguarda la disponibilità dei voti PE, non la validità delle corrispondenze.
+
+**Comportamento corretto da integrare già nella AAB:** la scheda del rappresentante europeo è utilizzabile anche se `ultimo_voto_nominale=null`; mostra soltanto `Voto individuale non ancora verificabile` e nessuna attribuzione non dimostrata. I test Chrome sintetici su 320×568 e 390×844 lo coprono già. Il servizio GET risponde `null` anche se la migrazione PE manca e non tenta di attribuire il voto in base a nome/cognome. Il refresh `PARLIAMENT_EP_CURRENT_REFRESH_ENABLED` rimane OFF per default; nessuna elaborazione, approvazione, HTTP o DML PE quando non ci sono link selezionati `VERIFIED`.
+
+**Test aggiuntivo Postgres 16 effimero:** `api/tests/epSelectedWriterRealPgSmoke.js` prepara uno scenario esplicitamente senza *alcuna* crosswalk `VERIFIED`, poi verifica con i veri servizi lettore e refresh `null` e 0 fetch / 0 scritture, seguito da `ROLLBACK TO SAVEPOINT` per continuare gli scenari con identità sinteticamente approvata. I test di fonte/ultimo voto già presenti restano obbligatori. Nessuna mutazione a Supabase reale.
+
+**Quindi la verifica delle tre persone NON è una dipendenza della build candidata e della QA generale Android.** In questa candidata, se non vi sono link approvati, i voti nominali europei non sono ancora disponibili: non presentare questa parte come pienamente operativa per utenti reali. La *successiva attivazione del contenuto PE* richiederà una crosswalk documentata, la migrazione mirata dello schema PE sullo staging unico, l'E2E autenticato, un'approvazione DPO/OPS e un GO specifico, senza bloccare nel frattempo il restante rilascio.
+
+La chat di coordinamento AAB rimane unica proprietaria dell'integrazione degli altri moduli, della firma, della QA dispositivi e della pubblicazione. Nessun merge, deploy, invio FCM o Play upload autorizzato da questa decisione.
