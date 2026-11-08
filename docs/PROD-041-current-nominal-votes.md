@@ -39,13 +39,13 @@ Files: `api/database/20261108_institutional_current_nominal_votes.sql`,
 
 Project **Demos** `wxnblcqoyjqxktwkcqok`:
 `parlamento_voti_nominali` **720** rows / **191** non-empty
-`uri_politico` values; historic UNIQUE key is
+`uri_politico` values, all from **five Senate ballots**; historic UNIQUE key is
 `(uri_votazione,nome_politico,voto)` and **does not enforce** one per person.
 `parlamento_europeo_voti_nominali` **0** rows; current schema uses
 `(uri_votazione,mep_id)`, which would allow a history.
-`voti_camera` **1,474** rows; unique name, **no stable person id**;
-must not blindly associate these records to people or assume they are
-all historic votes. `notifiche_voti_parlamento` **0** rows.
+`voti_camera` **1,474** distinct names; **zero** rows have a populated `voto`,
+`data_votazione` or `votazione_id` field. They are non-voting legacy metadata,
+not an individual voting history, and must be preserved outside this cleanup. `notifiche_voti_parlamento` **0** rows.
 `parlamento` **284** and `parlamento_europeo` **84** are
 ballot-level aggregates, not the nominal-personal history; retention
 still needs assessment.
@@ -55,13 +55,15 @@ synthetic schema: `parlamento_voti_nominali` and EP nominal table
 are absent. Do not import production personal/voting data into staging.
 
 Legacy dependencies to audit before any cleanup:
-- `api/routes/voti-politici.js` older per-ballot detail route reads
-  `parlamento_voti_nominali`, including possible source-on-demand;
+- `api/routes/voti-politici.js` historic detail nominal reader and direct
+  SPARQL per-person lookup **removed by Draft PR #633**; ballot details now
+  return `voti_nominali: null` with ballot aggregates preserved;
 - `api/services/parlamentoEuropeoService.js` legacy cache read and
   table bootstrap; EU feature belongs to a separate workstream;
 - historical `api/crea-notifiche-voti-senato-retroattive.js`
   and maintenance scripts;
 - `voti_camera` legacy pages, scrapers, image and profile tooling;
+  preserve these non-voting metadata separately from nominal cleanup;
 - old vote notifications and reactions, FCM consent and source attribution.
 The obsolete nominal DB writer in PR #576 was disabled; no new legacy
 history writes should be reintroduced. Audit all remaining scheduled jobs
@@ -114,9 +116,10 @@ merge/deploy GO separate from cleanup GO.
 
 ### Still-open release gates
 
-1. Source-to-person ID mapping for legacy `voti_camera` (name alone is
-   insufficient), legacy Italian nominal cleanup, and no historical
-   records accessible through any old API.
+1. Verified source-person mapping for the **720 Senate nominal historical**
+   rows, encrypted backup and restoration rehearsal, then separate cleanup GO.
+   Do not delete the 1,474 non-voting `voti_camera` metadata records.
+   Ensure no retained history is exposed through legacy APIs.
 2. EP current-vote ingestion with official stable MEP IDs, independent
    EU branch coordination and end-to-end tests; no EU UI changes here.
 3. Legacy reader/writer and production cron/deploy dependency review,
@@ -130,4 +133,12 @@ No new paid services, production deploy, deletion, or push activation.
 
 ## Read-only production re-audit (8 November 2026, after Draft modifications)
 
-A targeted SELECT confirmed that \`voti_camera\` has 1,474 distinct\n\`politico_nome\` values but **0** filled vote fields, **0** vote dates,\nand **0** ballot IDs. By contrast, every one of the 720\n\`parlamento_voti_nominali\` records belongs to \`camera = 'Senato'\`,\nwith 191 distinct nonblank source-person URIs and five ballot URIs.\nThis correction avoids the incorrect interpretation that \`voti_camera\`\nis itself a 1,474-vote permanent history. Do not drop\n\`voti_camera\` as part of the Senate history cleanup.\n
+A targeted SELECT confirmed that `voti_camera` has **1,474 distinct**
+`politico_nome` values, **zero** populated vote fields, **zero** vote dates
+and **zero** ballot IDs. By contrast, all **720**
+`parlamento_voti_nominali` records belong to `camera = 'Senato'`,
+with **191** distinct nonblank source-person URIs across **five** ballots.
+
+The nominal cleanup must not delete `voti_camera`: these are currently
+non-voting legacy metadata records. The historical Senate table remains
+subject to backup, approved restoration rehearsal and explicit deletion GO.
