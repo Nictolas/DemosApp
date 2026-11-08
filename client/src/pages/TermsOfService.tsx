@@ -3,6 +3,9 @@ import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
+// Revisione documentale: non utilizzare la data di visualizzazione come data di modifica.
+const TERMS_VERSION = '08/11/2026';
+
 export default function TermsOfService() {
   const [, navigate] = useLocation();
   const from = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('from') : null;
@@ -15,7 +18,7 @@ export default function TermsOfService() {
             Termini e Condizioni d'Uso
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>Demos</strong> - Ultima modifica: {new Date().toLocaleDateString('it-IT')}
+            <strong>Demos</strong> — Versione dei termini: {TERMS_VERSION}
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -40,7 +43,7 @@ export default function TermsOfService() {
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li><strong>"Piattaforma"</strong> - Il sito web e i servizi di Demos</li>
               <li><strong>"Utente"</strong> - Chiunque utilizzi la piattaforma</li>
-              <li><strong>"Contenuto"</strong> - Opinionii, voti, comunicazioni pubblicate</li>
+              <li><strong>"Contenuto"</strong> - Opinioni, preferenze e comunicazioni pubblicate</li>
               <li><strong>"Servizi"</strong> - Funzionalità di voto, opinioni, rappresentanza</li>
               <li><strong>"Account"</strong> - Profilo utente registrato</li>
             </ul>
@@ -50,11 +53,11 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">3. Accettazione dei Termini</h2>
             <p className="text-gray-700 leading-relaxed mb-3">
-              Accedendo e utilizzando Demos, dichiari di:
+              Per creare un account e utilizzare le funzioni riservate agli utenti registrati, devi:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>Avere almeno 18 anni di età</li>
-              <li>Essere cittadino italiano o residente in Italia</li>
+              <li>Indicare in modo veritiero la tua cittadinanza e il tuo paese di residenza, anche se diversi dall'Italia</li>
               <li>Fornire informazioni veritiere e accurate</li>
               <li>Rispettare le leggi italiane ed europee</li>
               <li>Non utilizzare la piattaforma per scopi illegali</li>
@@ -67,12 +70,18 @@ export default function TermsOfService() {
             <p className="text-gray-700 mb-3">Demos fornisce i seguenti servizi:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li><strong>Democrazia Partecipativa:</strong> Espressione di opinioni su temi politici</li>
-              <li><strong>Sistema di Voto:</strong> Votazione per capo di stato, referendum, iniziative</li>
+              <li><strong>Preferenze e consultazioni:</strong> Espressione delle scelte disponibili nelle singole sezioni, secondo le relative regole</li>
               <li><strong>Rappresentanza:</strong> Collegamento con rappresentanti politici</li>
-              <li><strong>Iniziative Popolari:</strong> Proposta e sostegno di iniziative</li>
+              <li><strong>Iniziative e referendum:</strong> Informazioni civiche e, ove disponibili, collegamenti ai portali istituzionali per le procedure ufficiali</li>
               <li><strong>Comunicazione:</strong> Scambio di informazioni con rappresentanti</li>
-              <li><strong>Trasparenza:</strong> Accesso a dati e statistiche pubbliche</li>
+              <li><strong>Trasparenza:</strong> Consultazione di dati e statistiche pubbliche e, quando disponibili, di votazioni istituzionali tratte da fonti ufficiali</li>
             </ul>
+            <p className="text-gray-700 mb-3">
+              Alcune funzioni possono non essere ancora disponibili. La piattaforma può mostrare
+              annunci pubblicitari quando la monetizzazione è attivata, secondo le preferenze
+              di consenso applicabili e le informative pubblicate. Eventuali servizi a pagamento
+              saranno descritti prima della loro attivazione.
+            </p>
           </section>
 
           {/* Obblighi utente */}
@@ -91,7 +100,7 @@ export default function TermsOfService() {
             <h3 className="text-xl font-medium mb-2">5.2 Contenuti Pubblicati</h3>
             <p className="text-gray-700 mb-3">L'utente garantisce che i contenuti pubblicati:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>Siano veritieri e accurati</li>
+              <li>Non presentino consapevolmente informazioni false come fatti accertati</li>
               <li>Non violino diritti di terzi</li>
               <li>Non contengano materiale offensivo o illegale</li>
               <li>Rispettino la dignità umana</li>
@@ -100,21 +109,15 @@ export default function TermsOfService() {
 
             <h3 className="text-xl font-medium mb-2 mt-4">5.3 Contenuti Generati dagli Utenti</h3>
             <p className="text-gray-700 mb-3">
-              L'utente è l'unico responsabile dei contenuti che pubblica sulla piattaforma, 
-              inclusi ma non limitati a opinioni, commenti, comunicazioni e proposte. 
-              Demos non assume alcuna responsabilità per:
+              L'utente è responsabile dei contenuti che pubblica, nel rispetto delle
+              norme applicabili. Demos valuta le segnalazioni e interviene sui contenuti
+              illeciti o contrari ai termini secondo gli obblighi di legge.
             </p>
-            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>L'accuratezza, completezza o veridicità dei contenuti pubblicati dagli utenti</li>
-              <li>Le opinioni espresse dagli utenti</li>
-              <li>Le conseguenze derivanti dall'uso o dalla diffusione di tali contenuti</li>
-              <li>Violazioni di diritti di terze parti causate da contenuti pubblicati dagli utenti</li>
-            </ul>
             <p className="text-gray-700 mb-3">
-              Demos si riserva il diritto, ma non l'obbligo, di:
+              Demos può, nei limiti previsti dalla legge:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>Moderare, modificare o rimuovere qualsiasi contenuto che violi questi termini</li>
+              <li>Moderare, oscurare o rimuovere contenuti che violino questi termini o la legge</li>
               <li>Rimuovere contenuti offensivi, diffamatori, illegali o inappropriati</li>
               <li>Sospendere o chiudere account che pubblicano contenuti inappropriati</li>
               <li>Collaborare con le autorità competenti in caso di contenuti illegali</li>
@@ -130,10 +133,10 @@ export default function TermsOfService() {
               <li>Non contengono informazioni false o fuorvianti</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              L'utente concede a Demos una licenza non esclusiva, gratuita e perpetua 
-              per utilizzare, riprodurre, modificare e distribuire i contenuti pubblicati 
-              sulla piattaforma, sempre nel rispetto della Privacy Policy e della normativa 
-              sulla protezione dei dati personali.
+              L'utente concede a Demos una licenza non esclusiva e gratuita, limitata
+              alle operazioni necessarie per ospitare, visualizzare e moderare i contenuti
+              pubblicati nell'ambito dei servizi. Restano fermi i diritti dell'utente,
+              inclusi quelli relativi alla cancellazione e alla protezione dei dati personali.
             </p>
 
             <h3 className="text-xl font-medium mb-2 mt-4">5.4 Account e Identità</h3>
@@ -164,7 +167,7 @@ export default function TermsOfService() {
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>Utenti che si registrano come rappresentanti politici</li>
-              <li>Utenti che propongono iniziative o referendum</li>
+              <li>Utenti che richiedono funzioni soggette a verifiche specifiche dell'identità</li>
               <li>Utenti che mostrano comportamenti sospetti o inappropriati</li>
             </ul>
             <p className="text-gray-700 mb-3">
@@ -186,14 +189,15 @@ export default function TermsOfService() {
 
           {/* Accuratezza contenuti politici */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">6. Accuratezza delle Opinioni dei Rappresentanti Politici</h2>
+            <h2 className="text-2xl font-semibold mb-3">6. Accuratezza delle Informazioni sui Rappresentanti Politici</h2>
             <p className="text-gray-700 mb-3">
-              Demos si impegna a fornire informazioni accurate e aggiornate sui rappresentanti 
-              politici e le loro opinioni. Tuttavia, l'utente riconosce e accetta che:
+              Demos presenta informazioni su rappresentanti politici e, ove disponibili,
+              posizioni e votazioni nominali ricavate da fonti pubbliche.
+              Tuttavia, l'utente riconosce che:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>Le opinioni e le posizioni dei rappresentanti politici pubblicate sulla piattaforma 
-                  potrebbero contenere errori o imprecisioni</li>
+              <li>I dati sulle posizioni e le votazioni dei rappresentanti politici potrebbero
+                  contenere errori o imprecisioni</li>
               <li>Le informazioni potrebbero non essere sempre aggiornate o complete</li>
               <li>Demos non garantisce l'accuratezza assoluta di tali contenuti</li>
               <li>L'utente è invitato a verificare le informazioni attraverso fonti ufficiali</li>
@@ -218,11 +222,11 @@ export default function TermsOfService() {
             <h2 className="text-2xl font-semibold mb-3">7. Sistema di Votazione</h2>
             <h3 className="text-xl font-medium mb-2">7.1 Regole di Voto</h3>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>Ogni utente può votare una sola volta per ogni consultazione</li>
-              <li>I voti sono anonimi e non tracciabili</li>
-              <li>I risultati sono pubblici e trasparenti</li>
-              <li>Le votazioni hanno scadenze definite</li>
-              <li>Non è possibile modificare il voto dopo l'invio</li>
+              <li>Le preferenze e le risposte sono gestite secondo le regole di ciascuna funzione</li>
+              <li>Le opinioni modificabili possono essere aggiornate dall'utente; eventuali limiti e scadenze sono indicati nella relativa sezione</li>
+              <li>Per evitare duplicazioni e consentire modifiche e cancellazioni, alcune scelte sono collegate tecnicamente all'account dell'utente</li>
+              <li>Le statistiche e i risultati sono consultabili in forma aggregata quando previsti, secondo la Privacy Policy</li>
+              <li>Le votazioni istituzionali mostrate a scopo informativo sono distinte dalle scelte espresse dagli utenti di Demos</li>
             </ul>
 
             <h3 className="text-xl font-medium mb-2">7.2 Validità dei Voti</h3>
@@ -241,25 +245,28 @@ export default function TermsOfService() {
               <a href="/privacy-policy" className="text-blue-600 hover:text-blue-800 underline">
                 Privacy Policy
               </a>. 
-              L'utente accetta il trattamento dei dati secondo quanto specificato.
+              Le finalità, le basi giuridiche, i tempi di conservazione e i diritti
+              sono descritti in tale informativa. I consensi necessari, inclusi quelli
+              per le opinioni politiche, sono richiesti separatamente quando applicabile.
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>I dati politici richiedono consenso esplicito</li>
-              <li>I voti sono anonimi e aggregati</li>
+              <li>Le scelte possono essere collegate all'account per finalità funzionali; eventuali statistiche pubbliche sono presentate in forma aggregata secondo l'informativa</li>
               <li>Le opinioni pubbliche possono essere visibili ad altri utenti</li>
               <li>I dati sono protetti con misure di sicurezza appropriate</li>
             </ul>
 
             <h3 className="text-xl font-medium mb-2 mt-4">8.1 Utilizzo Anonimo dei Dati per Ricerca e Analisi</h3>
             <p className="text-gray-700 mb-3">
-              L'utente accetta e consente espressamente che le opinioni, i voti e gli altri dati 
-              forniti sulla piattaforma possano essere utilizzati in forma anonima e aggregata per:
+              Nei limiti indicati dalla Privacy Policy e secondo la base giuridica applicabile,
+              Demos può produrre analisi e statistiche con dati aggregati o effettivamente
+              anonimizzati, anche a partire da opinioni e scelte degli utenti, per:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>La realizzazione di grafici, statistiche e analisi demografiche</li>
               <li>La pubblicazione di studi e ricerche sull'opinione pubblica</li>
-              <li>L'utilizzo da parte dell'Istituto Demos per scopi di ricerca, divulgazione 
-                  scientifica e analisi politiche</li>
+              <li>L'utilizzo nell'ambito del progetto Demos per ricerca, divulgazione
+                  e analisi civiche</li>
               <li>La condivisione di dati aggregati con istituzioni, ricercatori e organizzazioni 
                   per finalità di ricerca e analisi</li>
               <li>La pubblicazione e condivisione di dati aggregati e statistiche sui social media 
@@ -267,18 +274,17 @@ export default function TermsOfService() {
                   partecipazione democratica, sempre in forma anonima e aggregata</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              I dati utilizzati per questi scopi saranno sempre anonimizzati e aggregati, in modo 
-              tale che non sia possibile risalire all'identità dei singoli utenti. L'Istituto Demos 
-              si riserva il diritto di utilizzare questi dati aggregati e anonimi come meglio crede, 
-              nel rispetto della normativa sulla privacy applicabile.
+              La diffusione di risultati statistici deve prevedere misure per ridurre il rischio
+              di identificazione degli interessati, anche in gruppi numericamente piccoli.
+              Non è autorizzato un uso indiscriminato dei dati personali: si applicano
+              sempre le finalità, le condizioni e i diritti descritti nella Privacy Policy.
             </p>
             
             <h4 className="text-lg font-medium mb-2 mt-4">8.1.1 Pubblicazione sui Social Media</h4>
             <p className="text-gray-700 mb-3">
-              L'utente accetta e consente espressamente che DemosApp possa pubblicare sui propri 
-              canali social media (inclusi ma non limitati a Facebook, Instagram, Twitter, LinkedIn, 
-              TikTok e altre piattaforme) dati aggregati e anonimi derivanti dai sondaggi e dalle 
-              votazioni della piattaforma, per finalità di:
+              Demos può diffondere sui propri canali social media risultati statistici
+              opportunamente aggregati o resi anonimi, nel rispetto delle condizioni
+              indicate nella Privacy Policy e degli eventuali consensi necessari, per finalità di:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>Divulgazione dei risultati dei sondaggi e delle votazioni</li>
@@ -287,11 +293,11 @@ export default function TermsOfService() {
               <li>Comunicazione pubblica dell'opinione aggregata degli utenti</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              Tali pubblicazioni conterranno esclusivamente dati statistici aggregati (ad esempio: 
-              percentuali, totali, medie) e non includeranno mai informazioni che permettano 
-              l'identificazione di singoli utenti. I dati pubblicati potranno includere statistiche 
-              per area geografica (nazionale, regionale, provinciale, comunale) purché il campione 
-              sia sufficientemente ampio da garantire l'anonimato.
+              Queste pubblicazioni possono contenere percentuali, totali e altre misure
+              aggregate anche per area geografica, solo con cautele adeguate alla
+              dimensione del campione e al rischio di identificazione. Non vengono
+              pubblicate intenzionalmente scelte identificabili di singoli utenti
+              in questo contesto.
             </p>
           </section>
 
@@ -300,8 +306,9 @@ export default function TermsOfService() {
             <h2 className="text-2xl font-semibold mb-3">9. Proprietà Intellettuale</h2>
             <h3 className="text-xl font-medium mb-2">9.1 Contenuti Demos</h3>
             <p className="text-gray-700 mb-3">
-              Tutti i contenuti della piattaforma (software, design, testi, immagini) 
-              sono di proprietà di Demos e protetti da copyright.
+              I contenuti della piattaforma (software, design, testi, immagini) sono
+              tutelati dai diritti dei rispettivi titolari, salvo ove siano soggetti
+              a licenze o condizioni d'uso differenti.
             </p>
 
             <h3 className="text-xl font-medium mb-2">9.2 Contenuti Utente</h3>
@@ -342,15 +349,16 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">10. Limitazioni di Responsabilità</h2>
             <p className="text-gray-700 mb-3">
-              Demos non è responsabile per:
+              Demos cerca di garantire la disponibilità e l'affidabilità dei servizi,
+              senza poter escludere interruzioni, errori o indisponibilità temporanee.
+              Le informazioni pubblicate, comprese quelle politiche o istituzionali,
+              hanno finalità informative e non sostituiscono le fonti ufficiali.
             </p>
-            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>Interruzioni temporanee del servizio</li>
-              <li>Perdita di dati dovuta a cause tecniche</li>
-              <li>Contenuti pubblicati da altri utenti</li>
-              <li>Decisioni politiche basate sui risultati della piattaforma</li>
-              <li>Danni indiretti o consequenziali</li>
-            </ul>
+            <p className="text-gray-700 mb-3">
+              Restano ferme le responsabilità previste dalla legge e i diritti
+              inderogabili degli utenti. Nessuna disposizione dei presenti termini
+              esclude o limita responsabilità che non possono essere escluse per legge.
+            </p>
           </section>
 
           {/* Sospensione account */}
@@ -379,9 +387,10 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">12. Modifiche ai Termini</h2>
             <p className="text-gray-700">
-              Demos si riserva il diritto di modificare questi termini. 
-              Le modifiche significative saranno comunicate agli utenti. 
-              L'uso continuato della piattaforma costituisce accettazione delle modifiche.
+              Demos può aggiornare questi termini per esigenze organizzative, tecniche o
+              normative, comunicando le modifiche significative con modalità adeguate.
+              Quando necessario sarà richiesta una nuova accettazione. La sola
+              prosecuzione dell'uso non sostituisce gli eventuali consensi previsti dalla legge.
             </p>
           </section>
 
@@ -389,8 +398,10 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">13. Legge Applicabile e Foro</h2>
             <p className="text-gray-700 mb-3">
-              Questi termini sono regolati dalla legge italiana. 
-              Per qualsiasi controversia è competente il Foro di Roma.
+              Questi termini sono regolati dalla legge italiana, fatti salvi i diritti
+              inderogabili riconosciuti dalle norme applicabili. Per le controversie
+              la competenza è determinata dalla legge, incluso il foro del consumatore
+              ove previsto.
             </p>
           </section>
 
@@ -398,9 +409,9 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">14. Accessibilità</h2>
             <p className="text-gray-700 mb-3">
-              DemosApp si impegna a garantire l'accessibilità del proprio sito web e delle proprie 
-              applicazioni per tutti gli utenti, inclusi quelli con disabilità, conformemente alla 
-              <strong> Legge Stanca (L. 4/2004)</strong> e alla <strong>Direttiva UE 2016/2102</strong>.
+              Demos si impegna a migliorare l'accessibilità del sito e delle applicazioni
+              per tutti gli utenti, incluse le persone con disabilità, nel rispetto
+              degli obblighi applicabili.
             </p>
             <p className="text-gray-700 mb-3">
               Stiamo lavorando per raggiungere la piena conformità con le linee guida 
@@ -435,8 +446,8 @@ export default function TermsOfService() {
           {/* Footer */}
           <div className="border-t pt-6 mt-8">
             <p className="text-sm text-gray-500 text-center">
-              Questi termini sono efficivi dal {new Date().toLocaleDateString('it-IT')} 
-              e sostituiscono eventuali accordi precedenti.
+              Versione dei termini: {TERMS_VERSION}. Le modifiche diventano efficaci
+              quando pubblicate e comunicate secondo quanto previsto dalla sezione 12.
             </p>
           </div>
 
