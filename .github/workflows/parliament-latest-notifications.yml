@@ -22,6 +22,8 @@ on:
       - 'api/tests/parliamentLatestVotePostgres.integration.js'
       - 'api/tests/prod041SyntheticBackupRestore.sh'
       - 'api/tests/prod041LiveIdentityCapabilityProbe.js'
+      - 'api/database/20261108_senate_identity_candidates_readonly.sql'
+      - 'api/tests/senateIdentityCandidatesReadonly.test.js'
       - 'docs/PROD-041-current-nominal-votes.md'
       - 'api/create-notifiche-voti-parlamento-table.sql'
       - 'client/src/hooks/useNativePush.ts'
@@ -82,6 +84,7 @@ jobs:
           node --test api/tests/parliamentLatestVoteNotifications.test.js api/tests/parliamentFinalBallotPush.test.js api/tests/parliamentVerifiedFinalBallots.test.js
           node --check api/services/institutionalCurrentNominalVotesService.js
           node --test api/tests/institutionalCurrentNominalVotes.test.js
+          node --test api/tests/senateIdentityCandidatesReadonly.test.js
           node --check api/services/europeanCurrentNominalVoteAdapter.js
           node --test api/tests/europeanCurrentNominalVoteAdapter.test.js
           node --check api/services/parlamentoEuropeoService.js
