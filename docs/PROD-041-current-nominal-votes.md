@@ -16,14 +16,17 @@ No party, political group, source roster, or individual history is stored.
 - Camera and Senate selected representatives: `demos:<users.id UUID>`,
   taken from the currently selected, active representative and a
   fail-closed unique roster match on a checked roll call. The identity key
-  is **not** the person's name. **A matching name is never sufficient to
-  attribute a vote.** An explicitly linked `source_person_id` must be
-  present in both the signed-off minimal identity bridge and the verified
-  source row. Names are used only as an additional consistency check.
-  The bridge `institutional_nominal_identity_links` has one unique
-  source ID per institution and one DEMOS UUID per institution, no names,
-  groups, ballot dates or voting history. Link entries require separate
-  evidence review: no automatic seeding from names.
+  is **not** the person's name. **A matching name alone is never
+  sufficient to attribute a vote.** Senate uses an explicit individual
+  source-person link in the roll-call row matched exactly to a reviewed
+  institutional identity bridge. The genuine official Camera ballot has
+  *no row-level person links*: it requires a separately reviewed, official
+  Camera `source_person_id` linked to DEMOS UUID with official
+  `evidence_url`, plus one and only one matching name in the exact
+  verified official roster and no competing selected candidate. Without
+  this independent verified crosswalk, it writes nothing. The bridge
+  `institutional_nominal_identity_links` stores no name, party, ballot,
+  date or voting history. No automated name-to-ID backfill is authorized.
 - European Parliament: reserved `pe:<official MEP id>` with official
   source only. Draft adapter `api/services/europeanCurrentNominalVoteAdapter.js`
   checks exact official MEP IDs and explicitly present voting categories;
@@ -140,10 +143,13 @@ merge/deploy GO separate from cleanup GO.
    EU branch coordination and end-to-end tests; no EU UI changes here.
 3. Legacy reader/writer and production cron/deploy dependency review,
    backed-up cleanup rehearsal and explicit deletion authorization.
-4. **Source markup/link QA:** verify that live official Camera/Openpolis
-   roll calls contain usable stable person hyperlinks. The parser will
-   return no ID (and will not attribute a vote) for plain-text names.
-   There is no automatic crosswalk in existing canonical mandates.
+4. **Verified crosswalk QA:** live source capability test confirmed
+   Camera has no row-level person links (397 source rows), Openpolis
+   Senate provides person links in all 205 observed rows. Review a genuine
+   official Camera source ID and independent evidence for each DEMOS
+   representative before enabling the official roster fallback. Senato
+   keeps exact person-ID matching. No current canonical mandate IDs
+   were auto-crosswalked.
 5. Authenticated E2E staging/Chrome/Android, FCM/cost/consent, DPO and
    separate release authorization.
 6. Confirm running CI and exact HEAD of stacked Draft PR before merge.
@@ -175,14 +181,15 @@ nominal rows. **Zero** verified source-person crosswalks can therefore
 be imported by exact equality from these existing fields. Do not
 infer matches from surnames or institutional office.
 
-**Code:** source parser accepts a source-person URL only from an
-explicit, validated person-profile anchor on the exact verified
-ballot roster row, constrained to trusted Camera, Senato or Openpolis
-domains. The current-vote writer requires a nonempty institution-appropriate
-`sourcePersonId`; selected Italian representatives must have a record
-in the vetted `institutional_nominal_identity_links` table and a matching
-row-level source ID. Missing/ambiguous IDs yield no assignment. No
-automated name-to-ID crosswalk or live manual link insertion was performed.
+**Code:** the source parser obtains a source-person URI only
+from an explicit trusted person-profile anchor when the source supplies
+one. The writer always requires a stable verified source ID. Senato
+demands an exact source-person URI match with the vetted bridge. Camera's
+official source has no row links, so a separately vetted institutional
+Camera ID and official `evidence_url` are mandatory before the
+unique official full-name roster match can be used; duplicate names,
+untrusted evidence and conflicting row links fail closed. No automatic
+name-to-ID crosswalk or live identity link insertion was performed.
 
 **Notification minimization:** the new Draft migration rejects any
 existing cross-chamber duplicate `id_utente` and adds a unique index
@@ -237,3 +244,43 @@ Openpolis Senate is *not* falsely labelled as the institutional Senato.
 No political groups or party names, no historical list, and **no
 European interface modification**. This UI remains Draft until
 authenticated Chrome and Android end-to-end QA succeeds.
+
+## Live source verification and name+DOB reconciliation — 8 November 2026
+
+**Real read-only network probe in GitHub Actions**: [Parliament run
+42511211411](https://github.com/Nictolas/DemosApp/actions/runs/42511211411)
+fetched authentic final roll calls without storing pages, names, vote
+statuses or source-person URLs. The Camera official source dated
+**5 November 2026** parsed **397** individual rows and **zero**
+person-profile links. Openpolis Senate source dated **28 October 2026**
+parsed **205** rows, **205** trusted person links. The original
+hard requirement for a Camera link in every nominal row would have
+prevented *all* verified Camera attribution. Corrected in Draft:
+Camera can use only an **independently vetted official Camera identity
+bridge and official evidence URL**, with a unique name in that one
+official roll call; Senato continues matching the exact row-level
+Openpolis person URL. No source identity is guessed or inserted.
+
+**Read-only audit on production:** all 720 legacy Senato records refer
+to 191 distinct `http://dati.senato.it/senatore/...` identifiers.
+The non-voting `voti_camera` table has 1,474 rows and 1,472
+distinct Openpolis person links, not institutional identity IDs.
+Among 507 currently active Senate mandates, joining on unique
+normalized public names across Senate source URI, Openpolis profile
+and DEMOS candidate produces 179 candidate triples. **177** are
+unique by all three source dimensions; comparing the official-person
+candidate's DEMOS birth date to the published Openpolis profile slug
+leaves **171 name+date-agreeing review candidates**, **4 conflicting
+birthdates**, **2 missing birthdates**, and **2 ambiguous triples**.
+These are **candidate matches, not accepted identity mappings**.
+Manual/independent official registry verification is still necessary,
+including checking the provenance and current validity of the birth
+date and IDs. The four conflicts and ambiguous records must never be
+promoted automatically.
+
+`api/database/20261108_senate_identity_candidates_readonly.sql`
+provides only read-only aggregate counts and a reviewer-scoped query
+for source IDs and DEMOS UUIDs, with **no writes, history retention or
+automatic link creation**. This candidate audit is not a license to
+delete the 720 historical Senato rows. Human/DPO review and a verified
+real backup/restore remain independent GO gates.
