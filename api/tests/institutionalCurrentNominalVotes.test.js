@@ -33,6 +33,8 @@ test('atomic statement uses stable key and ordering guard, never appends history
   assert.match(UPSERT_CURRENT_VOTE_SQL, /ON CONFLICT \(institution, representative_key\)/);
   assert.match(UPSERT_CURRENT_VOTE_SQL, /vote_date < EXCLUDED.vote_date/);
   assert.match(UPSERT_CURRENT_VOTE_SQL, /ballot_order < EXCLUDED.ballot_order/);
+  assert.match(UPSERT_CURRENT_VOTE_SQL, /institutional_current_nominal_votes.institution = EXCLUDED.institution/);
+  assert.match(UPSERT_CURRENT_VOTE_SQL, /institution = EXCLUDED.institution/);
   assert.doesNotMatch(UPSERT_CURRENT_VOTE_SQL, /nome_completo|gruppo_politico|politico_nome/);
 });
 
