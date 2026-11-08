@@ -498,7 +498,7 @@ async function main(){
 
     // Selected-only Senato official-ID review stays read-only, reuse the
     // existing (legacy) public person URI cache for CANDIDATES only.
-    const senateAuditRep='00000000-0000-4000-8000-000000000007';
+    const senateAuditRep='00000000-0000-4000-8000-000000000017';
     await pool.query(
       "INSERT INTO users(id,nome,cognome,data_nascita,status) VALUES($1,'Peppe','De Cristofaro','1971-06-26','a')",
       [senateAuditRep]);
