@@ -43,6 +43,14 @@ export default function PrivacyPolicy() {
               <li><strong>Dati di cittadinanza:</strong> Cittadinanza, paese di elezione</li>
             </ul>
 
+            <p className="text-sm text-gray-600 mb-4">
+              Per gli account cittadini, i dati del profilo sono ridotti principalmente a Comune di residenza,
+              anno di nascita, sesso e cittadinanza. L'indirizzo email è trattato quando presente o fornito
+              dal metodo di accesso: un account creato soltanto con passkey può non avere un indirizzo email
+              associato. Provincia e regione possono essere derivate dal Comune di residenza; ulteriori
+              dati elettorali sono pertinenti ai soli profili di politici o candidati.
+            </p>
+
             <h3 className="text-xl font-medium mb-2">2.2 Dati Politici e di Voto</h3>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li><strong>Opinioni politiche:</strong> Su temi come energia nucleare, sperimentazione animale, 
@@ -55,7 +63,7 @@ export default function PrivacyPolicy() {
             <h3 className="text-xl font-medium mb-2">2.3 Dati Tecnici</h3>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li><strong>Dati di navigazione:</strong> Indirizzo IP, user agent, cookie</li>
-              <li><strong>Dati di autenticazione:</strong> Token di sessione, password (hash)</li>
+              <li><strong>Dati di autenticazione:</strong> Token di sessione, identificativi dei provider di accesso Google/Apple e credenziali pubbliche passkey (WebAuthn), quando applicabili. Non è richiesta una password agli utenti che accedono mediante questi metodi.</li>
               <li><strong>Preferenze:</strong> Impostazioni notifiche, configurazione avatar</li>
             </ul>
           </section>
@@ -197,8 +205,7 @@ export default function PrivacyPolicy() {
                   <strong>Criterio:</strong> Per il tempo necessario a mantenere l'account e fino alla sua cancellazione, salvo dati specifici soggetti a obblighi di legge documentati.
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
-                  <strong>Dati inclusi:</strong> Nome, cognome, email, anno di nascita, cittadinanza, 
-                  dati di residenza, dati di elezione e candidatura
+                  <strong>Dati inclusi:</strong> Anno di nascita, sesso, cittadinanza e comune di residenza per gli account cittadini; email quando presente. Nome, cognome e dati elettorali soltanto per politici, candidati o profili per i quali siano pertinenti.
                 </p>
                 <p className="text-sm text-gray-600">
                   <strong>Motivo:</strong> Erogazione del servizio. Le scritture contabili, se presenti, sono trattate separatamente; l'art. 2220 c.c. non giustifica la conservazione generalizzata dei profili.
@@ -222,10 +229,10 @@ export default function PrivacyPolicy() {
               <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
                 <h4 className="font-semibold text-gray-800 mb-2">🔐 Dati di Autenticazione</h4>
                 <p className="text-gray-700 mb-2">
-                  <strong>Periodo:</strong> 1 anno (365 giorni) dall'ultimo accesso
+                  <strong>Criterio:</strong> Per il tempo necessario alla gestione delle sessioni, dei metodi di accesso e della sicurezza, secondo le scadenze tecniche effettivamente configurate. I periodi dei log sono trattati separatamente.
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
-                  <strong>Dati inclusi:</strong> Hash della password, ultimo accesso, tentativi di login
+                  <strong>Dati inclusi:</strong> Token e identificativi di sessione, credenziali pubbliche passkey o identificativi dei provider di accesso quando applicabili; eventi di accesso e sicurezza secondo le relative policy.
                 </p>
                 <p className="text-sm text-gray-600">
                   <strong>Motivo:</strong> Sicurezza e prevenzione frodi
@@ -313,31 +320,34 @@ export default function PrivacyPolicy() {
 
             <h3 id="eliminazione-account" className="text-xl font-medium mb-2 mt-6">5.5 Come richiedere l'eliminazione dell'account (DemosApp)</h3>
             <p className="text-gray-700 mb-3">
-              Se utilizzi l'app <strong>DemosApp</strong> (sviluppata da Demos / DemosApp Team) e desideri eliminare il tuo account e i dati associati, puoi farlo nel seguente modo.
+              Se utilizzi DEMOS e desideri richiedere l'eliminazione dell'account e dei dati personali associati,
+              puoi utilizzare la procedura disponibile nell'app oppure il recapito privacy indicato sotto.
             </p>
-            <p className="text-gray-700 font-medium mb-2">Passaggi per richiedere l'eliminazione:</p>
+            <p className="text-gray-700 font-medium mb-2">Come presentare la richiesta:</p>
             <ol className="list-decimal pl-6 mb-4 text-gray-700 space-y-2">
-              <li>Accedi all'app DemosApp con le tue credenziali (email e password).</li>
-              <li>Vai in <strong>Impostazioni</strong> (icona ingranaggio) e seleziona <strong>Cancella account</strong>.</li>
-              <li>Segui le istruzioni a schermo: puoi prima scaricare una copia dei tuoi dati (Scarica i tuoi dati), poi confermare la tua identità con la password e confermare di aver compreso che la cancellazione è irreversibile.</li>
-              <li>Conferma la cancellazione definitiva. L'account e i dati associati verranno eliminati in modo permanente.</li>
-              <li><strong>Alternativa:</strong> Puoi anche richiedere la cancellazione scrivendo a <strong>privacy@demos.community</strong> indicando l'email dell'account da eliminare; provvederemo entro i termini di legge.</li>
+              <li>Accedi all'app con il tuo metodo di accesso (Google, Apple o passkey). Un account senza password non deve creare o comunicare una password per chiedere la cancellazione.</li>
+              <li>Apri le impostazioni dell'account e utilizza la funzione <strong>Cancella account</strong> se disponibile nella versione in uso. Se non puoi accedere o la funzione non è disponibile, utilizza il recapito alternativo.</li>
+              <li>Segui la verifica della titolarità proposta dall'app e leggi le informazioni prima di confermare. Se disponibile, puoi prima richiedere una copia dei tuoi dati.</li>
+              <li>Considera completata la cancellazione soltanto quando ricevi un esito confermato. Un errore, un'interruzione o una richiesta ancora in elaborazione non costituiscono conferma dell'eliminazione.</li>
+              <li><strong>Alternativa:</strong> Puoi scrivere a <strong>privacy@demos.community</strong> anche da un indirizzo email non associato al tuo account. La sola email non dimostra la titolarità: potrebbe essere necessaria una verifica sicura prima di procedere. Non inviare password, codici di accesso, passkey o documenti nel primo messaggio.</li>
             </ol>
-            <p className="text-gray-700 font-medium mb-2">Dati che vengono eliminati:</p>
+            <p className="text-gray-700 font-medium mb-2">Dati interessati dalla richiesta:</p>
             <ul className="list-disc pl-6 mb-2 text-gray-700">
-              <li>Profilo utente (nome, cognome, email, residenza, cittadinanza, anno di nascita, genere, avatar, preferenze).</li>
-              <li>Opinioni politiche e voti espressi (referendum, iniziative, capo stato, ecc.).</li>
-              <li>Cronologia attività, notifiche, consensi registrati, token di sessione.</li>
-              <li>Accesso all'account: non sarà più possibile accedere con quelle credenziali.</li>
+              <li>Dati del profilo effettivamente conservati, come comune di residenza, cittadinanza, anno di nascita, sesso, avatar e preferenze, se presenti.</li>
+              <li>Risposte alle Opinioni e altre selezioni politiche personali collegate all'account, secondo le regole di cancellazione applicabili.</li>
+              <li>Dati di sessione, notifiche e altri dati personali associati nei sistemi attivi, entro il perimetro verificato della richiesta.</li>
+              <li>Una volta completata la cancellazione, l'accesso al profilo DEMOS viene disabilitato. Gli account Google o Apple utilizzati per accedere non sono eliminati da DEMOS.</li>
             </ul>
-            <p className="text-gray-700 font-medium mb-2">Dati che possono essere conservati (solo se richiesto dalla legge):</p>
+            <p className="text-gray-700 font-medium mb-2">Dati che possono essere conservati in presenza di una base giuridica applicabile:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li>Dati soggetti a obblighi di conservazione fiscale o contabile (es. Art. 2220 Codice Civile) per il periodo previsto dalla legge.</li>
-              <li>Dati anonimizzati o aggregati già utilizzati per statistiche, che non consentono l'identificazione della persona.</li>
-              <li>Log di audit e sicurezza per il periodo necessario a garantire la sicurezza del servizio e l'adempimento legale.</li>
+              <li>Dati per i quali sussiste un obbligo di conservazione specifico, per il periodo effettivamente richiesto.</li>
+              <li>Dati già resi effettivamente anonimi e non più riconducibili a persone identificabili.</li>
+              <li>Registrazioni minime eventualmente necessarie a documentare la gestione della richiesta o la sicurezza, per finalità e periodi giustificati.</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              La cancellazione è <strong>irreversibile</strong> per i dati personali eliminati. Per ulteriori dettagli sui periodi di conservazione, vedi le sezioni 5.1 e 5.2 di questa informativa.
+              Le copie tecniche e i backup richiedono procedure distinte di gestione e verifica. La sola ricezione
+              di una richiesta non dimostra che ogni copia sia stata eliminata; la gestione dei diritti segue il
+              GDPR e le eventuali eccezioni previste dalla legge.
             </p>
 
             <div className="bg-blue-50 p-4 rounded-lg mt-4 border-l-4 border-blue-500">
@@ -355,10 +365,10 @@ export default function PrivacyPolicy() {
             <p className="text-gray-700 mb-3">Implementiamo misure tecniche e organizzative per proteggere i tuoi dati:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li><strong>Crittografia:</strong> Dati trasmessi e memorizzati in forma crittografata</li>
-              <li><strong>Autenticazione sicura:</strong> Auth.js con token JWT</li>
+              <li><strong>Autenticazione:</strong> Accesso Google, Apple o passkey (WebAuthn), con gestione dei token di sessione.</li>
               <li><strong>Database sicuro:</strong> PostgreSQL su Supabase (Frankfurt, UE — `eu-central-1`) con connessioni SSL</li>
               <li><strong>Accesso limitato:</strong> Solo personale autorizzato può accedere ai dati</li>
-              <li><strong>Backup sicuri:</strong> Backup regolari e crittografati</li>
+              <li><strong>Backup e ripristino:</strong> Procedure di sicurezza e conservazione distinte, sottoposte a verifica prima di attestare le garanzie di ripristino.</li>
               <li><strong>Monitoraggio:</strong> Log di accesso e monitoraggio delle attività</li>
             </ul>
 
@@ -368,14 +378,13 @@ export default function PrivacyPolicy() {
               degli utenti solo per le finalità e nei limiti di seguito indicati, nel rispetto del principio di minimizzazione 
               e della base giuridica applicabile.
             </p>
-            <p className="text-gray-700 mb-2 font-medium">Per politici, candidati e candidati-politici (ruoli P, C, CP):</p>
+            <p className="text-gray-700 mb-2 font-medium">Per i profili di politici e candidati:</p>
             <ul className="list-disc pl-6 mb-3 text-gray-700">
               <li>Gli account di queste categorie possono essere creati dagli amministratori per far funzionare la piattaforma; 
                   le opinioni e i voti associati hanno spesso una <strong>fonte esterna</strong> (documenti, dati ufficiali).</li>
               <li>Gli amministratori possono <strong>vedere e modificare</strong> opinioni e voti per questi ruoli per rendere 
                   più efficace il <strong>matching</strong> (confronto con cittadini ed elettori) e per gestire correttamente i profili.</li>
-              <li>Quando il politico o candidato contatta la piattaforma, l’account può essere attribuito a lui (es. cambio email, 
-                  password temporanea); da quel momento il titolare del dato è l’interessato.</li>
+              <li>L'attribuzione di un profilo alla persona interessata richiede una verifica appropriata della titolarità; l'eventuale aggiornamento dei metodi di accesso segue la procedura di sicurezza prevista.</li>
             </ul>
             <p className="text-gray-700 mb-2 font-medium">Per elettori e altre categorie di utenti (es. ruolo E):</p>
             <ul className="list-disc pl-6 mb-3 text-gray-700">
@@ -625,7 +634,7 @@ export default function PrivacyPolicy() {
               <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
                 <h4 className="font-semibold text-gray-800 mb-2">📧 Resend (Servizio Email)</h4>
                 <ul className="text-sm text-gray-700 space-y-1">
-                  <li><strong>Servizio:</strong> Invio email di verifica, reset password e notifiche</li>
+                  <li><strong>Servizio:</strong> Invio delle comunicazioni email operative e delle notifiche previste dal servizio, quando applicabili</li>
                   <li><strong>Ubicazione:</strong> Stati Uniti d'America (con possibili server in UE)</li>
                   <li><strong>Dati trattati:</strong> Indirizzi email, contenuti delle email inviate</li>
                   <li><strong>Garanzie:</strong> Standard Contractual Clauses (SCC) approvate dalla Commissione Europea</li>
