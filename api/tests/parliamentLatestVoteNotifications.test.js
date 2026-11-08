@@ -103,9 +103,11 @@ test('one-row UPSERT resets reactions only when new vote really replaced the old
   assert.equal(outcome.changed,1);
   const upsert = queries.find(q=>q.sql.includes('INSERT INTO notifiche_voti_parlamento'));
   assert.ok(queries.some(q => q.sql.includes('INSERT INTO public.institutional_current_nominal_votes')), 'current vote must be written in same transaction');
-  assert.match(upsert.sql,/ON CONFLICT \(id_utente, camera\) DO UPDATE/);
+  assert.match(upsert.sql,/ON CONFLICT \(id_utente\) DO UPDATE/);
+  assert.match(upsert.sql,/camera=EXCLUDED.camera/);
   assert.match(upsert.sql,/vote_order/);
   assert.match(upsert.sql,/COALESCE\(notifiche_voti_parlamento.vote_order, -1\) < EXCLUDED.vote_order/);
+  assert.match(upsert.sql,/notifiche_voti_parlamento.camera = EXCLUDED.camera/);
   assert.equal(upsert.args[5],'In missione');
   assert.equal(upsert.args[8],vote.openpolis_id);
   assert.equal(queries.filter(q=>q.sql.startsWith('DELETE FROM reazioni')).length,1);
@@ -231,6 +233,9 @@ test('migration preserves old rows, requires unique representative/chamber, and 
   assert.match(sql,/CREATE UNIQUE INDEX IF NOT EXISTS notifiche_voti_parlamento_latest_rep_camera/);
   assert.match(sql,/'In missione'/);
   assert.match(sql,/ADD COLUMN IF NOT EXISTS openpolis_id/);
+  const global=fs.readFileSync(path.join(root,'api/database/20261108_latest_parliament_notifications_one_per_rep.sql'),'utf8');
+  assert.match(global,/PROD041_NOTIFICATIONS_CROSS_CHAMBER_DUPLICATES_REQUIRE_REVIEW/);
+  assert.match(global,/CREATE UNIQUE INDEX IF NOT EXISTS notifiche_voti_parlamento_latest_rep/);
   const job=fs.readFileSync(path.join(root,'api/jobs/openpolisVotazioniFinaliJob.js'),'utf8');
   assert.match(job,/refreshLatestParliamentVoteNotifications\(pool\)/);
   const notifications=fs.readFileSync(path.join(root,'api/routes/notifiche.js'),'utf8');
