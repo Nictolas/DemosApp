@@ -71,6 +71,7 @@ on:
       - 'api/scripts/sync_eci.py'
       - 'api/tests/test_sync_eci.py'
       - 'api/tests/test_eci_sync_postgres.py'
+      - 'api/tests/civicEciSchedulerGate.test.js'
       - 'api/tests/civicNewInitiativeNotificationPreparation.test.js'
       - 'api/routes/notifiche.js'
       - 'api/tests/civicPreferencesReadOnly.http.test.js'
@@ -213,5 +214,7 @@ jobs:
         run: npm ci --prefix client --no-audit --no-fund
       - name: Civic official-source links and shared expandable detail contracts
         run: node --experimental-strip-types --test client/tests/civicOfficialSources.test.mjs
+      - name: Validate disabled-by-default ECI scheduled workflow
+        run: node --test api/tests/civicEciSchedulerGate.test.js
       - name: Compile DEMOS frontend without deployment
         run: npm run build --prefix client
