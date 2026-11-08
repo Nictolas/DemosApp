@@ -21,6 +21,8 @@ type UnconfirmedProposalNotice = {
   recipient_unavailable: boolean;
 };
 
+const SELF_PROFILE_CATEGORIES = new Set(["attivisti","organizzazioni"]);
+
 const CATEGORY_LABELS: Record<string, string> = {
   capo_stato: "Capo di Stato", amnistia: "Amnistia",
   attivisti: "Attivisti", organizzazioni: "Organizzazioni"
@@ -45,6 +47,9 @@ export default function ProposteSoggetti() {
   const [loading, setLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [videoVerified, setVideoVerified] = useState<Record<string, boolean>>({});
+  const [representativeRole, setRepresentativeRole] = useState<Record<string, string>>({});
+  const [roleEvidenceKind, setRoleEvidenceKind] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const isAdmin = hasAdminCapability(user);
 
@@ -234,6 +239,36 @@ export default function ProposteSoggetti() {
     }
   };
 
+  const attestVideoVerification = async (p: Proposal) => {
+    if (submittingId || !SELF_PROFILE_CATEGORIES.has(p.category)) return;
+    const organization = p.category === "organizzazioni";
+    const role = representativeRole[p.id] || "";
+    const evidence = roleEvidenceKind[p.id] || "";
+    if (organization && (!role || !evidence)) {
+      toast({ title: "Verifica incompleta", description: "Indica la carica verificata e il tipo di riscontro ufficiale.", variant: "destructive" });
+      return;
+    }
+    const message = organization
+      ? "Confermi di avere svolto la videocall privata, confrontato il titolare CIE con la candidatura e verificato la carica mediante una fonte ufficiale? Non indicare qui dati o link della riunione."
+      : "Confermi di avere svolto la videocall privata e verificato che il titolare CIE sia la persona candidata? La sola apertura di Google Meet non è una verifica.";
+    if (!window.confirm(message)) return;
+    setSubmittingId(p.id);
+    try {
+      const r = await apiRequest("POST", "/api/subject-proposals/admin/" + p.id + "/verify-profile", {
+        identity_match_confirmed: true,
+        ...(organization ? { representative_role: role, role_evidence_kind: evidence } : {})
+      });
+      const d = await r.json();
+      if (d.success !== true || d.verification_recorded !== true) throw new Error("Verifica non registrata");
+      setVideoVerified(old => ({ ...old, [p.id]: true }));
+      toast({ title: "Verifica registrata", description: "L'Admin può ora valutare l'approvazione, subordinata ai controlli GDPR." });
+    } catch (err: any) {
+      toast({ title: "Verifica non registrata", description: err?.data?.error || err?.message || "Riprova.", variant: "destructive" });
+    } finally {
+      setSubmittingId(null);
+    }
+  };
+
   const review = async (p: Proposal, decision: "approve" | "reject") => {
     if (submittingId) return;
     if (!window.confirm(decision === "approve"
@@ -311,6 +346,39 @@ export default function ProposteSoggetti() {
                 <a href={p.source_url} rel="noopener noreferrer" target="_blank" className="text-sm text-blue-700 underline">Fonte pubblica</a>
               )}
               <p className="text-xs text-slate-500">Inviata: {new Date(p.created_at).toLocaleDateString("it-IT")}</p>
+              {SELF_PROFILE_CATEGORIES.has(p.category) && (
+                <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                  <p className="font-medium">Prima approvazione: CIE e videocall obbligatorie</p>
+                  <p className="text-slate-600">Apri Google Meet e svolgi la verifica privata prima di attestare l'esito. Non registrare la chiamata e non inserire link, documenti o dati del partecipante nel registro.</p>
+                  <a href="https://meet.google.com/" rel="noopener noreferrer" target="_blank" className="inline-block text-blue-700 underline">Apri Google Meet</a>
+                  {p.category === "organizzazioni" && (
+                    <div className="space-y-2">
+                      <label className="block text-slate-700">
+                        Carica del referente
+                        <select aria-label="Carica verificata" className="mt-1 w-full rounded border bg-white p-2" value={representativeRole[p.id] || ""}
+                          onChange={e => setRepresentativeRole(old => ({...old,[p.id]:e.target.value}))}>
+                          <option value="">Seleziona la carica verificata</option>
+                          <option value="presidente">Presidente</option>
+                          <option value="rappresentante_legale">Rappresentante legale</option>
+                        </select>
+                      </label>
+                      <label className="block text-slate-700">
+                        Metodo di verifica della carica
+                        <select aria-label="Fonte verifica carica" className="mt-1 w-full rounded border bg-white p-2" value={roleEvidenceKind[p.id] || ""}
+                          onChange={e => setRoleEvidenceKind(old => ({...old,[p.id]:e.target.value}))}>
+                          <option value="">Seleziona il riscontro effettuato</option>
+                          <option value="official_registry">Registro ufficiale</option>
+                          <option value="official_document">Documento ufficiale</option>
+                        </select>
+                      </label>
+                    </div>
+                  )}
+                  <Button type="button" variant="outline" onClick={() => void attestVideoVerification(p)}
+                    disabled={!!submittingId || videoVerified[p.id] === true}>
+                    {videoVerified[p.id] === true ? "Verifica registrata" : "Attesta videocall effettuata"}
+                  </Button>
+                </div>
+              )}
               <Input maxLength={500} placeholder="Motivazione facoltativa" value={notes[p.id] ?? ""} onChange={e => setNotes(prev => ({ ...prev, [p.id]: e.target.value }))} />
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => review(p, "approve")} disabled={!!submittingId}>
