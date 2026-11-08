@@ -155,3 +155,26 @@ La revisione del gestore nativo ha identificato un caso di rischio non attestato
 - Non vengono cambiati UMP, TCF, criterio adulti, numero di avvii, intervallo 6 ore, autenticazione o notifiche. Un ripristino da background non dà diritto a un nuovo App Open; l'eventuale annuncio di prova resta confinato alla finestra di **avvio a freddo** con schermata davvero vuota e consenso completo. Anche una form UMP che manda in pausa l'Activity chiude tale finestra: si preferisce perdere un'impressione piuttosto che mostrarla mentre si ritorna da privacy/login/notifica.
 - Contratto statico aggiunto in `client/tests/appOpenNativeContract.test.mjs`, incluso il controllo sulla creatività caricata tardivamente. Le QA anonime/offline CI non dimostrano il comportamento adulto su dispositivo: **test manuale notifica → foreground → root vuota resta obbligatorio**.
 - La verifica di compilazione e test deve essere rifatta sul nuovo HEAD; non riutilizzare il PASS della CI precedente `42513706857` per affermare che questa correzione è già stata collaudata.
+
+## Pacchetto QA aggiornato e protocollo tester Android (08/11/2026)
+
+**Fonte verificata:** GitHub Actions [run 42522161593](https://github.com/Nictolas/DemosApp/actions/runs/42522161593), **SUCCESS 2/2**, artefatto `DEMOS-REAL-AGE-UMP-GOOGLE-TEST-ADS-DEBUG-APK` (artifact id `13633613985`). Archivio ZIP controllato (due file integri: `DEMOS-REAL-AGE-QA-TEST-ONLY.apk`, `LEGGIMI-ETA-REALE.txt`), SHA-256 del ZIP trasferito: `7a6c68b8b5e2e683fe6c358305996f75db1d7581014b7e7b2bd041eb44bab15a`. Copia conservata nel **Drive privato del titolare**, [DEMOS-QA-ETA-REALE-FIX-NOTIFICHE-TEST-2026-11-08.zip](https://drive.google.com/file/d/1U2cWNvG7vV1Im9ImzZg4IHgeSNSk30oP/view), senza permessi di condivisione con altri utenti. Link **da non pubblicare**; l'accesso del tester va autorizzato dal titolare. La vecchia ZIP di prova NON include questa correzione e non va utilizzata per certificare il test notifiche.
+
+**Identità variante:** DEBUG `community.demos.qaage`, installazione separata dalla DEMOS Google Play, Google App ID DEMOS con sola **unità pubblicitaria TEST** Google; `DEMOS_QA_FORCE_ADULT=false`, `DEMOS_UMP_DEBUG_EEA=true`. La sola presenza della ZIP non attesta il funzionamento dell'autenticazione: la variante `.qaage` **potrebbe non essere registrata** nei client OAuth/Firebase del progetto, e Google Sign-In può quindi non riuscire. Non creare o alterare un account reale, non disabilitare il controllo d'età, non inserire credenziali nei log; in caso di login bloccato il test adulto è **NON ESEGUITO**, non PASS.
+
+### Procedura manuale QA — inviare al tester autorizzato
+
+| Passo | Condizione / azione | Esito atteso e prova non sensibile |
+|---|---|---|
+| 1 | Android fisico del tester, installare ZIP APK `.qaage` e avviare normalmente | Avvio stabile, app vera ancora installata, nessun annuncio per utente anonimo |
+| 2 | Provare login con account **autorizzato di prova**, verificare chiamata `/auth/me` e stato adulto tramite UX (mai riportare JWT, email, anno di nascita) | Autenticazione reale funziona; se OAuth fallisce, annotare soltanto **LOGIN BLOCCATO** |
+| 3 | Test adulto verificato, online in SEE, UMP config presente nell'account | CMP disponibile quando richiesta, nessuna pubblicità prima del consenso specifico |
+| 4 | Rifiutare finalità annunci (Purpose 1) e/o vendor Google; aprire opzioni e revocare | Nessuna richiesta ads dopo rifiuto/revoca; non trasmettere stringhe TCF né identificativi |
+| 5 | Solo consenso adeguato, rilanciare app su schermata naturalmente vuota; non prolungare artificialmente il caricamento | Annunci **Google TEST** eventualmente mostrati soltanto sul loading autentico, non garantiti; prima dei primi tre lanci nessun annuncio; limite massimo 1 ogni 6 ore |
+| 6 | Mettere DEMOS in background, ricevere una **notifica QA autorizzata** (se funzionalità pronta), toccarla e ritornare all'app | Nessun annuncio nel ritorno alla notifica/foreground, anche con root WebView transitoriamente vuota |
+| 7 | Logout/cambio account, utente non verificato, rete disattivata e ritorno online | Nessun annuncio e nessun avvio UMP sotto utente non adulto/verificato, nessun crash |
+| 8 | Se possibile, verificare overlay tastiera `adjustResize`, FCM e apertura deep-link insieme alla branch AAB cumulativa | Questa ZIP è **solo AdMob**: non sostituisce il collaudo della build cumulativa firmata |
+
+**Report minimo richiesto:** modello Android e versione OS (non seriale), versione del pacchetto QA, PASS/FAIL/BLOCCATO per ciascun passo, presenza di crash e descrizione tecnica priva di informazioni personali. Screenshot soltanto se privi di nomi, email, token, preferenze politiche, dati di votazione, TCF string e ID dispositivo.
+
+**Vincoli finali:** APK di debug separato, firmato solo per QA; non distribuirlo su Play, non usarlo per testare aggiornamenti dalla AAB ufficiale, non inferire l'approvazione AdMob dal caricamento di un annuncio Google TEST. Il download da Drive è privato, non è già stato consegnato ai tester.
