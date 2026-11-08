@@ -1,3 +1,37 @@
+## Ulteriore controllo fonte e costi — 08/11/2026 (ultimo aggiornamento)
+
+**Nuovi test e guardrail nel Draft #635:**
+- Il reader `collectRecentVerifiedItalianVotes` scarta l'intera raccolta
+  se una seduta più recente mostra un voto definitivo esplicito di un
+  eurodeputato, ma l'ordine della votazione è assente, incoerente o
+  conflittuale. Non retrocede all'ultima seduta valida precedente
+  presentandola falsamente come ultimo voto.
+- Il parser del feed EP rifiuta un roll-call **definitivo** se l'elenco
+  dei votanti contiene duplicati, ID malformati, categorie non valide
+  o nessun votante. Gli emendamenti non definitivi restano esclusi.
+  Test negativi aggiunti, senza inferire l'assenza.
+- Le decisioni ufficiali sono in una cache temporanea per
+  **massimo 12 sedute** (6 ore) per evitare di ripetere due
+  richieste per seduta quando utenti diversi selezionano MEP con
+  ultimo voto in giornate differenti. Cache in RAM, **non storico DB**;
+  client di test isolati dalla cache reale, test di capienza/eviction.
+- Il nuovo controllo non modifica il dato già ottenuto dall'audit
+  live originale 76/76: prima del rilascio va ripetuto il gate
+  **completo** `verifyEuropeanParliamentLatestSitting.js` sulle
+  fonti aggiornate (e la CI deve restare verde).
+- Invariati i tre gruppi di gate release: **(1)** PR #633 identity
+  bridge `PE + MepId + UUID` con approvazione manuale e writer
+  unico; **(2)** importazione e autenticazione reali su staging
+  unificato; **(3)** Android AAB, DPO e approvazione del rilascio.
+  La fonte 76/76 non è identità DEMOS 76/76.
+- **Interventi utente:** non servono adesso credenziali, nuovo
+  staging o un caricamento AAB. Prima di popolare le identità
+  dovrà intervenire un revisore autorizzato (Admin/DPO o
+  designato) per convalidare l'evidenza ufficiale dei link;
+  l'approvazione finale di merge/deploy/release sarà
+  richiesta separatamente. Non chiedere all'utente di
+  approvare 76 mappature non ancora preparate/visibili.
+
 # DEMOS — Parlamento europeo: ultimo voto verificato (handoff Draft)
 
 Data controllo: 2026-11-08. Proprietario: fonte PE, attribuzione, API reader/UI europea.
