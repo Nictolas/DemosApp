@@ -1,6 +1,7 @@
 'use strict';
 /** Read-only public API health probe; no person names/ballots are logged. */
 const axios = require('axios');
+const { parseOfficialDecisionBallots } = require('../services/europeanParliamentOfficialDecisionReader');
 const base = 'https://data.europarl.europa.eu/api/v2';
 const urls = [
   base + '/meetings/MTG-PL-2026-07-09/vote-results',
@@ -27,6 +28,14 @@ const urls = [
       }
       if (url.includes('/decisions') && Array.isArray(entries)) {
         const rollCalls = entries.filter(d => d.had_voter_favor || d.had_voter_against || d.had_voter_abstention);
+        const date = url.match(/MTG-PL-(\d{4}-\d{2}-\d{2})/)[1];
+        const parsed = parseOfficialDecisionBallots({data:entries},date);
+        console.log('EP_OFFICIAL_DECISION_PARSED',JSON.stringify({
+          sitting:date,validRollCalls:parsed.length,
+          explicitFinal:parsed.filter(x=>x.final).length,
+          withOfficialOrder:parsed.filter(x=>x.officialOrder!==null).length,
+          attributedDistinctMepIds:new Set(parsed.flatMap(x=>[...x.ballots.keys()])).size
+        }));
         function brief(value) {
           return { type: Array.isArray(value) ? 'array' : typeof value,
             count: Array.isArray(value) ? value.length : null,
