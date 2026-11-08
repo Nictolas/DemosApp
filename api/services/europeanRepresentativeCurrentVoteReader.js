@@ -7,6 +7,8 @@
  */
 const { fetchOfficialDecisionBallots, decisionUrl } =
   require('./europeanParliamentOfficialDecisionReader');
+const { officialMepEvidenceMatches } =
+  require('./europeanParliamentCurrentOnlyCandidateBridge');
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function projectVerifiedEuropeanCurrentVote(row, officialRecords) {
@@ -43,7 +45,8 @@ async function readVerifiedEuropeanCurrentVote(db, representativeUuid, options={
   try {
     ({rows}=await db.query(
       'SELECT c.source_person_id, c.ballot_id, c.vote_date::text AS vote_date, ' +
-      'c.ballot_order, c.vote, c.source_url, c.source_type ' +
+      'c.ballot_order, c.vote, c.source_url, c.source_type, ' +
+      'x.evidence_url AS identity_evidence_url ' +
       'FROM public.institutional_current_nominal_votes AS c ' +
       'INNER JOIN public.institutional_nominal_identity_links AS x ' +
       "ON x.institution = 'PE' AND x.representative_id = $1::uuid " +
@@ -59,6 +62,9 @@ async function readVerifiedEuropeanCurrentVote(db, representativeUuid, options={
     return null;
   }
   if (!Array.isArray(rows)||rows.length!==1) return null;
+  if (!officialMepEvidenceMatches(
+    rows[0].identity_evidence_url,rows[0].source_person_id
+  )) return null;
   const fetchDecisions=options.fetchDecisions||fetchOfficialDecisionBallots;
   const date=String(rows[0].vote_date||'');
   try {
