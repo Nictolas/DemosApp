@@ -313,7 +313,7 @@ export default function PrivacyPolicy() {
 
             <h3 id="eliminazione-account" className="text-xl font-medium mb-2 mt-6">5.5 Come richiedere l'eliminazione dell'account (DemosApp)</h3>
             <p className="text-gray-700 mb-3">
-              Se utilizzi l'app <strong>DemosApp</strong> (sviluppata da Demos / DemosApp Team) e desideri eliminare il tuo account e i dati associati, puoi farlo nel seguente modo.
+              Se utilizzi l'app <strong>DemosApp</strong> (gestita nell'ambito del progetto DEMOS) e desideri eliminare il tuo account e i dati associati, puoi farlo nel seguente modo.
             </p>
             <p className="text-gray-700 font-medium mb-2">Passaggi per richiedere l'eliminazione:</p>
             <ol className="list-decimal pl-6 mb-4 text-gray-700 space-y-2">
@@ -728,7 +728,7 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-none text-gray-700">
               <li><strong>Email:</strong> privacy@demos.community</li>
-              <li><strong>Responsabile del trattamento:</strong> DemosApp Team</li>
+              <li><strong>Titolare del trattamento:</strong> Nicolas Micheletti (progetto DEMOS)</li>
               <li><strong>Autorità di controllo:</strong> Garante per la Protezione dei Dati Personali</li>
             </ul>
           </section>
