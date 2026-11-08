@@ -19,7 +19,8 @@ test('EP workflow correctly watches each relevant test file and runs all identit
     'europeanParliamentOfficialDecisionReader.test.js',
     'europeanRepresentativeCurrentVoteReader.test.js',
     'europeanParliamentOfficialDiscovery.test.js',
-    'europeanParliamentCurrentOnlyCandidateBridge.test.js'
+    'europeanParliamentCurrentOnlyCandidateBridge.test.js',
+    'europeanParliamentSelectedCurrentOnlyReader.test.js'
   ];
   for(const name of required){
     assert.ok(paths.includes("'api/tests/"+name+"'"),'Missing path for '+name);
@@ -30,6 +31,7 @@ test('EP workflow correctly watches each relevant test file and runs all identit
     'EU primary representative tile must trigger Chrome QA');
   assert.match(workflow,/api\/services\/europeanParliamentCurrentOnlyCandidateBridge\.js/);
   assert.match(workflow,/node --check api\/services\/europeanParliamentCurrentOnlyCandidateBridge\.js/);
+  assert.match(workflow,/node --check api\/services\/europeanParliamentSelectedCurrentOnlyReader\.js/);
 });
 
 test('real official API remains manual pre-release; Chromium mobile runs on PR branch',()=>{
