@@ -60,6 +60,9 @@ async function main(){
     await pool.query(fs.readFileSync(path.join(root,'api/create-notifiche-voti-parlamento-table.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261103_latest_parliament_votes.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261103_latest_parliament_votes.sql'),'utf8'));
+    await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_latest_parliament_notifications_one_per_rep.sql'),'utf8'));
+    await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_latest_parliament_notifications_one_per_rep.sql'),'utf8'));
+
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_nominal_votes.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_nominal_identity_links.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_nominal_identity_links.sql'),'utf8'));
@@ -285,6 +288,30 @@ async function main(){
     const post=await sendFinalBallotPush(pool,{representativeId:rep,chamber:'Camera',
       openpolisId:second.openpolis_id,title:second.titolo,status:'In missione'},{firebaseAdmin:admin});
     assert.equal(post.sent,0,'no push can begin after opt-out commits');
+
+    // A newer Senate ballot for the same DEMOS representative must replace
+    // (not append) the Camera notification, even with a new institution.
+    const senateRep={...reps[0],source_person_id:'https://parlamento19.openpolis.it/persone/fixture-maria'};
+    const senateBallot=finalVote('19-470-4','2026-10-24','Senato');
+    const senateRoster=members.map(m=>m.name==='DE LUCA MARIA'
+      ? {...m,sourcePersonId:senateRep.source_person_id,vote:'Contrario'} : m);
+    const senateVerified={
+      voteId:senateBallot.openpolis_id,chamber:'Senato',
+      date:senateBallot.data_votazione,
+      source:{type:'openpolis',url:'https://parlamento19.openpolis.it/votazioni/19-470-4'},
+      members:senateRoster
+    };
+    const movedNote=await persistLatestForChamber(pool,senateBallot,senateVerified,[senateRep]);
+    assert.equal(movedNote.changed,1);
+    const afterTransfer=(await read()).rows;
+    assert.equal(afterTransfer.length,1,'only one shared nominal notification across chambers');
+    assert.equal(afterTransfer[0].id,noteId,'same notification row replaced');
+    assert.equal(afterTransfer[0].camera,'Senato');
+    assert.equal(afterTransfer[0].openpolis_id,senateBallot.openpolis_id);
+    const delayed=await persistLatestForChamber(pool,first,verified(first),reps);
+    assert.equal(delayed.changed,0,'stale Camera replay cannot resurrect retired notification');
+    assert.equal((await read()).rows.length,1);
+    assert.equal((await read()).rows[0].camera,'Senato');
 
     // Orchestration disabled means no DB writes even when this table exists.
     delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
