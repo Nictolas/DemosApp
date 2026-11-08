@@ -16,7 +16,10 @@ const SOURCES = {
 function assertVerifiedVote(vote) {
   if (!vote || !Object.hasOwn(SOURCES, vote.institution)) throw new Error('CURRENT_VOTE_INVALID_INSTITUTION');
   const key = String(vote.representativeKey || '');
-  if (!/^(?:demos:[0-9a-f]{8}-[0-9a-f-]{27,40}|pe:[0-9]+|official:[a-z0-9:/._-]+)$/i.test(key) ||
+  const isDemosUuid = /^demos:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+  const isItalianLegacyKey = /^(?:demos:[0-9a-f]{8}-[0-9a-f-]{27,40}|official:[a-z0-9:/._-]+)$/i.test(key);
+  // PE never accepts the unlinked pe:<MepId> key.
+  if ((vote.institution === 'PE' ? !isDemosUuid : !isItalianLegacyKey) ||
       key.length > 180) throw new Error('CURRENT_VOTE_STABLE_ID_REQUIRED');
   if (!/^[a-zA-Z0-9._:/-]{3,200}$/.test(String(vote.ballotId || '')))
     throw new Error('CURRENT_VOTE_BALLOT_ID_REQUIRED');
@@ -27,7 +30,9 @@ function assertVerifiedVote(vote) {
     throw new Error('CURRENT_VOTE_DATE_INVALID');
   if (!Number.isSafeInteger(vote.ballotOrder) || vote.ballotOrder < 0)
     throw new Error('CURRENT_VOTE_SEQUENCE_REQUIRED');
-  if (!VALID_VOTES.has(vote.status)) throw new Error('CURRENT_VOTE_STATUS_UNVERIFIED');
+  if (!VALID_VOTES.has(vote.status) ||
+      (vote.institution === 'PE' && !['Favorevole','Contrario','Astenuto'].includes(vote.status)))
+    throw new Error('CURRENT_VOTE_STATUS_UNVERIFIED');
   if (typeof vote.ballotTitle !== 'string' || !vote.ballotTitle.trim() || vote.ballotTitle.length > 2000)
     throw new Error('CURRENT_VOTE_TITLE_REQUIRED');
   if (vote.ballotOutcome != null && (typeof vote.ballotOutcome !== 'string' ||
@@ -99,7 +104,9 @@ async function upsertVerifiedCurrentVote(db, raw) {
 
 async function getCurrentVote(db, institution, representativeKey) {
   if (!Object.hasOwn(SOURCES, institution) || typeof representativeKey !== 'string' ||
-      representativeKey.length > 180) throw new Error('CURRENT_VOTE_INVALID_LOOKUP');
+      representativeKey.length > 180 ||
+      (institution === 'PE' && !/^demos:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(representativeKey)))
+    throw new Error('CURRENT_VOTE_INVALID_LOOKUP');
   const { rows } = await db.query(
     `SELECT institution, representative_key, ballot_id, vote_date, ballot_order,
             vote, ballot_title, ballot_outcome, source_url, source_type
