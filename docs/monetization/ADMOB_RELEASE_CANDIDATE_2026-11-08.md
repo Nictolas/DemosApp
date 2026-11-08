@@ -63,3 +63,14 @@ I controlli CI devono dimostrare **entrambi**: release ordinaria senza SDK e App
 Proposta tecnica su ramo separato: sorgenti/CI predisposti; **i test finali vanno documentati con run GitHub specifico**. Il dispositivo Desktop Commander autorizzato risulta offline (08/11/2026): non dichiarare nuove prove locali o su telefoni. Nessun test con annunci reali, nessun deploy o modifica a Proponi / Parlamento / ECI.
 
 Fonti ufficiali: https://developers.google.com/admob/android/next-gen/app-open/single-load ; https://support.google.com/admob/answer/9341964 ; https://support.google.com/googleplay/android-developer/answer/10787469 .
+
+## QA update simulato su Android API35 (integrazione 08/11)
+
+È stato predisposto un passaggio aggiuntivo di CI con **una sola istanza di emulatore preesistente nel workflow** (nessun servizio Render/Supabase o staging creato):
+- Gradle crea due APK `release`, **firmati con il certificato DEBUG standard di CI** e identificati esclusivamente come `community.demos.qaadsrc`, senza alcuna relazione con il pacchetto Google Play `community.demos`.
+- Il primo APK è la release Ads-free; il secondo include GMA/UMP e **l'unità App Open TEST ufficiale Google**, con `BuildConfig.DEBUG=false`. Non è utilizzato alcun ID di produzione.
+- Installazione della baseline, avvio; `adb install -r` della candidata senza cancellare i dati; avvio dopo upgrade; disinstallazione del solo pacchetto isolato; installazione *ex novo* della candidata e avvio. Gli step controllano che il processo resti attivo senza crash AndroidRuntime rilevati. Il test è **anonimo/offline** e non può dimostrare consenso, impression o qualità UI in sessione autenticata.
+- Il flag `-PdemosReleaseQaIsolated=true` è **OFF di default**, rifiuta `demosReleaseAdsTestOnly=false` e gli App ID diversi da Google SAMPLE quando la pubblicità è inclusa.
+- La sola presenza dei test e degli APK non dimostra successo: **verificare lo stato della run GitHub al commit effettivo** prima di segnare PASS. APK isolati NON sono AAB, NON vanno pubblicati su Google Play.
+
+Rimangono obbligatorie QA con dispositivi Android fisici e upgrade dal pacchetto realmente distribuito con firma Play/App Signing, oltre ai gate DPO e Play Console.
