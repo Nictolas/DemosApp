@@ -123,6 +123,8 @@ test('one-row UPSERT resets reactions only when new vote really replaced the old
       queries.push({sql,args});
       // Both canonical and notification mock UPSERT must report no rows
       // for a stale/replayed vote; the changed count now tracks current state.
+      if (sql.includes('SELECT p.id') || sql.includes('FOR SHARE OF ps,follower,p,m,l'))
+        return {rows:[rep]};
       if (sql.includes('INSERT INTO public.institutional_current_nominal_votes'))
         return {rows:resultRows.length?[{ballot_id:'fixture'}]:[]};
       if (sql.includes('INSERT INTO notifiche_voti_parlamento')) return { rows: resultRows };
@@ -192,7 +194,9 @@ test('enabled orchestration refreshes only selected active MPs with explicitly v
       throw Error('unexpected SQL');
     },
     connect:async()=>({
-      query:async sql=>({rows:sql.includes('INSERT INTO')?[{id:'new-note'}]:[]}),
+      query:async sql=>({rows:sql.includes('SELECT p.id')?[rep]:
+        sql.includes('FOR SHARE OF ps,follower,p,m,l')?[rep]:
+        sql.includes('INSERT INTO')?[{id:'new-note'}]:[]}),
       release:()=>{}
     })
   };
@@ -268,6 +272,8 @@ test('each selected deputy gets their own latest verified final vote, even if mi
     },
     connect:async()=>({
       query:async (sql,params)=>{
+        if(sql.includes('SELECT p.id'))return {rows:[rep,rep2]};
+        if(sql.includes('FOR SHARE OF ps,follower,p,m,l'))return {rows:[{id:params[0]}]};
         if(sql.includes('INSERT INTO public.institutional_current_nominal_votes'))return {rows:[{ballot_id:'fixture'}]};
         if(sql.includes('INSERT INTO notifiche_voti_parlamento')){
           inserts.push({id:params[0],vote:params[5],source:params[8]});
