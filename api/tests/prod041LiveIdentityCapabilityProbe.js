@@ -6,6 +6,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { parseVerifiedFinalBallots, sourcePersonHref } = require('../services/parliamentVerifiedFinalBallotsService');
+const { profileEvidence } = require('../services/parliamentSelectedOfficePreflightService');
 
 const SOURCES = [
   {
@@ -67,6 +68,36 @@ async function probe(source) {
     parsed,checkedMembers,checkedSourceIds,parserError};
 }
 
+async function probeRealOfficeConflicts(){
+  // Public synthetic decision inputs only: names and DOB are official
+  // parliamentary data; no DEMOS user IDs or selected account data queried.
+  const cases=[
+    {url:'https://parlamento19.openpolis.it/persone/claudio-borghi-1970-06-06',
+      nome:'Claudio',cognome:'Borghi',dob:'1970-06-06',expected:'it.camera'},
+    {url:'https://parlamento19.openpolis.it/persone/benedetto-della-vedova-1962-04-03',
+      nome:'Benedetto',cognome:'Della Vedova',dob:'1962-04-03',expected:'it.senato'}
+  ];
+  let checked=0,correctlyFlagged=0,inconclusive=0;
+  for(const item of cases){
+    try{
+      const response=await axios.get(item.url,{timeout:9000,maxRedirects:0,
+        maxContentLength:1500000,validateStatus:status=>status===200,
+        headers:{'User-Agent':'DEMOS/1.0 (public chamber mismatch diagnostic; https://demos.community)'}});
+      const result=profileEvidence(response.data,{
+        nome:item.nome,cognome:item.cognome,data_nascita:item.dob
+      },item.expected,item.url);
+      checked++;
+      if(result.state==='OFFICE_MISMATCH')correctlyFlagged++;
+      else inconclusive++;
+    }catch{inconclusive++;}
+  }
+  console.log('PROD041_LIVE_OFFICE_DIAGNOSTIC '+JSON.stringify({
+    checked,correctlyFlagged,inconclusive
+  }));
+  if(correctlyFlagged!==cases.length)
+    console.log('::warning::PROD041_PUBLIC_OFFICE_SOURCE_CHANGED_OR_UNAVAILABLE');
+}
+
 async function main() {
   if (process.env.GITHUB_ACTIONS!=='true') throw Error('REFUSE_NON_CI_LIVE_PROBE');
   for (const source of SOURCES) {
@@ -82,5 +113,6 @@ async function main() {
       console.log('::warning::PROD041_LIVE_PROBE_INCONCLUSIVE_'+source.chamber.toUpperCase()+'_'+reason);
     }
   }
+  await probeRealOfficeConflicts();
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1});
