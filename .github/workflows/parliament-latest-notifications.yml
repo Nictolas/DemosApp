@@ -14,6 +14,7 @@ on:
       - 'api/database/20261108_institutional_current_nominal_votes.sql'
       - 'api/database/20261108_institutional_nominal_identity_links.sql'
       - 'api/database/20261108_institutional_identity_review_gate.sql'
+      - 'api/database/20261108_ep_verified_identity_bridge.sql'
       - 'api/database/20261108_institutional_current_vote_outcome.sql'
       - 'client/src/components/LatestItalianNominalVote.tsx'
       - 'client/src/components/ProfileRepresentatives.tsx'
