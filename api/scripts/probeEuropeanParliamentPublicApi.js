@@ -29,6 +29,15 @@ const urls = [
       if (url.includes('/decisions') && Array.isArray(entries)) {
         const rollCalls = entries.filter(d => d.had_voter_favor || d.had_voter_against || d.had_voter_abstention);
         const date = url.match(/MTG-PL-(\d{4}-\d{2}-\d{2})/)[1];
+        console.log('EP_FINALITY_LABEL_AUDIT',JSON.stringify(entries
+          .filter(d=>d.decision_method==='def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL')
+          .map(d=>({
+             id:d.activity_id, order:d.activity_order,
+             en:d.activity_label?.en || '',it:d.activity_label?.it || '',
+             about:d.decisionAboutId || '', heading:d.headingLabel?.en || ''
+          }))
+          .filter(d=>/(whole|entire|final|single vote|overall|insieme|complessiv|votazione finale|sull.intero|as a whole|vote on)/i.test(d.en+' '+d.it))
+          .slice(0,40)));
         const parsed = parseOfficialDecisionBallots({data:entries},date);
         console.log('EP_OFFICIAL_DECISION_PARSED',JSON.stringify({
           sitting:date,validRollCalls:parsed.length,
