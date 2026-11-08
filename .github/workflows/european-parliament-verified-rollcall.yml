@@ -16,6 +16,7 @@ on:
       - 'api/scripts/probeEuropeanParliamentOfficialRollCall.js'
       - 'api/scripts/probeEuropeanParliamentPublicApi.js'
       - 'api/scripts/probeEuropeanParliamentDiscovery.js'
+      - 'api/scripts/verifyEuropeanParliamentLatestSitting.js'
       - 'client/src/pages/VotiParlamentoEuropeo.tsx'
       - 'api/routes/voti-parlamento-europeo.js'
       - 'client/src/components/ViewOpinioniDialog.tsx'
@@ -56,6 +57,8 @@ jobs:
           npm run build --prefix client
       - name: Check official current MEP roster and sitting discovery
         run: node api/scripts/probeEuropeanParliamentDiscovery.js
+      - name: Real latest past plenary and Italian current MEP official source (release gate)
+        run: node api/scripts/verifyEuropeanParliamentLatestSitting.js
       - name: Diagnostic read-only API probe (never logs names or ballots)
         run: node api/scripts/probeEuropeanParliamentPublicApi.js
       - name: Official Open Data API vote/individual/finality live verification (release gate)
