@@ -321,6 +321,74 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # Real backend age-gating with the ORIGINAL Play package. The separate
+      # .qaage debug package can have OAuth/signature mismatches. This build is
+      # for authorized Google Play INTERNAL APP SHARING only, never for a track.
+      - name: Package real-age debug APK for Play Internal App Sharing
+        working-directory: client/android
+        shell: bash
+        env:
+          DEMOS_QA_ADMOB_APP_ID: ${{ secrets.DEMOS_QA_ADMOB_APP_ID }}
+        run: |
+          set -euo pipefail
+          app_id="${DEMOS_QA_ADMOB_APP_ID:-ca-app-pub-7488681940015678~2926952834}"
+          if [[ ! "$app_id" =~ ^ca-app-pub-[0-9]{16}~[0-9]{10}$ ]]; then
+            echo "::error::Invalid QA AdMob App ID"
+            exit 1
+          fi
+          echo "::add-mask::$app_id"
+          ./gradlew :app:assembleDebug \
+            -PdemosDebugAppOpenAds=true \
+            -PdemosDebugUmpEea=true \
+            -PdemosDebugQaForceAdult=false \
+            -PdemosDebugQaPlayRealAge=true \
+            "-PdemosDebugAdMobAppId=$app_id" \
+            --no-daemon --console=plain
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          "$aapt" dump badging "$apk" | grep -Fq "package: name='community.demos'"
+          build_config="$(find app/build/generated/source/buildConfig/debug -name BuildConfig.java -print -quit)"
+          test -n "$build_config"
+          grep -Eq 'DEMOS_QA_FORCE_ADULT = false;' "$build_config"
+          grep -Eq 'DEMOS_APP_OPEN_ADS_ENABLED = true;' "$build_config"
+          grep -Eq 'DEMOS_UMP_DEBUG_EEA = true;' "$build_config"
+          "$aapt" dump xmltree "$apk" AndroidManifest.xml | grep -Fq 'com.google.android.gms.ads.APPLICATION_ID'
+          out=app/build/outputs/apk/debug/play-internal-real-age
+          mkdir -p "$out"
+          cp "$apk" "$out/DEMOS-REAL-AGE-PLAY-INTERNAL-TEST-ONLY.apk"
+          sha256sum "$out/DEMOS-REAL-AGE-PLAY-INTERNAL-TEST-ONLY.apk"
+          cat > "$out/LEGGIMI-PLAY-INTERNO-ETA-REALE.txt" <<EOF
+          DEMOS QA Android - ETA REALE / SOLO CONDIVISIONE INTERNA PLAY
+          ============================================================
+          Package ORIGINALE: community.demos (debug APK, NON release AAB).
+          Solo annuncio TEST Google; nessuna monetizzazione, adulto NON simulato.
+          Per annunci/UMP richiede sessione reale /auth/me verificata adulta.
+          Riservare a tester autorizzati maggiorenni; mai a minorenni.
+          Caricare SOLO su Google Play > Condivisione interna delle app, MAI
+          su produzione, test chiuso, aperto o interno come canale di release.
+          Non e' stato caricato su Play da CI. Non contiene la firma Play reale.
+          La firma della condivisione interna/credenziali OAuth puo' comunque
+          impedire login; annotare LOGIN BLOCCATO senza aggirare l'eta'.
+          Per installare, puo' servire rimuovere prima DEMOS Play se le firme
+          differiscono. Evitare perdita di dati non esportati: non disinstallare
+          la versione del tester senza suo consenso specifico.
+          Provare login, accetta/nega/revoca UMP, logout, cambio account,
+          tap notifica -> foreground senza ADS, limite 6 ore, stabilita'.
+          Niente screenshot di dati personali, token o preferenze politiche.
+          Nessuna prova di Play Store app approval o AdMob readiness.
+          EOF
+
+      - name: Archive real-age only-for-internal-sharing debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEMOS-PLAY-INTERNAL-REAL-AGE-DEBUG-TEST-ONLY
+          path: client/android/app/build/outputs/apk/debug/play-internal-real-age/
+          if-no-files-found: error
+          retention-days: 7
+
       # Both installable APKs use the same isolated package and Android DEBUG key,
       # but compile the real RELEASE code path (BuildConfig.DEBUG=false).
       # Google SAMPLE app ID + TEST unit only; no Play or real ad traffic.
