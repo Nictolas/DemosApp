@@ -13,15 +13,20 @@ cannot be compared. An older or equal-order replay cannot overwrite current stat
 Same-day ambiguous sequencing must remain unresolved rather than guessed.
 No party, political group, source roster, or individual history is stored.
 
-- **All active Camera and Senate representatives with an approved
-  source-person identity bridge**, regardless of the number of DEMOS
-  followers: `demos:<users.id UUID>`. The current-vote synchronizer
-  checks one verified source roll call and stores one global vote per
-  stable DEMOS ID; a separate `has_followers` check determines whether
-  an in-app notification/push candidate should be created. No historic
-  per-follower copies or notifications for unselected representatives.
-  A representative with no verified identity or source vote stays null.
-  Attribution requires a fail-closed unique roll-call match. The identity key
+- **Only Camera and Senate representatives selected by at least one
+  active DEMOS user AND holding an approved source-person identity bridge**:
+  `demos:<users.id UUID>`. This rule prioritizes the free tiers of Render,
+  Supabase and external parliamentary sources. The same representative
+  selected by many citizens is fetched once per source roll call and has
+  exactly one global current-vote row, never per-follower vote copies.
+  Without active followers there is no individual source fetch, new
+  current-vote write or notification; an existing canonical current row
+  is not immediately deleted on deselection (DPO retention decision still
+  pending). A newly followed representative becomes eligible at the
+  **next existing scheduled sync**, not a new paid service or per-user
+  history query. Source metadata/list synchronization is shared and may
+  still run independently for the public ballot-list UI. Attribution
+  requires a fail-closed unique roll-call match. The identity key
   is **not** the person's name. **A matching name alone is never
   sufficient to attribute a vote.** Senate uses an explicit individual
   source-person link in the roll-call row matched exactly to a reviewed
@@ -291,21 +296,28 @@ automatic link creation**. This candidate audit is not a license to
 delete the 720 historical Senato rows. Human/DPO review and a verified
 real backup/restore remain independent GO gates.
 
-## All-representative current votes and explicit identity review gate — 8 November 2026
+## Selection-scoped latest vote and explicit identity review gate — 8 November 2026
 
-**Coverage correction:** the earlier sync only processed representatives
-followed by active DEMOS accounts. That would leave all other active MPs
-without their one latest verified vote. Now it queries **all** active
-Camera/Senato representatives with reviewed source-person links, independent
-of follower count. The source roll call, date, ordering, stable ID and
-anti-replay guarantees are unchanged. A canonical current vote is written
-even for a representative with **zero followers**; in that case the
-notification row and FCM push candidate are skipped. Notification delivery
-is still filtered by the user's active political selection and consent,
-and the existing switch remains disabled in production by default.
-No new persistent vote history is introduced. The current source window
-still spans up to 50 recent final ballots per chamber; missing verified
-sources remain null rather than guessed.
+**Definitive product decision — free-tier first:** the temporary
+"all approved representatives" experiment has been **reverted**.
+Only an active politician with at least **one active follower selecting
+that specific institution** is considered for the canonical latest
+individual vote. SQL uses `EXISTS` over `political_selections`, an
+active follower and an active political mandate. It never multiplies
+representatives by follower count. Candidates must also have a manual
+`VERIFIED` identity bridge. On zero selected eligible representatives,
+the refresh does **not even query final-ballot candidate rows**, contact
+a roll-call site, begin a write transaction or send any FCM notification.
+When a new selection is made, the existing periodic final-ballot sync
+will consider that representative on its next cycle; there is no
+immediate per-follower fetch, scraping history, or paid service. When
+the final follower deselects, future individual vote sync stops; an
+existing last-current row is kept pending the documented DPO decision
+rather than an unsafe automatic DELETE. The shared ballot-list updater
+remains available to the public page regardless of selections. The
+verified source safeguards, newest-date anti-replay rule, one row
+per representative, and no names/parties/groups/history remain unchanged.
+This decision is recorded in the four canonical DEMOS Google Sheets.
 
 **Explicit reviewer constraint:** a newly created
 `institutional_nominal_identity_links` entry is **PENDING**, not
@@ -320,8 +332,10 @@ table remained empty. No real person's identity was automatically
 approved or copied into staging.
 
 **CI:** unit tests and real isolated PostgreSQL 16 integration cover:
-an unselected MP gets the current vote but **no notification**; a
-PENDING identity cannot be selected; a VERIFIED identity with missing
+an unselected MP gets **no new current vote and no notification**;
+two followers produce **one** vote and one notification; selecting an
+already vetted MP enables the next scheduled sync; removing the last
+selection stops new writes; a PENDING identity cannot be selected; a VERIFIED identity with missing
 reviewer is rejected; manually reviewed synthetic identities can be
 used; same-day replay, cross-chamber transition, reaction reset and
 FCM consent tests remain active. Human identity review, end-to-end QA,
