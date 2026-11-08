@@ -3,6 +3,50 @@
 Data controllo: 2026-11-08. Proprietario: fonte PE, attribuzione, API reader/UI europea.
 **Non è una dichiarazione GO per la prossima AAB. Nessun deploy o SQL applicato.**
 
+
+## Verifica successiva 08/11/2026 — copertura PE COMPLETATA, rilascio ancora NO-GO
+
+**Questo aggiornamento prevale su tutti i riferimenti precedenti ai «30 MEP
+mancanti» e alla copertura incompleta delle fonti.**
+
+- GitHub Actions [run 42511232120](https://github.com/Nictolas/DemosApp/actions/runs/42511232120)
+  `EP_RECENT_COVERAGE_READ_ONLY`: **76/76** ID di eurodeputati italiani
+  attualmente in carica, ognuno con un ultimo voto nominale sul testo finale
+  verificato, scandagliando le sedute ufficiali in ordine decrescente.
+  Fonte PE API v2, cronologia delle **8 sedute recenti esaminate verificata
+  senza errori**, zero dati personali o ID nei log, zero scritture.
+- Recupero incrementale osservato: 22/10 **46**, 21/10 **+22**,
+  20/10 **+2**, 19/10 **+0**, 08/10 **+5**, 07/10 **+1** =
+  **76/76**. Anche 06/10 e 05/10 hanno risposto correttamente.
+  I 30 senza voto il 22/10 *non erano necessariamente assenti*: il loro
+  ultimo voto definitivo esplicito proviene da sedute precedenti.
+  I valori sono **candidati ufficiali solo in memoria**, NON importati
+  nel database e NON collegati agli account DEMOS.
+- L'algoritmo `collectRecentVerifiedItalianVotes` già raccoglie un solo
+  voto più recente per MepId e si ferma quando la copertura è completa,
+  con fail-closed in caso di errore API. Aggiunta regressione multi-seduta
+  per garantire che un voto più vecchio non sostituisca uno più nuovo.
+- Il lettore della scheda `europeanRepresentativeCurrentVoteReader.js`
+  ora esegue una `JOIN` esatta con il bridge verificato
+  `institutional_nominal_identity_links`, richiedendo
+  `institution='PE'`, UUID corrispondente, MepId corrispondente,
+  prova documentale ufficiale, e il record current-only
+  `representative_key='demos:<UUID>'`. Una riga forzata senza bridge
+  non viene esposta; una migration non pronta produce `null`.
+- Il controllo completo della fonte ufficiale per tutti i MEP è stato
+  promosso a gate MANUALE `workflow_dispatch` pre-release
+  (`api/scripts/verifyEuropeanParliamentLatestSitting.js`).
+  Non vengono ripetute 8 sedute a ogni commit Draft. Il run
+  42511232120 attesta il controllo live; il gate completo aggiornato
+  richiede una nuova esecuzione manuale prima della release.
+- **Gate rimasti (3 gruppi):**
+  (1) PR #633: bridge PE MepId↔UUID verificato + writer current-only unico
+  senza `pe:<id>` duplicato;
+  (2) esecuzione import/verifica reali in staging unificato e read-side
+  autenticato, con compatibilità PR #576;
+  (3) QA Chrome/Android 320×568 e 390×844, verifica DPO,
+  release/AAB e approvazione espressa. **Non dichiarare HO FINITO.**
+
 ## Stato tecnico aggiornato e verificato 08/11/2026 (prevale sui checkpoint storici sotto)
 - **Sorgente ufficiale completata in sola lettura:** `api/services/europeanParliamentOfficialDiscovery.js`
   interroga `GET /api/v2/meetings?year=2026` e scarta le sedute future; l'ultima
