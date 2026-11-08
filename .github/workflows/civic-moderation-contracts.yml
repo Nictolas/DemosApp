@@ -59,6 +59,8 @@ on:
       - 'api/routes/organizzazioni.js'
       - 'api/services/publicDirectoryMemberProjection.js'
       - 'api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js'
+      - 'api/tests/publicDirectoryPrivacyHotfix.synthetic.test.js'
+      - 'api/tests/publicDirectoryPrivacyHttp.synthetic.test.js'
       - 'api/tests/registeredDirectoryPagination.pg.integration.test.js'
       - 'api/tests/subjectProposalPublicMinimization.contract.test.js'
       - 'api/tests/publicDirectoryHttp.synthetic.test.js'
@@ -160,6 +162,10 @@ jobs:
         run: node api/tests/civicCatalogueRejectionHttp.synthetic.test.js
       - name: Block unreviewed nested JSONB details in public directory responses
         run: node --test api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js
+      - name: Independent #632 public directory projection and HTTP privacy regressions
+        env:
+          NODE_PATH: /tmp/demos-http-test/node_modules
+        run: node --test api/tests/publicDirectoryPrivacyHotfix.synthetic.test.js api/tests/publicDirectoryPrivacyHttp.synthetic.test.js
       - name: Approved nominations stay unpublished while the legal gate is off (synthetic)
         run: node --test api/tests/publicApprovedSubjectGate.synthetic.test.js
       - name: Public directory privacy data-minimization contract
