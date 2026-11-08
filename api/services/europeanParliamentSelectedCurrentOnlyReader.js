@@ -39,7 +39,7 @@ const SELECT_VERIFIED_SELECTED_MEP_LINKS=[
   '    SELECT 1 FROM public.user_representatives AS r',
   '    INNER JOIN public.users AS follower',
   "      ON follower.id = r.user_id AND follower.status = 'a'",
-  '    WHERE lower(trim(r.rappresentante_europeo)) = l.representative_id::text',
+  "    WHERE lower(trim(to_jsonb(r)->>'rappresentante_europeo')) = l.representative_id::text",
   '  )',
   'ORDER BY l.source_person_id',
   'LIMIT 101'
