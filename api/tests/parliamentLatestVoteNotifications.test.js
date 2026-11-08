@@ -93,7 +93,8 @@ test('one-row UPSERT resets reactions only when new vote really replaced the old
     source:{url:'https://documenti.camera.it/verified'},members };
   let outcome = await persistLatestForChamber({connect:async()=>client}, vote, verified, [rep]);
   assert.equal(outcome.changed,1);
-  const upsert = queries.find(q=>q.sql.includes('INSERT INTO'));
+  const upsert = queries.find(q=>q.sql.includes('INSERT INTO notifiche_voti_parlamento'));
+  assert.ok(queries.some(q => q.sql.includes('INSERT INTO public.institutional_current_nominal_votes')), 'current vote must be written in same transaction');
   assert.match(upsert.sql,/ON CONFLICT \(id_utente, camera\) DO UPDATE/);
   assert.match(upsert.sql,/vote_order/);
   assert.match(upsert.sql,/COALESCE\(notifiche_voti_parlamento.vote_order, -1\) < EXCLUDED.vote_order/);
