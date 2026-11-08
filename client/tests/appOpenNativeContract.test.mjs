@@ -216,6 +216,20 @@ test('Play Internal App Sharing offers a real-age QA variant without bypassing i
   assert.doesNotMatch(qaStep, /-PdemosDebugQaForceAdult=true/);
   assert.doesNotMatch(qaStep, /-PdemosReleaseAdsApproved=true/);
   assert.match(workflow, /DEMOS-PLAY-INTERNAL-REAL-AGE-DEBUG-TEST-ONLY/);
+  // A second debug build cleans Gradle's output tree: the emulator must
+  // install the archived real-age APK from a durable QA directory.
+  const ageStage = workflow.slice(
+    workflow.indexOf('- name: Package age-gated Android QA APK without synthetic adult'),
+    workflow.indexOf('- name: Archive age-gated QA APK (no synthetic adult)')
+  );
+  assert.match(ageStage, /mkdir -p qa-real-age-apks/);
+  assert.ok(ageStage.includes('cp "$apk" qa-real-age-apks/DEMOS-REAL-AGE-QA-TEST-ONLY.apk'));
+  const emulatorStage = workflow.slice(
+    workflow.indexOf('- name: Offline anonymous emulator smoke for real-age QA'),
+    workflow.indexOf('- name: Confirm release runtime does not include AdMob or UMP')
+  );
+  assert.ok(emulatorStage.includes('client/android/qa-real-age-apks/DEMOS-REAL-AGE-QA-TEST-ONLY.apk'));
+  assert.doesNotMatch(emulatorStage, /client\\/android\\/app\\/build\\/outputs\\/apk\\/debug\\/real-age-qa/);
 });
 
 test('UMP configuration errors fail closed instead of using cached consent or initializing ads', () => {
