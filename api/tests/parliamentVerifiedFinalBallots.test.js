@@ -87,4 +87,9 @@ test('only explicit final ballots are eligible in route; existing old nominal ca
   assert.match(page,/Vedi voti/);
   assert.match(page,/non il sito istituzionale del Senato/);
   assert.match(page,/Nessun voto viene attribuito/);
+  // The old ballot-detail API must never disclose persisted personal vote history.
+  assert.doesNotMatch(route, /FROM\s+parlamento_voti_nominali/i);
+  assert.doesNotMatch(route, /SELECT\s+DISTINCT\s+\?senatore\s+\?nomeSenatore/i);
+  assert.match(route, /voti_nominali:\s*null/);
+  assert.doesNotMatch(page, /m\.group|Gruppo<\/th>|Cerca parlamentare, gruppo/);
 });
