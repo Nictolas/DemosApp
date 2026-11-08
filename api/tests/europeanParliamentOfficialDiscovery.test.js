@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {
   parsePastPlenarySittings,parseItalianCurrentMepIds,exactPersonId,
-  fetchCurrentItalianMepIds,fetchPastPlenarySittingDates,
+  fetchCurrentItalianMepIds,fetchPastPlenarySittingDates,fetchRecentPlenarySittings,
   collectRecentVerifiedItalianVotes
 }=require('../services/europeanParliamentOfficialDiscovery');
 const ISO='2026-08-10T12:00:00Z';
@@ -121,4 +121,104 @@ test('recovers missing MEPs from earlier final sittings but never replaces recen
   assert.equal(out.current.get('100001').date,'2026-08-09');
   assert.equal(out.current.get('100060').vote,'Favorevole');
   assert.equal(out.current.get('100060').date,'2026-08-08');
+});
+
+
+test('New Year rollover: before first 2027 sitting, use the final 2026 verified roll-call',async()=>{
+ const calls=[];
+ const client={get:async url=>{
+   if(url.includes('/meetings?')){
+     const year=new URL(url).searchParams.get('year');
+     calls.push(year);
+     return {status:200,data:{data:year==='2027'
+       ?[meeting('2027-01-15'),meeting('2027-01-16')]
+       :[meeting('2026-12-17'),meeting('2026-10-22')]}};
+   }
+   if(url.includes('/meps/show-current?')){
+     const from=Number(new URL(url).searchParams.get('offset'));
+     return {status:200,data:{data:roster().slice(from,from+500)}};
+   }
+   throw Error('unexpected mocked endpoint');
+ }};
+ const dates=await fetchRecentPlenarySittings('2027-01-02T12:00:00Z',client,4);
+ assert.deepEqual(dates,['2026-12-17','2026-10-22']);
+ assert.deepEqual(calls,['2027','2026']);
+ const visited=[];
+ const out=await collectRecentVerifiedItalianVotes({
+   now:'2027-01-02T12:00:00Z',client,maxSittings:4,
+   fetchDecisions:async date=>{
+     visited.push(date);
+     return [{date,verified:true,final:true,officialOrder:5,
+       voteId:'MTG-PL-'+date+'-DEC-987654',outcome:'Approvato',
+       subject:'Last year whole-text final decision',
+       sourceUrl:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-'+date+'/decisions',
+       ballots:new Map(roster().slice(0,60).map(x=>[x.id.slice(7),'Favorevole']))}];
+   }
+ });
+ assert.equal(out.latestSitting,'2026-12-17');
+ assert.deepEqual(visited,['2026-12-17']);
+ assert.equal(out.covered,60);
+ assert.equal(out.current.get('100001').date,'2026-12-17');
+});
+
+test('Early 2027: retain latest January vote and recover missing members from 2026',async()=>{
+ const client={get:async url=>{
+   if(url.includes('/meetings?')){
+     const year=new URL(url).searchParams.get('year');
+     return {status:200,data:{data:year==='2027'
+       ?[meeting('2027-01-21'),meeting('2027-01-25')]
+       :[meeting('2026-12-17'),meeting('2026-12-16')]}};
+   }
+   if(url.includes('/meps/show-current?')){
+     const from=Number(new URL(url).searchParams.get('offset'));
+     return {status:200,data:{data:roster().slice(from,from+500)}};
+   }
+   throw Error('unexpected mocked endpoint');
+ }};
+ const out=await collectRecentVerifiedItalianVotes({
+   now:'2027-01-22T12:00:00Z',client,maxSittings:5,
+   fetchDecisions:async date=>{
+     const voters=date==='2027-01-21'?roster().slice(0,40):roster().slice(0,60);
+     return [{date,verified:true,final:true,officialOrder:5,
+       voteId:'MTG-PL-'+date+'-DEC-987654',outcome:'Approvato',
+       subject:'New Year complete text',sourceUrl:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-'+date+'/decisions',
+       ballots:new Map(voters.map(x=>[x.id.slice(7),date.startsWith('2027')?'Contrario':'Favorevole']))}];
+   }
+ });
+ assert.equal(out.covered,60);
+ assert.equal(out.incomplete,false);
+ assert.equal(out.current.get('100001').date,'2027-01-21');
+ assert.equal(out.current.get('100001').vote,'Contrario');
+ assert.equal(out.current.get('100060').date,'2026-12-17');
+ assert.equal(out.current.get('100060').vote,'Favorevole');
+});
+
+test('Older year unavailable: reject source coverage instead of guessing no vote',async()=>{
+ const client={get:async url=>{
+   if(url.includes('/meetings?') && url.includes('year=2027'))
+     return {status:200,data:{data:[meeting('2027-01-15')]}};
+   if(url.includes('/meetings?') && url.includes('year=2026'))
+     throw Error('INSTITUTIONAL_ARCHIVE_DOWN');
+   if(url.includes('/meps/show-current?'))
+     return {status:200,data:{data:roster().slice(
+       Number(new URL(url).searchParams.get('offset')),
+       Number(new URL(url).searchParams.get('offset'))+500
+     )}};
+   throw Error('unexpected request');
+ }};
+ await assert.rejects(
+   fetchRecentPlenarySittings('2027-01-02T12:00:00Z',client,5),
+   /INSTITUTIONAL_ARCHIVE_DOWN/
+ );
+ await assert.rejects(
+   collectRecentVerifiedItalianVotes({now:'2027-01-02T12:00:00Z',client,maxSittings:5}),
+   /INSTITUTIONAL_ARCHIVE_DOWN/
+ );
+});
+
+test('separate injected API clients do not contaminate the official sitting cache',async()=>{
+ const a={get:async()=>({status:200,data:{data:[meeting('2028-01-18')]}})};
+ const b={get:async()=>({status:200,data:{data:[meeting('2028-01-19')]}})};
+ assert.deepEqual(await fetchPastPlenarySittingDates('2028-01-25T12:00:00Z',a),['2028-01-18']);
+ assert.deepEqual(await fetchPastPlenarySittingDates('2028-01-25T12:00:00Z',b),['2028-01-19']);
 });
