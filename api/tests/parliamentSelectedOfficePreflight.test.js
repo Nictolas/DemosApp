@@ -53,6 +53,16 @@ test('HTML nodes splitting the current-office label must still be recognized',()
   assert.equal(profileEvidence(markup,rep,'it.camera',url).state,'OFFICE_MISMATCH');
 });
 
+test('strict official Peppe/Giuseppe alias is accepted, no generic nickname guesses',()=>{
+  const url='https://parlamento19.openpolis.it/persone/peppe-de-cristofaro-1971-06-26';
+  const peppe={nome:'Peppe',cognome:'De Cristofaro',data_nascita:'1971-06-26'};
+  const page=html('Giuseppe De Cristofaro','1971-06-26','Senatore');
+  assert.deepEqual(profileEvidence(page,peppe,'it.senato',url),
+    {state:'CANDIDATE_ONLY',office:'it.senato',profileUrl:url});
+  assert.equal(profileEvidence(page,{...peppe,nome:'Peppo'},'it.senato',url).state,
+    'NAME_MISMATCH');
+});
+
 test('profile candidates depend on public name and DOB and use safe limited HTTPS hosts',()=>{
   assert.deepEqual(profileCandidates({nome:'Claudio',cognome:'Borghi',data_nascita:'1970-06-06'}),[
     'https://parlamento19.openpolis.it/persone/claudio-borghi-1970-06-06',
