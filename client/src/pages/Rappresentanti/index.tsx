@@ -76,6 +76,13 @@ export default function Rappresentanti() {
           cognome={opinioniDialogData?.cognome}
           avatarConfig={opinioniDialogData?.avatarConfig}
           categoria={opinioniDialogData?.categoria as any}
+          ultimoVotoEuropeo={
+            opinioniDialogData?.categoria === 'europeo'
+              ? data?.rappresentanti?.europeo?.find(
+                  (item: any) => item.id === opinioniDialogData.utenteId
+                )?.ultimo_voto_nominale ?? null
+              : null
+          }
         />
       )}
     </PageContainer>
