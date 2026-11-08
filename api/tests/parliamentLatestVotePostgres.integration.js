@@ -545,6 +545,11 @@ async function main(){
       "DELETE FROM political_selections WHERE selected_user_id=$1",[senateAuditRep]);
     assert.equal((await pool.query(reviewSql)).rows.some(row=>row.representative_id===senateAuditRep),false,
       'deselected senators must stop appearing in the person-ID candidate queue');
+    // This is a disposable PostgreSQL-16 CI fixture. Drop its narrow table
+    // before the *next* synthetic encrypted-backup step, which creates the
+    // authentic legacy schema with additional mandatory columns. Never drop
+    // or alter any real staging/production relation.
+    await pool.query('DROP TABLE parlamento_voti_nominali');
 
     // Orchestration disabled means no DB writes even when this table exists.
     delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
