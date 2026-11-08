@@ -28,17 +28,16 @@ import com.google.android.libraries.ads.mobile.sdk.appopen.AppOpenAd;
 import com.google.android.libraries.ads.mobile.sdk.appopen.AppOpenAdEventCallback;
 
 /**
- * SOLO debug e solo con -PdemosDebugAppOpenAds=true.
- *
- * In release BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED è SEMPRE false.
- * La procedura usa esclusivamente le unità TEST ufficiali Google e non legge
- * mai ID account, opinioni, voti, geolocalizzazione o dati personali.
+ * SDK manager for opt-in debug and independently gated release candidates.
+ * Default release remains SDK-free; release test candidates use Google TEST ads.
+ * No DEMOS account ID, political opinions, votes, precise locations or profile
+ * values are passed to the ad SDK.
  *
  * L'annuncio può comparire solo se un WebView privo di contenuto principale
  * è effettivamente ancora in caricamento. Non introduce attese artificiali.
  *
- * Per la release reale occorrono: ID veri, opzioni privacy accessibili dalla UI,
- * gestione età, consenso verificato, Play Data Safety e test dispositivi.
+ * A production monetized release requires separately verified AdMob/Play/DPO
+ * permissions, policy declarations and physical-device consent testing.
  */
 final class DemosAppOpenAdsManager {
     private static final String PREFS = "demos_app_open_ads_device_only";
@@ -61,6 +60,10 @@ final class DemosAppOpenAdsManager {
     private ConsentInformation consentInformation;
     private AppOpenAd readyAd;
     private boolean foreground = false;
+    // A foreground resume after the Activity was paused (e.g. notification tap,
+    // consent dialog or another app) is NOT a fresh app launch. Never show a
+    // cached ad over a transiently empty WebView during such a return.
+    private boolean coldLaunchDisplayWindowOpen = true;
     private boolean initialized = false;
     private boolean loading = false;
     private long lastLoadAttemptElapsedMs = 0L;
@@ -90,22 +93,25 @@ final class DemosAppOpenAdsManager {
     }
 
     void onCreate() {
-        if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED || !BuildConfig.DEBUG) return;
+        if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
 
         preferences.edit()
             .putInt(LAUNCHES, AppOpenFrequencyPolicy.nextLaunchCount(readLaunchCount()))
             .apply();
 
         // Test-only synthetic adult, explicitly enabled in Gradle.
-        if (BuildConfig.DEMOS_QA_FORCE_ADULT) setAdultEligible(true);
+        if (BuildConfig.DEMOS_QA_FORCE_ADULT) setAdultEligible(true, true);
     }
 
-    void setAdultEligible(boolean confirmedAdult) {
-        if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
+    // The web bridge never passes account IDs. A revalidated adult session
+    // explicitly refreshes native consent even when the previous account was
+    // also an adult. Otherwise adult-A -> adult-B would reuse adult-A's gate.
+    void setAdultEligible(boolean confirmedAdult, boolean revalidateSession) {
+        if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
         // QA-only synthetic adult must not be undone by the anonymous DEMOS
         // authentication state on the test emulator. Flag is impossible in release.
         if (BuildConfig.DEMOS_QA_FORCE_ADULT && !confirmedAdult) return;
-        if (adultEligible == confirmedAdult) return;
+        if (adultEligible == confirmedAdult && !revalidateSession) return;
         adultEligible = confirmedAdult;
         invalidateConsentGeneration();
         consentVerifiedForAdultSession = false;
@@ -113,8 +119,12 @@ final class DemosAppOpenAdsManager {
             readyAd.destroy();
             readyAd = null;
         }
+        if (!confirmedAdult || revalidateSession) {
+            // Drop any previous session's UMP authorization, including
+            // adult-to-adult switches that do not visibly log out.
+            umpRequested = false;
+        }
         if (!confirmedAdult) {
-            umpRequested = false; // A new adult session must refresh UMP.
             if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "adult-gate-closed");
             return;
         }
@@ -234,11 +244,17 @@ final class DemosAppOpenAdsManager {
 
     void onPause() {
         foreground = false;
+        coldLaunchDisplayWindowOpen = false;
+        // This creative was loaded for the cold launch only. A notification or
+        // another Activity must not resurrect it during a subsequent resume.
+        if (readyAd != null) {
+            readyAd.destroy();
+            readyAd = null;
+        }
     }
 
     boolean arePrivacyOptionsRequired() {
-        return BuildConfig.DEBUG
-            && BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
+        return BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
             && consentInformation != null
             && consentInformation.getPrivacyOptionsRequirementStatus()
                 == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED;
@@ -312,7 +328,7 @@ final class DemosAppOpenAdsManager {
     }
 
     private void initializeSdk() {
-        if (initialized || initializing || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED || !BuildConfig.DEBUG
+        if (initialized || initializing || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
             || !adultEligible || !consentVerifiedForAdultSession || !hasExplicitTcfConsent()) return;
         if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "sdk-initialize-approved");
         initializing = true;
@@ -358,15 +374,16 @@ final class DemosAppOpenAdsManager {
                 // Never log exception messages, identifiers or consent strings.
                 mainHandler.post(() -> initializing = false);
             }
-        }, "demos-ads-test-initialization").start();
+        }, "demos-app-open-initialization").start();
     }
 
-    // A single Google TEST ad may be preloaded after UMP + adult verification.
+    // One App Open creative (Google TEST in all QA candidates) may be preloaded.
     // Preloading is not an impression. Display is still forbidden once the
     // application is usable; maybeShowOnlyWhileReallyLoading() rechecks root.
     private void loadOnlyTestAppOpenAd() {
-        if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
-            || !adultEligible || !consentVerifiedForAdultSession || !foreground || loading || showing
+        if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
+            || !adultEligible || !consentVerifiedForAdultSession || !foreground
+            || !coldLaunchDisplayWindowOpen || loading || showing
             || privacyFormOpen || activity.isFinishing() || activity.isDestroyed()) return;
         if (consentInformation == null || !consentInformation.canRequestAds()
             || !hasExplicitTcfConsent()
@@ -398,7 +415,8 @@ final class DemosAppOpenAdsManager {
                         loading = false;
                         if (requestConsentGeneration != consentGeneration
                             || !adultEligible || !consentVerifiedForAdultSession || privacyFormOpen || activity.isDestroyed()
-                            || activity.isFinishing() || !foreground || !hasIntervalElapsed()
+                            || activity.isFinishing() || !foreground || !coldLaunchDisplayWindowOpen
+                            || !hasIntervalElapsed()
                             || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
                             || consentInformation.getConsentStatus()
                                 != ConsentInformation.ConsentStatus.OBTAINED) {
@@ -420,7 +438,8 @@ final class DemosAppOpenAdsManager {
     }
 
     private void maybeShowOnlyWhileReallyLoading() {
-        if (!foreground || showing || readyAd == null || !hasIntervalElapsed()
+        if (!foreground || !coldLaunchDisplayWindowOpen || showing
+            || readyAd == null || !hasIntervalElapsed()
             || !adultEligible || !consentVerifiedForAdultSession || !hasExplicitTcfConsent()) return;
 
         long age = SystemClock.elapsedRealtime() - readyAtElapsedMs;
@@ -441,6 +460,7 @@ final class DemosAppOpenAdsManager {
             result -> {
                 if (!"true".equals(result)
                     || !foreground
+                    || !coldLaunchDisplayWindowOpen
                     || showing
                     || privacyFormOpen
                     || !consentInformation.canRequestAds() || !adultEligible || !consentVerifiedForAdultSession || !hasExplicitTcfConsent()

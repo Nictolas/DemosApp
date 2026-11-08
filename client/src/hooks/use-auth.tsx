@@ -142,9 +142,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Pass a boolean ONLY to Android; never send birth year or opinion data.
   const verifiedAdultForAds = !!token && !!userData && !isLoading && !isFetching && !isError
     && userData.ads_adult_eligible === true;
+  // A -> B can keep verifiedAdultForAds === true for BOTH accounts. Include
+  // the verified owner and token in the effect dependencies so the native UMP
+  // authorization is refreshed on every authenticated session transition.
+  // Only a boolean crosses the native bridge; IDs/tokens stay in React.
   useEffect(() => {
     void setNativeAppOpenAdultEligibility(verifiedAdultForAds);
-  }, [verifiedAdultForAds]);
+  }, [verifiedAdultForAds, token, userData?.id]);
 
 
   // A verified revocation must delete the encrypted political snapshot,

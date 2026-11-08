@@ -1,13 +1,13 @@
 package community.demos;
 
 /**
- * Release no-op. No advertising SDKs are packaged with production/release AAB.
- * A separate reviewed release change is necessary before enabling ads.
+ * Default release no-op. An explicitly opted-in candidate uses the separate
+ * SDK-backed implementation instead; no ad SDK is packaged by default.
  */
 final class DemosAppOpenAdsManager {
     DemosAppOpenAdsManager(MainActivity activity) {}
     void onCreate() {}
-    void setAdultEligible(boolean confirmedAdult) {} // No SDK or ads in release.
+    void setAdultEligible(boolean confirmedAdult, boolean revalidateSession) {} // No SDK or ads in release.
     boolean arePrivacyOptionsRequired() { return false; }
     void showPrivacyOptions(Runnable onSuccess, Runnable onError) { onError.run(); }
     void onResume() {}

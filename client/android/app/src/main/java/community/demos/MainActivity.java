@@ -29,10 +29,10 @@ public class MainActivity extends BridgeActivity {
         return appOpenAdsManager != null && appOpenAdsManager.arePrivacyOptionsRequired();
     }
 
-    void setAppOpenAdultEligibility(boolean verifiedAdult, Runnable onSuccess) {
+    void setAppOpenAdultEligibility(boolean verifiedAdult, boolean revalidateSession, Runnable onSuccess) {
         runOnUiThread(() -> {
             if (!isFinishing() && !isDestroyed() && appOpenAdsManager != null) {
-                appOpenAdsManager.setAdultEligible(verifiedAdult);
+                appOpenAdsManager.setAdultEligible(verifiedAdult, revalidateSession);
             }
             onSuccess.run();
         });

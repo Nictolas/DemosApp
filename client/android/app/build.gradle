@@ -19,11 +19,72 @@ def demosDebugQaForceAdult = demosDebugUmpEea &&
 // Google Play re-signs for testing; this APK must NEVER be a release.
 def demosDebugQaPlayInternalSharing = demosDebugUmpEea && demosDebugQaForceAdult &&
     (project.findProperty('demosDebugQaPlayInternalSharing') ?: 'false').toString() == 'true'
+// Same-package Play Internal App Sharing variant with REAL /auth/me age gate.
+// It is a debug-only QA APK: no synthetic adult, no real advertising units.
+// Using the Play package increases the chance of compatible Google login,
+// but tester/device OAuth and signing still require explicit verification.
+def demosDebugQaPlayRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&
+    (project.findProperty('demosDebugQaPlayRealAge') ?: 'false').toString() == 'true'
 // Separate opt-in QA package for REAL signed-in adult/minor/anonymous checks.
 // Unlike the synthetic UMP tester, it never bypasses authenticated age gates.
 def demosDebugQaRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&
     (project.findProperty('demosDebugQaRealAge') ?: 'false').toString() == 'true'
 
+
+// Ad-capable RELEASE is strictly opt-in. Default release remains SDK-free.
+// Opt-in isolated upgrade smoke: same package across baseline and test candidate.
+// Never use it for the app shipped on Google Play.
+def demosReleaseQaIsolated = (project.findProperty('demosReleaseQaIsolated') ?: 'false').toString() == 'true'
+def demosReleaseAppOpenAds = (project.findProperty('demosReleaseAppOpenAds') ?: 'false').toString() == 'true'
+def demosReleaseAdsTestOnly = (project.findProperty('demosReleaseAdsTestOnly') ?: 'true').toString() == 'true'
+def demosReleaseAdsApproved = (project.findProperty('demosReleaseAdsApproved') ?: 'false').toString() == 'true'
+// Google demo ad units are only for pre-publication/local QA. An AAB distributed
+// on a closed Play track must use the OWNER's units with AdMob app-version test
+// mode enabled beforehand. That external console state cannot be proven here.
+// If test mode is later switched off, REAL ads may be served to that build.
+def demosReleasePlayClosedQa = (project.findProperty('demosReleasePlayClosedQa') ?: 'false').toString() == 'true'
+def demosReleasePlayClosedQaOwnerConfirmed =
+    (project.findProperty('demosReleasePlayClosedQaOwnerConfirmed') ?: 'false').toString() == 'true'
+def demosReleaseAdMobAppId = (project.findProperty('demosReleaseAdMobAppId') ?: '').toString()
+def demosReleaseAdUnitId = (project.findProperty('demosReleaseAdUnitId') ?: '').toString()
+def demosSampleAppId = 'ca-app-pub-3940256099942544~3347511713'
+def demosSampleAppOpenUnitId = 'ca-app-pub-3940256099942544/9257395921'
+// An installable QA variant must not carry production IDs or production signing.
+if (demosReleaseQaIsolated && (!demosReleaseAdsTestOnly || demosReleaseAdsApproved
+    || (demosReleaseAppOpenAds && demosReleaseAdMobAppId != demosSampleAppId))) {
+    throw new GradleException('Isolated QA upgrade APK requires Google SAMPLE ads only, no production approval')
+}
+// Explicit closed-track gate is incompatible with Google demo IDs, fake
+// adult eligibility, production permission or the isolated QA app package.
+if (demosReleasePlayClosedQa && (!demosReleaseAppOpenAds
+    || demosReleaseQaIsolated || demosReleaseAdsTestOnly
+    || demosReleaseAdsApproved || !demosReleasePlayClosedQaOwnerConfirmed)) {
+    throw new GradleException('Play closed QA requires own AdMob IDs and explicit owner verification of app-version TEST MODE')
+}
+if (demosReleaseAppOpenAds) {
+    if (!(demosReleaseAdMobAppId ==~ /ca-app-pub-\d{16}~\d{10}/)) {
+        throw new GradleException('Ad-capable release requires a valid App ID supplied outside source control')
+    }
+    if (demosReleaseAdsTestOnly) {
+        if (demosReleaseAdUnitId && demosReleaseAdUnitId != demosSampleAppOpenUnitId) {
+            throw new GradleException('Test-only candidate must use the Google TEST App Open unit')
+        }
+    } else {
+        if (!demosReleaseAdsApproved && !demosReleasePlayClosedQa) {
+            throw new GradleException('Real AdMob unit requires production approval OR explicit Play closed QA gate')
+        }
+        if (demosReleaseAdMobAppId == demosSampleAppId
+            || !(demosReleaseAdUnitId ==~ /ca-app-pub-\d{16}\/\d{10}/)
+            || demosReleaseAdUnitId == demosSampleAppOpenUnitId) {
+            throw new GradleException('Own AdMob App ID and App Open unit required; Google demo IDs are forbidden for Play closed QA/production')
+        }
+        // A well-formed unit from a DIFFERENT publisher is still unsafe.
+        // Reject it before producing a closed-track or production AAB.
+        if (demosReleaseAdMobAppId.split('~', 2)[0] != demosReleaseAdUnitId.split('/', 2)[0]) {
+            throw new GradleException('AdMob App ID and App Open unit must belong to the same publisher')
+        }
+    }
+}
 
 def keystorePropertiesFile = rootProject.file("keystore.properties")
 def keystoreProperties = new Properties()
@@ -35,6 +96,17 @@ android {
     namespace "community.demos"
     compileSdk rootProject.ext.compileSdkVersion
     buildFeatures { buildConfig true }
+
+    // The opt-in candidate shares the debug manager implementation but disables
+    // all synthetic-age and debug-EEA flags. Normal release uses the no-op stub.
+    sourceSets {
+        release {
+            java.setSrcDirs([demosReleaseAppOpenAds ? 'src/debug/java' : 'src/release/java'])
+            if (demosReleaseAppOpenAds) {
+                manifest.srcFile 'src/debug/AndroidManifest.xml'
+            }
+        }
+    }
 
     signingConfigs {
         release {
@@ -67,7 +139,8 @@ android {
             // but is still a signed DEBUG APK with SAMPLE ads; NEVER publish it.
             if (demosDebugQaRealAge) {
                 applicationIdSuffix '.qaage'
-            } else if (demosDebugUmpEea && !demosDebugQaPlayInternalSharing) {
+            } else if (demosDebugUmpEea && !demosDebugQaPlayInternalSharing
+                && !demosDebugQaPlayRealAge) {
                 applicationIdSuffix '.qaopen'
             }
             // Test IDs ufficiali Google: in debug soltanto, con opt-in esplicito.
@@ -79,13 +152,21 @@ android {
             buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '"ca-app-pub-3940256099942544/9257395921"'
         }
         release {
-            // Fail closed: nessuna pubblicità in build distribuite ai tester.
-            buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', 'false'
-            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '""'
+            // Default release is SDK-free; candidate build requires Gradle opt-in.
+            buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', demosReleaseAppOpenAds.toString()
+            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', "\"${demosReleaseAppOpenAds ? demosReleaseAdMobAppId : ''}\""
             buildConfigField 'boolean', 'DEMOS_UMP_DEBUG_EEA', 'false'
             buildConfigField 'boolean', 'DEMOS_QA_FORCE_ADULT', 'false'
-            buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '""'
-            if (keystorePropertiesFile.exists()) {
+            buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', "\"${demosReleaseAppOpenAds ? (demosReleaseAdsTestOnly ? demosSampleAppOpenUnitId : demosReleaseAdUnitId) : ''}\""
+            if (demosReleaseAppOpenAds) {
+                manifestPlaceholders['demosAdMobAppId'] = demosReleaseAdMobAppId
+            }
+            if (demosReleaseQaIsolated) {
+                // Separate test package; debug signing on an otherwise RELEASE
+                // build tests the real BuildConfig.DEBUG=false code path.
+                applicationIdSuffix '.qaadsrc'
+                signingConfig signingConfigs.debug
+            } else if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
             minifyEnabled false
@@ -110,6 +191,11 @@ dependencies {
     // GMA Next-Gen e UMP sono presenti esclusivamente in build DEBUG.
     debugImplementation 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.6.0'
     debugImplementation 'com.google.android.ump:user-messaging-platform:4.0.0'
+
+    if (demosReleaseAppOpenAds) {
+        releaseImplementation 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.6.0'
+        releaseImplementation 'com.google.android.ump:user-messaging-platform:4.0.0'
+    }
 
     // Login Google nativo: Credential Manager restituisce un Google ID token
     // che viene verificato dal backend DEMOS esistente.

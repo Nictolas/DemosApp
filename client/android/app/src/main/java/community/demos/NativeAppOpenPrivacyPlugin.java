@@ -7,8 +7,8 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
- * Non-sensitive Capacitor bridge. The production/release manager is a no-op;
- * there is no AdMob SDK, consent collection or ad request in the release APK.
+ * Non-sensitive Capacitor bridge. Standard release is a no-op; only an opted-in
+ * ad-capable candidate has UMP and App Open, guarded by adult/consent checks.
  */
 @CapacitorPlugin(name = "NativeAppOpenPrivacy")
 public class NativeAppOpenPrivacyPlugin extends Plugin {
@@ -26,7 +26,10 @@ public class NativeAppOpenPrivacyPlugin extends Plugin {
             return;
         }
         Boolean confirmed = call.getBoolean("eligible");
-        activity.setAppOpenAdultEligibility(Boolean.TRUE.equals(confirmed), call::resolve);
+        // Only anonymous booleans enter native code; no token, account ID or age.
+        boolean revalidateSession = Boolean.TRUE.equals(confirmed)
+            && Boolean.TRUE.equals(call.getBoolean("revalidateSession"));
+        activity.setAppOpenAdultEligibility(Boolean.TRUE.equals(confirmed), revalidateSession, call::resolve);
     }
 
     @PluginMethod

@@ -296,6 +296,11 @@ jobs:
           out=app/build/outputs/apk/debug/real-age-qa
           mkdir -p "$out"
           cp "$apk" "$out/DEMOS-REAL-AGE-QA-TEST-ONLY.apk"
+          # A subsequent :app:assembleDebug for Play Internal Sharing can
+          # replace/clean app/build/outputs. Preserve the QA smoke input
+          # outside Gradle's build directory before that later compilation.
+          mkdir -p qa-real-age-apks
+          cp "$apk" qa-real-age-apks/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
           sha256sum "$out/DEMOS-REAL-AGE-QA-TEST-ONLY.apk"
           cat > "$out/LEGGIMI-ETA-REALE.txt" <<EOF
           DEMOS ANDROID - TEST ETA REALE (SOLO ADULTI TESTER)
@@ -321,6 +326,118 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # Real backend age-gating with the ORIGINAL Play package. The separate
+      # .qaage debug package can have OAuth/signature mismatches. This build is
+      # for authorized Google Play INTERNAL APP SHARING only, never for a track.
+      - name: Package real-age debug APK for Play Internal App Sharing
+        working-directory: client/android
+        shell: bash
+        env:
+          DEMOS_QA_ADMOB_APP_ID: ${{ secrets.DEMOS_QA_ADMOB_APP_ID }}
+        run: |
+          set -euo pipefail
+          app_id="${DEMOS_QA_ADMOB_APP_ID:-ca-app-pub-7488681940015678~2926952834}"
+          if [[ ! "$app_id" =~ ^ca-app-pub-[0-9]{16}~[0-9]{10}$ ]]; then
+            echo "::error::Invalid QA AdMob App ID"
+            exit 1
+          fi
+          echo "::add-mask::$app_id"
+          ./gradlew :app:assembleDebug \
+            -PdemosDebugAppOpenAds=true \
+            -PdemosDebugUmpEea=true \
+            -PdemosDebugQaForceAdult=false \
+            -PdemosDebugQaPlayRealAge=true \
+            "-PdemosDebugAdMobAppId=$app_id" \
+            --no-daemon --console=plain
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          "$aapt" dump badging "$apk" | grep -Fq "package: name='community.demos'"
+          build_config="$(find app/build/generated/source/buildConfig/debug -name BuildConfig.java -print -quit)"
+          test -n "$build_config"
+          grep -Eq 'DEMOS_QA_FORCE_ADULT = false;' "$build_config"
+          grep -Eq 'DEMOS_APP_OPEN_ADS_ENABLED = true;' "$build_config"
+          grep -Eq 'DEMOS_UMP_DEBUG_EEA = true;' "$build_config"
+          "$aapt" dump xmltree "$apk" AndroidManifest.xml | grep -Fq 'com.google.android.gms.ads.APPLICATION_ID'
+          out=app/build/outputs/apk/debug/play-internal-real-age
+          mkdir -p "$out"
+          cp "$apk" "$out/DEMOS-REAL-AGE-PLAY-INTERNAL-TEST-ONLY.apk"
+          sha256sum "$out/DEMOS-REAL-AGE-PLAY-INTERNAL-TEST-ONLY.apk"
+          cat > "$out/LEGGIMI-PLAY-INTERNO-ETA-REALE.txt" <<EOF
+          DEMOS QA Android - ETA REALE / SOLO CONDIVISIONE INTERNA PLAY
+          ============================================================
+          Package ORIGINALE: community.demos (debug APK, NON release AAB).
+          Solo annuncio TEST Google; nessuna monetizzazione, adulto NON simulato.
+          Per annunci/UMP richiede sessione reale /auth/me verificata adulta.
+          Riservare a tester autorizzati maggiorenni; mai a minorenni.
+          Caricare SOLO su Google Play > Condivisione interna delle app, MAI
+          su produzione, test chiuso, aperto o interno come canale di release.
+          Non e' stato caricato su Play da CI. Non contiene la firma Play reale.
+          La firma della condivisione interna/credenziali OAuth puo' comunque
+          impedire login; annotare LOGIN BLOCCATO senza aggirare l'eta'.
+          Per installare, puo' servire rimuovere prima DEMOS Play se le firme
+          differiscono. Evitare perdita di dati non esportati: non disinstallare
+          la versione del tester senza suo consenso specifico.
+          Provare login, accetta/nega/revoca UMP, logout, cambio account,
+          tap notifica -> foreground senza ADS, limite 6 ore, stabilita'.
+          Niente screenshot di dati personali, token o preferenze politiche.
+          Nessuna prova di Play Store app approval o AdMob readiness.
+          EOF
+
+      - name: Archive real-age only-for-internal-sharing debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEMOS-PLAY-INTERNAL-REAL-AGE-DEBUG-TEST-ONLY
+          path: client/android/app/build/outputs/apk/debug/play-internal-real-age/
+          if-no-files-found: error
+          retention-days: 7
+
+      # Both installable APKs use the same isolated package and Android DEBUG key,
+      # but compile the real RELEASE code path (BuildConfig.DEBUG=false).
+      # Google SAMPLE app ID + TEST unit only; no Play or real ad traffic.
+      - name: Build isolated Ads-free to TEST-ads release upgrade pair
+        working-directory: client/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=qa-isolated-apks
+          mkdir -p "$out"
+          ./gradlew :app:assembleRelease \
+            -PdemosReleaseQaIsolated=true \
+            --no-daemon --console=plain
+          apk=app/build/outputs/apk/release/app-release.apk
+          test -s "$apk"
+          cp "$apk" "$out/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk"
+          ./gradlew :app:assembleRelease \
+            -PdemosReleaseQaIsolated=true \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=true \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            --no-daemon --console=plain
+          test -s "$apk"
+          cp "$apk" "$out/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          for file in "$out"/*.apk; do
+            "$aapt" dump badging "$file" | grep -Fq "package: name='community.demos.qaadsrc'"
+          done
+          if "$aapt" dump xmltree "$out/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk" AndroidManifest.xml | grep -Fq 'com.google.android.gms.ads.APPLICATION_ID'; then
+            echo "::error::Ads-free isolated baseline includes AdMob"
+            exit 1
+          fi
+          "$aapt" dump xmltree "$out/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk" AndroidManifest.xml | grep -Fq 'com.google.android.gms.ads.APPLICATION_ID'
+          build_config="$(find app/build/generated/source/buildConfig/release -name BuildConfig.java -print -quit)"
+          test -n "$build_config"
+          grep -Eq 'DEMOS_APP_OPEN_ADS_ENABLED = true;' "$build_config"
+          grep -Eq 'DEMOS_QA_FORCE_ADULT = false;' "$build_config"
+          grep -Eq 'DEMOS_UMP_DEBUG_EEA = false;' "$build_config"
+          grep -Fq 'ca-app-pub-3940256099942544/9257395921' "$build_config"
+          sha256sum "$out"/*.apk
+          echo 'PASS: isolated release upgrade pair built using Google TEST ad unit only'
+
       # Real-age QA differs from the forced-adult .qaopen smoke above.
       # On a fresh, OFFLINE device without an authenticated user, not even the
       # UMP request or the test ad SDK may start. No user account is used.
@@ -337,8 +454,8 @@ jobs:
             adb shell svc wifi disable
             adb shell svc data disable
             adb logcat -c
-            test -s client/android/app/build/outputs/apk/debug/real-age-qa/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
-            adb install client/android/app/build/outputs/apk/debug/real-age-qa/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
+            test -s client/android/qa-real-age-apks/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
+            adb install client/android/qa-real-age-apks/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
             adb shell am start -W -n community.demos.qaage/community.demos.MainActivity
             sleep 5
             test -n "$(adb shell pidof community.demos.qaage | tr -d '\r')"
@@ -349,6 +466,30 @@ jobs:
             adb logcat -d -s DemosAdsQA:I > /tmp/demos-qaage-anonymous-logcat.txt
             if grep -Eq 'sdk-initialize-approved|app-open-test-request-started|app-open-test-loaded|form-complete' /tmp/demos-qaage-anonymous-logcat.txt; then echo 'ERROR: advertising or consent started for an unauthenticated QA user'; exit 1; fi
             echo 'Anonymous real-age QA: installed, cold start and foreground return OK, no ad/consent start log'
+
+            # Test a release-mode upgrade and a fresh install in the SAME isolated
+            # package. It cannot touch community.demos or the Play tester build.
+            # Emulator runner executes commands in independent shells: no
+            # multi-line shell variables may be relied on in this script.
+            test -s client/android/qa-isolated-apks/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk
+            test -s client/android/qa-isolated-apks/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk
+            adb install client/android/qa-isolated-apks/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk
+            adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
+            sleep 4
+            test -n "$(adb shell pidof community.demos.qaadsrc | tr -d '\r')"
+            # The app's data is NOT cleared: this exercises APK replacement.
+            adb install -r client/android/qa-isolated-apks/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk
+            adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
+            sleep 5
+            test -n "$(adb shell pidof community.demos.qaadsrc | tr -d '\r')"
+            echo 'PASS: isolated Ads-free to TEST-ads RELEASE APK replacement survived'
+            adb uninstall community.demos.qaadsrc
+            adb install client/android/qa-isolated-apks/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk
+            adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
+            sleep 5
+            test -n "$(adb shell pidof community.demos.qaadsrc | tr -d '\r')"
+            if adb logcat -d -s AndroidRuntime:E | grep -Fq 'community.demos.qaadsrc'; then echo "::error::Fatal AndroidRuntime exception for isolated ad candidate"; exit 1; fi
+            echo 'PASS: isolated TEST-ads release first installation and startup survived offline (anonymous)'
 
       - name: Confirm release runtime does not include AdMob or UMP
         working-directory: client/android
@@ -390,3 +531,114 @@ jobs:
             exit 1
           fi
           echo 'Verified: compiled release APK has no AdMob App ID or AD_ID permission'
+
+      # Last step: opt-in UNSIGNED candidate with public SAMPLE App ID and TEST unit.
+      # There is no Play upload, live ad serving, or real ad unit in CI.
+      - name: Build opt-in release candidate with Google TEST ads only
+        working-directory: client/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ./gradlew :app:help \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=false \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            -PdemosReleaseAdUnitId=ca-app-pub-3940256099942544/9257395921 \
+            --no-daemon > /tmp/demos-prod-ads-blocked.txt 2>&1; then
+            echo "::error::Real-ad build missing approval incorrectly passed"
+            exit 1
+          fi
+          echo 'PASS: unauthorized real-ad build rejected'
+          # A Play closed-track bundle MUST NOT contain Google demo IDs.
+          # These checks must reject missing test-mode confirmation AND
+          # "confirmed" QA builds that still contain sample ad identifiers.
+          if ./gradlew :app:help \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleasePlayClosedQa=true \
+            -PdemosReleaseAdsTestOnly=false \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            -PdemosReleaseAdUnitId=ca-app-pub-3940256099942544/9257395921 \
+            --no-daemon > /tmp/demos-play-qa-unconfirmed.txt 2>&1; then
+            echo "::error::Unconfirmed Play closed QA was incorrectly allowed"
+            exit 1
+          fi
+          grep -Fq 'Play closed QA requires own AdMob IDs and explicit owner verification' /tmp/demos-play-qa-unconfirmed.txt
+          if ./gradlew :app:help \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleasePlayClosedQa=true \
+            -PdemosReleasePlayClosedQaOwnerConfirmed=true \
+            -PdemosReleaseAdsTestOnly=false \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            -PdemosReleaseAdUnitId=ca-app-pub-3940256099942544/9257395921 \
+            --no-daemon > /tmp/demos-play-qa-demo-id.txt 2>&1; then
+            echo "::error::Play closed QA with Google demo IDs was incorrectly allowed"
+            exit 1
+          fi
+          grep -Fq 'Google demo IDs are forbidden for Play closed QA' /tmp/demos-play-qa-demo-id.txt
+          echo 'PASS: closed Play QA rejects missing owner test-mode confirmation and Google demo IDs'
+          # Synthetic formatting-only placeholders are safe for the :app:help
+          # configuration test. They are NEVER packaged or uploaded to Play.
+          if ./gradlew :app:help \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleasePlayClosedQa=true \
+            -PdemosReleasePlayClosedQaOwnerConfirmed=true \
+            -PdemosReleaseAdsTestOnly=false \
+            -PdemosReleaseAdMobAppId=ca-app-pub-1111111111111111~1111111111 \
+            -PdemosReleaseAdUnitId=ca-app-pub-2222222222222222/2222222222 \
+            --no-daemon > /tmp/demos-play-qa-mismatch.txt 2>&1; then
+            echo "::error::Play closed QA accepted mismatched AdMob publishers"
+            exit 1
+          fi
+          grep -Fq 'App ID and App Open unit must belong to the same publisher' /tmp/demos-play-qa-mismatch.txt
+          ./gradlew :app:help \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleasePlayClosedQa=true \
+            -PdemosReleasePlayClosedQaOwnerConfirmed=true \
+            -PdemosReleaseAdsTestOnly=false \
+            -PdemosReleaseAdsApproved=false \
+            -PdemosReleaseAdMobAppId=ca-app-pub-1111111111111111~1111111111 \
+            -PdemosReleaseAdUnitId=ca-app-pub-1111111111111111/2222222222 \
+            --no-daemon > /tmp/demos-play-qa-config-pass.txt 2>&1
+          echo 'PASS: Play closed QA Gradle config accepts matching same-publisher non-demo IDs, only after owner attestation'
+          ./gradlew :app:assembleRelease \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=true \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            --no-daemon --console=plain
+          apk=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$apk"
+          build_config="$(find app/build/generated/source/buildConfig/release -name BuildConfig.java -print -quit)"
+          test -n "$build_config"
+          grep -Eq 'DEMOS_APP_OPEN_ADS_ENABLED = true;' "$build_config"
+          grep -Eq 'DEMOS_UMP_DEBUG_EEA = false;' "$build_config"
+          grep -Eq 'DEMOS_QA_FORCE_ADULT = false;' "$build_config"
+          grep -Fq 'ca-app-pub-3940256099942544/9257395921' "$build_config"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          "$aapt" dump xmltree "$apk" AndroidManifest.xml | grep -Fq 'com.google.android.gms.ads.APPLICATION_ID'
+          ./gradlew :app:dependencies --configuration releaseRuntimeClasspath \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=true \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            --no-daemon > /tmp/demos-opt-in-ads-deps.txt
+          grep -Fq 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk' /tmp/demos-opt-in-ads-deps.txt
+          grep -Fq 'com.google.android.ump:user-messaging-platform' /tmp/demos-opt-in-ads-deps.txt
+          echo 'PASS: opt-in unsigned release APK contains GMA/UMP with TEST unit only'
+
+          # Test the actual Android App Bundle code path before cumulative AAB work.
+          # This bundle is UNSIGNED, built with Google SAMPLE/TEST IDs only, and
+          # remains on the isolated CI runner: never upload it to Play.
+          ./gradlew :app:bundleRelease \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=true \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            --no-daemon --console=plain
+          bundle=app/build/outputs/bundle/release/app-release.aab
+          test -s "$bundle"
+          unzip -Z -1 "$bundle" | grep -Fxq 'base/manifest/AndroidManifest.xml'
+          unzip -p "$bundle" base/manifest/AndroidManifest.xml | grep -aFq 'com.google.android.gms.ads.APPLICATION_ID'
+          unzip -p "$bundle" base/manifest/AndroidManifest.xml | grep -aFq 'ca-app-pub-3940256099942544~3347511713'
+          sha256sum "$bundle"
+          echo 'PASS: test-only opt-in unsigned AAB compiled with AdMob application metadata'
+          echo 'No Play release, real ads, device QA or DPO approval is inferred.'

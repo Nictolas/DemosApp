@@ -3,7 +3,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 interface NativeAppOpenPrivacyPlugin {
   getStatus(): Promise<{ required: boolean }>;
   showPrivacyOptions(): Promise<void>;
-  setAdultEligibility(options: { eligible: boolean }): Promise<void>;
+  setAdultEligibility(options: { eligible: boolean; revalidateSession: boolean }): Promise<void>;
 }
 
 const NativeAppOpenPrivacy = registerPlugin<NativeAppOpenPrivacyPlugin>('NativeAppOpenPrivacy');
@@ -41,7 +41,12 @@ export async function showAppOpenPrivacyOptions(): Promise<void> {
 export async function setNativeAppOpenAdultEligibility(eligible: boolean): Promise<void> {
   if (!isAndroidApp()) return;
   try {
-    await NativeAppOpenPrivacy.setAdultEligibility({ eligible: eligible === true });
+    // A confirmed adult triggers native UMP revalidation even when another
+    // adult was already signed in. Never send account identifiers to AdMob.
+    await NativeAppOpenPrivacy.setAdultEligibility({
+      eligible: eligible === true,
+      revalidateSession: eligible === true,
+    });
   } catch {
     // Fail closed: native manager remains ineligible unless the call succeeds.
   }

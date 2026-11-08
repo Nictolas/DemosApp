@@ -13,7 +13,8 @@ test('legal copy labels AdMob as planned rather than already live', () => {
   assert.match(privacy, /Nelle versioni[\s\S]*?SDK AdMob e UMP non sono inclusi/);
   assert.match(cookies, /3\.2 Identificatori e strumenti pubblicitari Android \(non ancora attivi\)/);
   assert.match(cookies, /sito web DEMOS/);
-  assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_APP_OPEN_ADS_ENABLED', 'false'/);
+  assert.match(gradle, /demosReleaseAppOpenAds = \(project\.findProperty\('demosReleaseAppOpenAds'\) \?: 'false'\)/);
+  assert.match(gradle, /DEMOS_APP_OPEN_ADS_ENABLED', demosReleaseAppOpenAds\.toString\(\)/);
   assert.doesNotMatch(releaseManifest, /com\.google\.android\.gms\.ads\.APPLICATION_ID/);
 });
 
