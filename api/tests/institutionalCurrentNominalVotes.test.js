@@ -86,6 +86,9 @@ test('PE writes recheck the approved official identity and active follower atomi
   assert.match(UPSERT_SELECTED_PE_CURRENT_VOTE_SQL,/FOR SHARE OF l/);
   assert.match(UPSERT_SELECTED_PE_CURRENT_VOTE_SQL,/FOR SHARE OF ps, follower/);
   assert.match(UPSERT_SELECTED_PE_CURRENT_VOTE_SQL,/ON CONFLICT \(representative_key\)/);
+  assert.equal(UPSERT_SELECTED_PE_CURRENT_VOTE_SQL.split('INSERT INTO').length,2,'exactly one insertion');
+  assert.equal(UPSERT_SELECTED_PE_CURRENT_VOTE_SQL.split('ON CONFLICT').length,2,'exactly one UPSERT');
+  assert.doesNotMatch(UPSERT_SELECTED_PE_CURRENT_VOTE_SQL,/VALUES \(\$1,\$2/);
   const ep={...base,institution:'PE',
     representativeKey:'demos:00000000-0000-4000-8000-000000000005',
     sourcePersonId:'12345', sourceType:'pe_ufficiale',
