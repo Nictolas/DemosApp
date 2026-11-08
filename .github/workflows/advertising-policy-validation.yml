@@ -500,5 +500,21 @@ jobs:
             --no-daemon > /tmp/demos-opt-in-ads-deps.txt
           grep -Fq 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk' /tmp/demos-opt-in-ads-deps.txt
           grep -Fq 'com.google.android.ump:user-messaging-platform' /tmp/demos-opt-in-ads-deps.txt
-          echo 'PASS: opt-in unsigned release contains GMA/UMP with TEST unit only'
+          echo 'PASS: opt-in unsigned release APK contains GMA/UMP with TEST unit only'
+
+          # Test the actual Android App Bundle code path before cumulative AAB work.
+          # This bundle is UNSIGNED, built with Google SAMPLE/TEST IDs only, and
+          # remains on the isolated CI runner: never upload it to Play.
+          ./gradlew :app:bundleRelease \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=true \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            --no-daemon --console=plain
+          bundle=app/build/outputs/bundle/release/app-release.aab
+          test -s "$bundle"
+          unzip -Z -1 "$bundle" | grep -Fxq 'base/manifest/AndroidManifest.xml'
+          unzip -p "$bundle" base/manifest/AndroidManifest.xml | grep -aFq 'com.google.android.gms.ads.APPLICATION_ID'
+          unzip -p "$bundle" base/manifest/AndroidManifest.xml | grep -aFq 'ca-app-pub-3940256099942544~3347511713'
+          sha256sum "$bundle"
+          echo 'PASS: test-only opt-in unsigned AAB compiled with AdMob application metadata'
           echo 'No Play release, real ads, device QA or DPO approval is inferred.'
