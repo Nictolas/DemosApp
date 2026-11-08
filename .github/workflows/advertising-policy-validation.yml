@@ -415,10 +415,7 @@ jobs:
             adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
             sleep 5
             test -n "$(adb shell pidof community.demos.qaadsrc | tr -d '\r')"
-            if adb logcat -d -s AndroidRuntime:E | grep -Fq 'community.demos.qaadsrc'; then
-              echo "::error::Fatal AndroidRuntime exception for isolated ad candidate"
-              exit 1
-            fi
+            if adb logcat -d -s AndroidRuntime:E | grep -Fq 'community.demos.qaadsrc'; then echo "::error::Fatal AndroidRuntime exception for isolated ad candidate"; exit 1; fi
             echo 'PASS: isolated TEST-ads release first installation and startup survived offline (anonymous)'
 
       - name: Confirm release runtime does not include AdMob or UMP
