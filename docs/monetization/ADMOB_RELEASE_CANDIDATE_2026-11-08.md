@@ -1,0 +1,270 @@
+# DEMOS — AdMob App Open, release candidate condizionata (08/11/2026)
+
+**Stato: PR DRAFT / NO-GO annunci reali / NO-GO AAB cumulativa.** Dipende dalla PR #558 (branch `feat/advertising-privacy-first-20261102`). Nessun merge, deploy, Google Play upload o traffico Ads reale è autorizzato da questo documento.
+
+## Ambito e decisioni immutate
+
+- **Solo App Open Android**, non banner, interstitial aggiuntivi, AdSense web o annunci locali.
+- Primo annuncio dal **terzo avvio**; **almeno sei ore** tra due visualizzazioni reali, misurate dal callback di visualizzazione, non dai preload.
+- Nessun annuncio sopra contenuti pronti, voti, opinioni, sondaggi, firme, login, profili o notifiche; niente attese artificiali e nessuna impression garantita nei caricamenti rapidi.
+- Solo adulti autenticati con indicatore booleano `ads_adult_eligible=true` da `/auth/me` (età autodichiarata, **non** verifica forte). Anonimi, minorenni e casi incerti: no UMP / no Ads.
+- UMP prima di inizializzare GMA; blocco in mancanza di consenso esplicito TCF Purpose 1 e Google vendor 755, anche se `canRequestAds()` risulta vero. Personalizzazione disabilitata, consent changes invalidano gli ad precaricati. Nessun targeting con dati politici, ID profilo o comune.
+- Il gestore mantiene la `WebViewClient` Capacitor e lascia intatti notifiche e navigazione.
+
+## Cosa cambia rispetto alla PR #558
+
+Il codice Java nativo esistente può essere usato anche da una **release candidate esplicitamente opt-in**: sono stati rimossi i controlli `BuildConfig.DEBUG` che la rendevano inutilizzabile in release. Le difese su età, consenso, periodo e caricamento restano invariati.
+
+`client/android/app/build.gradle` prevede due percorsi:
+
+| Compilazione | Default | SDK GMA/UMP | Manager | Unità |
+| --- | --- | --- | --- | --- |
+| `assembleRelease` standard | Ads **OFF** | Assenti | Stub | Nessuna |
+| `assembleRelease -PdemosReleaseAppOpenAds=true ...` | Solo opt-in | GMA Next-Gen 1.6.0 / UMP 4.0.0 | Gestore esistente | **TEST Google** per default |
+| Candidata con ID reali | Richiede opt-in *ulteriore* + autorizzazione | Presenti | Gestore | Reali, **non testare senza test devices/gate** |
+
+Per le QA automatiche ci si limita all'App ID Google di esempio e all'unità App Open ufficiale di **TEST**. La candidata reale non va generata né distribuita senza esito positivo dei gate Play/AdMob/DPO e test su installazione/aggiornamento.
+
+## Comandi ammessi per CI locale, senza annunci reali
+
+```bash
+cd client
+npm ci
+npm run android:sync
+cd android
+./gradlew :app:testDebugUnitTest :app:testReleaseUnitTest :app:assembleRelease
+# Compilazione opt-in di sola prova, con identificativi pubblici GOOGLE SAMPLE:
+./gradlew :app:assembleRelease \
+  -PdemosReleaseAppOpenAds=true \
+  -PdemosReleaseAdsTestOnly=true \
+  -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713
+```
+
+I controlli CI devono dimostrare **entrambi**: release ordinaria senza SDK e App ID pubblicitario; candidata opt-in con GMA/UMP e sola unità TEST. Senza `-PdemosReleaseAdsApproved=true` una configurazione con `demosReleaseAdsTestOnly=false` viene rifiutata da Gradle. L'approvazione tecnica della build **non coincide** con consenso al deploy. Gli ID produzione, presenti solo nella documentazione privata di account, vanno passati via proprietà locali/secret autorizzati, senza stamparli nei log o nel repository.
+
+## Evidenze precedenti (PR #558)
+
+- Emulatore API35: consentire, rifiutare, modificare/revocare e persistenza al riavvio provati con UMP DEMOS e unità TEST; fail-closed dopo rifiuto.
+- App Open di TEST: `loaded`, `shown` e `impression` osservati **solo** in schermata di caricamento simulata; blocco di sei ore controllato.
+- Android QA anonimo/offline senza adulto sintetico: nessuna richiesta UMP/Ads; CI al 07/11/2026 verde, run 42395691876.
+- **Non** sono attestati display su avvio naturale adulto, installazione/aggiornamento su dispositivo fisico, accessibilità, ritorno da notifiche e compatibilità con l'AAB cumulativa.
+
+## Gate di uscita — tutti obbligatori
+
+1. **AdMob**: app `community.demos` collegata a store verificabile, review completata, verifica crawler `app-ads.txt`. Il file HTTP era già pubblicato ma il crawler non era confermato.
+2. **Consenso / GDPR / ePrivacy**: il DPO controlla testo e finalità, configurazione attuale CMP con fino a 210 partner e possibile localizzazione SDK; consenso/rifiuto/revoca in ambiente non simulato e registro trattamenti. L'approvazione preparatoria del 02/11 non basta.
+3. **Google Play**: target età, Ads declaration, Data Safety completa dell'AAB realmente destinato allo Store, audit SDK/permessi inclusi `AD_ID`, policy privacy; nessuna dichiarazione di trattamento zero soltanto perché gli annunci sono non personalizzati.
+4. **QA telefono fisico** con account test adulto/minore/anonimo, prima installazione **e aggiornamento**, offline/online, consensi e logout, collisione con voto/firme/notifiche, back/foreground, accessibilità, veri tempi di caricamento e cap ≥6h.
+5. **AAB cumulativa**: integrazione con le altre PR Android/notifiche e verifica binaria dell'AAB firmata; preservare il default Ads-free sino al GO.
+6. **Monetizzazione/fiscalità**: titolarità dei ricavi, condizioni AdMob e inquadramento fiscale da confermare, senza attivare pagamenti.
+
+## Esito di questa sessione
+
+Proposta tecnica su ramo separato: sorgenti/CI predisposti; **i test finali vanno documentati con run GitHub specifico**. Il dispositivo Desktop Commander autorizzato risulta offline (08/11/2026): non dichiarare nuove prove locali o su telefoni. Nessun test con annunci reali, nessun deploy o modifica a Proponi / Parlamento / ECI.
+
+Fonti ufficiali: https://developers.google.com/admob/android/next-gen/app-open/single-load ; https://support.google.com/admob/answer/9341964 ; https://support.google.com/googleplay/android-developer/answer/10787469 .
+
+## QA update simulato su Android API35 (integrazione 08/11)
+
+È stato predisposto un passaggio aggiuntivo di CI con **una sola istanza di emulatore preesistente nel workflow** (nessun servizio Render/Supabase o staging creato):
+- Gradle crea due APK `release`, **firmati con il certificato DEBUG standard di CI** e identificati esclusivamente come `community.demos.qaadsrc`, senza alcuna relazione con il pacchetto Google Play `community.demos`.
+- Il primo APK è la release Ads-free; il secondo include GMA/UMP e **l'unità App Open TEST ufficiale Google**, con `BuildConfig.DEBUG=false`. Non è utilizzato alcun ID di produzione.
+- Installazione della baseline, avvio; `adb install -r` della candidata senza cancellare i dati; avvio dopo upgrade; disinstallazione del solo pacchetto isolato; installazione *ex novo* della candidata e avvio. Gli step controllano che il processo resti attivo senza crash AndroidRuntime rilevati. Il test è **anonimo/offline** e non può dimostrare consenso, impression o qualità UI in sessione autenticata.
+- Il flag `-PdemosReleaseQaIsolated=true` è **OFF di default**, rifiuta `demosReleaseAdsTestOnly=false` e gli App ID diversi da Google SAMPLE quando la pubblicità è inclusa.
+- La sola presenza dei test e degli APK non dimostra successo: **verificare lo stato della run GitHub al commit effettivo** prima di segnare PASS. APK isolati NON sono AAB, NON vanno pubblicati su Google Play.
+
+Rimangono obbligatorie QA con dispositivi Android fisici e upgrade dal pacchetto realmente distribuito con firma Play/App Signing, oltre ai gate DPO e Play Console.
+
+## Collaudi chiusi e compatibilità AAB cumulativa (08/11/2026)
+
+### Evidenza CI verificata
+
+- PR [#634](https://github.com/Nictolas/DemosApp/pull/634) sul commit `8e8b9db54e48433caf43dfd50a5209a415ccf241`: [workflow 42513706857](https://github.com/Nictolas/DemosApp/actions/runs/42513706857) **COMPLETED SUCCESS, 2/2 job**. Entrambi `advertising-policy` e `android-native-debug-compile` sono PASS.
+- Nello step `Build opt-in release candidate with Google TEST ads only` sono PASS la compilazione e il controllo della **AAB release non firmata**, con sola App ID di esempio Google, unità TEST, metadati AdMob; non è una AAB Play firmata. La normale release continua a essere **Ads-free**, senza dipendenze GMA/UMP, AdMob App ID e permission `AD_ID`.
+- Emulatore Android API35: PASS con utenza anonima/offline, compilazione di APK release isolati, installazione baseline Ads-free, aggiornamento `adb install -r` verso TEST-ads, installazione pulita, verifica processo e assenza di crash AndroidRuntime rilevati. Non sono stati effettuati test consentiti da una sessione autenticata reale.
+- Il [workflow 42513706828](https://github.com/Nictolas/DemosApp/actions/runs/42513706828) dei contratti catalogo è **SUCCESS**. I CI precedenti non sostituiscono il test dell'AAB realmente integrata e firmata.
+- Pacchetto QA `community.demos.qaage` con Google TEST, **senza età sintetica**, archiviato nel Drive privato del titolare, non distribuito pubblicamente. Per il pacchetto isolato OAuth/Google login devono essere effettivamente verificati sul dispositivo: non presumerne il funzionamento.
+
+### Compatibilità verificata a livello di diff (nessuna build combinata attestata)
+
+| Integrazione | Evidenza repository | Azione per l'integratore AAB |
+| --- | --- | --- |
+| [#558](https://github.com/Nictolas/DemosApp/pull/558) | Base diretta della #634, entrambe Draft | Integrare **prima #558, poi #634**. Non fondere la #634 direttamente con `main` ignorando la base. |
+| [#588](https://github.com/Nictolas/DemosApp/pull/588) (DEMOS 10, ECI/push) | Toccato **`client/android/app/build.gradle`** con `versionCode 16`, `versionName "1.0.13"`; la #634 parte da codice 15 / 1.0.12. Le modifiche JS di #588 a `useNativePush.ts` non si sovrappongono direttamente al manager Java AdMob. | Nella branch di integrazione preservare **16 / 1.0.13 o superiore**, senza annullare la logica di opt-in Gradle della #634; poi **recompilare e testare**. |
+| [#583](https://github.com/Nictolas/DemosApp/pull/583) (tastiera) | Modifica `client/android/app/src/main/AndroidManifest.xml` per `android:windowSoftInputMode="adjustResize"`. La #634 usa il **manifest debug** soltanto per la variante advertising opt-in, senza modificare il manifest principale. | Mantenere `adjustResize` e verificare nel manifest unito **sia** la modalità tastiera sia, solo nella variante ad-capable, il metadato AdMob; testare tastiera su telefono. |
+| Notifiche/FCM e Google login | #634 non modifica `useNativePush.ts` né i flussi FCM; la semplice assenza di patch comuni non certifica la compatibilità runtime. | Build configurata Firebase e test su dispositivo: login, ricezione/tap delle notifiche, ritorno in foreground, apertura deep link, assenza di annunci su pagina già pronta. |
+
+**Confine di responsabilità:** questa PR prepara AdMob, mentre la chat/branch dell'integrazione AAB cumulativa è responsabile del merge coordinato, numero di versione, firma e rilascio. Nessuna PR viene fusa da questa verifica; la #634 resta Draft e in NO-GO annunci reali.
+
+### Gate che richiedono ancora prove esterne
+
+- **Tester Android fisico** (account adulto, minore e anonimo ove disponibili): verificare installazione e upgrade del pacchetto reale, login Google, CMP/UMP, rifiuto e revoca, sessioni/offline, notifiche, caricamenti naturali, visibilità e cap a sei ore. APK `qaage` con suffisso diverso non dimostra upgrade del pacchetto Play né login compatibile.
+- **Accesso alle console** AdMob e Google Play: stato app, review, `app-ads.txt` accettato dal crawler, dichiarazione pubblicità, Data Safety, target età, requisiti fiscali/publisher. La sola presenza del file `app-ads.txt` non conferma la scansione.
+- **DPO**: verifica finale e motivata della informativa, basi giuridiche, CMP vendor, revoca e dati effettivamente elaborati. Nessun automatismo può sostituire le decisioni effettive del titolare/DPO.
+- **Build AAB cumulativa effettiva**: CI e signing verificati, versionCode corretto, installazione/aggiornamento Play, confronto dei manifest binari e contenuto SDK/permessi; release senza ads reali fino a GO separato.
+
+## Verifica live da PC autorizzato e vincolo AdMob / Google Play — 08/11/2026
+
+**Accesso strumenti:** DeskMCP in profilo locale `fully-unlocked` operativo, Desktop Commander online. Il browser DeskMCP isolato con profilo `demos-play-console-release` è arrivato alla pagina pubblica Play e al login Google AdMob; **non è una verifica autenticata degli stati interni** delle console. Chrome utente raggiunge la home Play Console, ma la lettura strutturata di app/dichiarazioni/stati non è ancora verificata. Non sono stati inseriti codici, modificati dati o concesse autorizzazioni.
+
+**Verifica live HTTP / browser:**
+- `https://www.demos.community/app-ads.txt` è pubblicamente raggiungibile e contiene esattamente `google.com, pub-7488681940015678, DIRECT, f08c47fec0942fa0` (stessa riga del sorgente `client/public/app-ads.txt`).
+- `https://demos.community/app-ads.txt` reindirizza alla variante `www` con la medesima riga. **Raggiungibilità ≠ crawler Google verificato**.
+- `https://play.google.com/store/apps/details?id=community.demos&hl=en` restituisce **«Not Found»** a una visita pubblica senza login. Ciò non prova l'assenza di test chiusi; **non è una scheda Play pubblicamente verificabile**.
+
+**Blocco procedurale da fonti ufficiali Google (consultate 08/11):**
+- [Google AdMob — configurare un'app](https://support.google.com/admob/answer/9989980?hl=it): per collegarla ad AdMob l'app Android deve essere **pubblicamente disponibile** in uno store supportato. Una app `non pubblicata` è testabile ma non può ottenere la normale verifica di idoneità prima dell'associazione allo Store.
+- [Google AdMob — idoneità dell'app](https://support.google.com/admob/answer/10564477?hl=it): prima della revisione occorrono app pubblicata, scheda Store e collegamento AdMob.
+- [Google AdMob — app-ads.txt](https://support.google.com/admob/answer/9776740?hl=it): il crawler prende come riferimento il sito web sviluppatore della scheda Store; può impiegare fino a 24 ore dopo un aggiornamento e lo stato effettivo va controllato in AdMob.
+- [Google AdMob — guida iniziale](https://support.google.com/admob/answer/15948559?hl=en): per la readiness dell'account sono richiesti anche dati di pagamento, da confermare nella console senza attivare incassi.
+
+**Sequenza consigliata (nessuna azione di rilascio autorizzata):**
+1. Completare le verifiche della **AAB cumulativa Ads-free**, con dati privacy, notifiche, voti, Proponi e QA appropriata; lasciare disabilitati GMA/UMP per default sino al GO e mantenere il codice AdMob in Draft.
+2. Quando il titolare autorizza effettivamente la disponibilità pubblica e gli altri gate della release sono superati, pubblicare la build approvata **senza annunci reali**. La pubblicazione NON è stata eseguita da questo audit.
+3. Verificare che la scheda Play pubblica mostri il sito sviluppatore corretto, collegare l'app allo store in AdMob, controllare eventuali verifiche dell'account, revisione e stato del crawler app-ads.txt.
+4. Solo dopo AdMob pronto, DPO/consenso/Play Data Safety aggiornati e collaudi su veri dispositivi, preparare una **successiva** release AdMob opt-in con IDs reali, firma e controlli Play. Mai considerare l'AAB CI Google TEST pronta per produzione.
+
+**Decisione ancora del titolare:** autorizzazione pubblicazione dopo tutti i gate; non anticipare né approvare implicitamente release o annunci reali. Il calendario di disponibilità pubblica non è determinato da questa indagine.
+
+## Evidenza account AdMob da schermata del titolare — 08/11/2026
+
+Il titolare ha fornito in chat una schermata della **Home Google AdMob autenticata**, con URL `admob.google.com/v2/home`. Dati effettivamente leggibili nella schermata:
+- Percorso iniziale **3/4**; nel riquadro **App → Collegati allo store** è richiesto di collegare l'app a uno store per richiederne la revisione; Google precisa che le app devono essere approvate prima di poter pubblicare annunci.
+- **Pagamenti: «Il tuo profilo pagamenti è completo»** (check verde), indicato come pronto per essere esaminato e approvato. Questo **non** attesta avvenuta revisione fiscale/identità né possibilità di ricevere incassi.
+- **Unità pubblicitarie: «La tua prima unità pubblicitaria è configurata»** (check verde). Questo **non** attesta annunci reali attivi nella AAB né l'approvazione dell'app.
+- Utili stimati visibili 0,00 €. La schermata Home **non mostra** lo stato della verifica crawler `app-ads.txt`, l'eventuale `Ready`/limiti app, il dettaglio della quarta attività né i parametri GDPR/Play Data Safety.
+- È stato constatato da DeskMCP che la scheda Chrome dell'utente è autenticata su AdMob, **ma la UI Automation del contenuto web non fornisce un albero affidabile** e la cattura desktop del browser è nera: dunque non si dichiarano ulteriori controlli interni autonomi. Il browser isolato DeskMCP richiede ancora login indipendente; non prelevare cookie/token della sessione personale.
+
+**Conseguenza:** il dato Home corrobora il blocco **store linking / app readiness**. Le istruzioni ufficiali Google [Set up an app](https://support.google.com/admob/answer/9989980) e [About app readiness](https://support.google.com/admob/answer/10564477?hl=en) escludono il collegamento di app private Google Play: occorre una pagina pubblica e accessibile in uno store supportato. Una volta approvata la release cumulativa **Ads-free** per la pubblicazione dal titolare, eseguire store linking, verifica crawler `app-ads.txt` e revisione AdMob. **Non** pubblicare ora, non dichiarare AdMob `Ready` e non attivare traffico reale.
+
+## Evidenza app-ads.txt da pagina AdMob DEMOS — 08/11/2026
+
+Schermata autenticata fornita dal titolare dell'account: URL `https://admob.google.com/v2/apps/appadstxt`, selezione **DEMOS — Android**, voce **app-ads.txt** nel menu dell'app. La pagina visualizza **«Ancora nessuna richiesta di annuncio con file app-ads.txt»** e una tabella senza righe (`Nessun dato da visualizzare`). L'avviso indica che le modifiche agli URL del dominio possono impiegare **fino a 7 giorni** per essere rilevate dal crawler Google.
+
+**Interpretazione limitata ai fatti:** il file `https://www.demos.community/app-ads.txt` è raggiungibile dal browser e la riga del publisher corrisponde al sorgente; la schermata AdMob **NON conferma lo stato `verified`/«trovato e verificato» e non mostra alcuna scansione datata**. Non attesta neppure un errore di sintassi del file. Non trasformare la tabella vuota in un falso PASS o FAIL. Per [Google AdMob — risoluzione problemi app-ads.txt](https://support.google.com/admob/answer/9776740/), uno stato può non apparire quando l'app non ha registrato richieste pubblicitarie negli ultimi 7 giorni **oppure** il file non è ancora verificato. Google descrive come tempo abituale fino a 24 ore dopo la rilevazione di listing/sito aggiornati, ma può essere più lungo in situazioni di basso traffico; rispettare l'avviso più conservativo della console senza promettere scadenze.
+
+**Prossimo step sicuro:** completare e collaudare l'AAB cumulativa iniziale Ads-free; quando la pubblicazione pubblica sarà autorizzata e confermata, verificare il sito sviluppatore associato alla scheda Google Play, eseguire il collegamento in AdMob, poi controllare in console `app-ads.txt` e la revisione. Non inviare richieste pubblicitarie sintetiche o traffico reale per far apparire la riga, non accendere Ads, non forzare il rilascio. **Stato: crawler / linking ancora NO-GO non risolto.**
+
+## Protezione supplementare — ritorno da notifiche / background (08/11/2026)
+
+La revisione del gestore nativo ha identificato un caso di rischio non attestato dai test precedenti: **`onResume()` poteva riutilizzare un annuncio già precaricato se la WebView risultava temporaneamente vuota**, anche durante il ritorno da una notifica o da un'altra Activity. Lo stato `root.children.length === 0` da solo non distingue un vero avvio da un ripristino dopo navigazione.
+
+**Correzione in PR #634** (`DemosAppOpenAdsManager.java`, commit `2a4bc6d` e precedenti):
+- `coldLaunchDisplayWindowOpen` inizia `true` soltanto alla creazione della Activity; al **primo `onPause()`** passa irreversibilmente a `false` per quella Activity.
+- All'uscita in background viene **distrutta** la creatività precari­cata. `loadOnlyTestAppOpenAd()`, il callback asincrono `onAdLoaded` e le due verifiche di `maybeShowOnlyWhileReallyLoading()` rifiutano annunci su successivi ritorni in foreground, anche con React root momentaneamente vuota.
+- Non vengono cambiati UMP, TCF, criterio adulti, numero di avvii, intervallo 6 ore, autenticazione o notifiche. Un ripristino da background non dà diritto a un nuovo App Open; l'eventuale annuncio di prova resta confinato alla finestra di **avvio a freddo** con schermata davvero vuota e consenso completo. Anche una form UMP che manda in pausa l'Activity chiude tale finestra: si preferisce perdere un'impressione piuttosto che mostrarla mentre si ritorna da privacy/login/notifica.
+- Contratto statico aggiunto in `client/tests/appOpenNativeContract.test.mjs`, incluso il controllo sulla creatività caricata tardivamente. Le QA anonime/offline CI non dimostrano il comportamento adulto su dispositivo: **test manuale notifica → foreground → root vuota resta obbligatorio**.
+- La verifica di compilazione e test deve essere rifatta sul nuovo HEAD; non riutilizzare il PASS della CI precedente `42513706857` per affermare che questa correzione è già stata collaudata.
+
+## Pacchetto QA aggiornato e protocollo tester Android (08/11/2026)
+
+**Fonte verificata:** GitHub Actions [run 42522161593](https://github.com/Nictolas/DemosApp/actions/runs/42522161593), **SUCCESS 2/2**, artefatto `DEMOS-REAL-AGE-UMP-GOOGLE-TEST-ADS-DEBUG-APK` (artifact id `13633613985`). Archivio ZIP controllato (due file integri: `DEMOS-REAL-AGE-QA-TEST-ONLY.apk`, `LEGGIMI-ETA-REALE.txt`), SHA-256 del ZIP trasferito: `7a6c68b8b5e2e683fe6c358305996f75db1d7581014b7e7b2bd041eb44bab15a`. Copia conservata nel **Drive privato del titolare**, [DEMOS-QA-ETA-REALE-FIX-NOTIFICHE-TEST-2026-11-08.zip](https://drive.google.com/file/d/1U2cWNvG7vV1Im9ImzZg4IHgeSNSk30oP/view), senza permessi di condivisione con altri utenti. Link **da non pubblicare**; l'accesso del tester va autorizzato dal titolare. La vecchia ZIP di prova NON include questa correzione e non va utilizzata per certificare il test notifiche.
+
+**Identità variante:** DEBUG `community.demos.qaage`, installazione separata dalla DEMOS Google Play, Google App ID DEMOS con sola **unità pubblicitaria TEST** Google; `DEMOS_QA_FORCE_ADULT=false`, `DEMOS_UMP_DEBUG_EEA=true`. La sola presenza della ZIP non attesta il funzionamento dell'autenticazione: la variante `.qaage` **potrebbe non essere registrata** nei client OAuth/Firebase del progetto, e Google Sign-In può quindi non riuscire. Non creare o alterare un account reale, non disabilitare il controllo d'età, non inserire credenziali nei log; in caso di login bloccato il test adulto è **NON ESEGUITO**, non PASS.
+
+### Procedura manuale QA — inviare al tester autorizzato
+
+| Passo | Condizione / azione | Esito atteso e prova non sensibile |
+|---|---|---|
+| 1 | Android fisico del tester, installare ZIP APK `.qaage` e avviare normalmente | Avvio stabile, app vera ancora installata, nessun annuncio per utente anonimo |
+| 2 | Provare login con account **autorizzato di prova**, verificare chiamata `/auth/me` e stato adulto tramite UX (mai riportare JWT, email, anno di nascita) | Autenticazione reale funziona; se OAuth fallisce, annotare soltanto **LOGIN BLOCCATO** |
+| 3 | Test adulto verificato, online in SEE, UMP config presente nell'account | CMP disponibile quando richiesta, nessuna pubblicità prima del consenso specifico |
+| 4 | Rifiutare finalità annunci (Purpose 1) e/o vendor Google; aprire opzioni e revocare | Nessuna richiesta ads dopo rifiuto/revoca; non trasmettere stringhe TCF né identificativi |
+| 5 | Solo consenso adeguato, rilanciare app su schermata naturalmente vuota; non prolungare artificialmente il caricamento | Annunci **Google TEST** eventualmente mostrati soltanto sul loading autentico, non garantiti; prima dei primi tre lanci nessun annuncio; limite massimo 1 ogni 6 ore |
+| 6 | Mettere DEMOS in background, ricevere una **notifica QA autorizzata** (se funzionalità pronta), toccarla e ritornare all'app | Nessun annuncio nel ritorno alla notifica/foreground, anche con root WebView transitoriamente vuota |
+| 7 | Logout/cambio account, utente non verificato, rete disattivata e ritorno online | Nessun annuncio e nessun avvio UMP sotto utente non adulto/verificato, nessun crash |
+| 8 | Se possibile, verificare overlay tastiera `adjustResize`, FCM e apertura deep-link insieme alla branch AAB cumulativa | Questa ZIP è **solo AdMob**: non sostituisce il collaudo della build cumulativa firmata |
+
+**Report minimo richiesto:** modello Android e versione OS (non seriale), versione del pacchetto QA, PASS/FAIL/BLOCCATO per ciascun passo, presenza di crash e descrizione tecnica priva di informazioni personali. Screenshot soltanto se privi di nomi, email, token, preferenze politiche, dati di votazione, TCF string e ID dispositivo.
+
+**Vincoli finali:** APK di debug separato, firmato solo per QA; non distribuirlo su Play, non usarlo per testare aggiornamenti dalla AAB ufficiale, non inferire l'approvazione AdMob dal caricamento di un annuncio Google TEST. Il download da Drive è privato, non è già stato consegnato ai tester.
+
+## QA con pacchetto Play originale, senza età simulata — completamento CI 08/11/2026
+
+**Motivazione verificata:** la build privata `community.demos.qaage` mantiene la produzione DEMOS separata, ma un suffisso Android diverso può bloccare Google Credential Manager per la configurazione OAuth/Firebase. È stata pertanto aggiunta una **seconda variante TEST** compilata come DEBUG `community.demos`, pensata **esclusivamente** per Google Play **Condivisione interna delle app** (non i canali di release/testing). La variante conserva l'autorizzazione dell'età tramite `/auth/me` e non simula adulti.
+
+**Configurazione vincolata dalla CI:**
+- `-PdemosDebugAppOpenAds=true -PdemosDebugUmpEea=true -PdemosDebugQaForceAdult=false -PdemosDebugQaPlayRealAge=true`.
+- Pacchetto Android `community.demos`, manager pubblicitario solo DEBUG, App ID AdMob DEMOS fornito all'esecuzione, **esclusivamente unità Google TEST**, senza traffico remunerato.
+- `DEMOS_QA_FORCE_ADULT=false` controllato nei sorgenti BuildConfig. Il ramo RELEASE resta SDK-free per impostazione predefinita.
+- L'identificativo di pacchetto originale **non garantisce** il login con la firma usata nella Condivisione interna: Play può rifirmare l'APK e i client OAuth potrebbero non riconoscere la firma. Il tester deve riportare LOGIN BLOCCATO se l'autenticazione fallisce, senza bypassare il gate adulto.
+- La firma della build DEBUG non equivale alla firma della AAB Play. L'installazione può richiedere disinstallazione dell'app Play già presente: **mai farlo senza il consenso informato del tester e la verifica della conservazione dei suoi dati locali**. Vietato inviare l'APK nei canali `production`, `internal testing`, `closed testing` o `open testing`.
+
+**Verifica GitHub:** il primo run [42524316067](https://github.com/Nictolas/DemosApp/actions/runs/42524316067) ha compilato e archiviato correttamente la nuova variante, ma il job Android è fallito **per la sola organizzazione del workflow QA**: un successivo `:app:assembleDebug` ha eliminato `app/build/outputs/apk/debug/real-age-qa/`, richiesto dallo smoke emulator. Risolto copiando l'APK in `client/android/qa-real-age-apks/` prima della compilazione successiva, e aggiornando il test contrattuale. Non era una prova di crash dell'app.
+
+**Run finale verificato:** [GitHub Actions 42525162055](https://github.com/Nictolas/DemosApp/actions/runs/42525162055) sul commit di codice `78d4f0dff403e2fc37303c9a8d9979dea3557f1d`, **COMPLETED SUCCESS 2/2**: `advertising-policy` e `android-native-debug-compile`; [contratti catalogo 42525162045](https://github.com/Nictolas/DemosApp/actions/runs/42525162045) SUCCESS. PASS su compilazioni debug/release, nuovo QA originale con test age gate, emulator Android API35 anonimo/offline, replacement APK Ads-free → TEST-ads release isolata, assenza AD_ID/GMA/UMP dalla release di default, AAB opt-in **non firmata con Google TEST**. I test su account Google adulto reale, CMP effettiva, notifiche reali e AAB cumulativa firmata rimangono **non eseguiti**.
+
+**Archivio permanente dell'artefatto testato:** [DEMOS — PLAY Internal Sharing età reale, solo TEST](https://drive.google.com/file/d/1Z_gHQJz9D9E5-fqjX7tjc5jd99reBKqW/view), ZIP 12.052.625 byte, SHA-256 `30209cc9ba5775fd2f87f139b92591ff6f750daa0305fb170fea20f9b4fe4de6`, con `DEMOS-REAL-AGE-PLAY-INTERNAL-TEST-ONLY.apk` e `LEGGIMI-PLAY-INTERNO-ETA-REALE.txt`. Fonte GitHub artifact `13634548723`. **Drive owner-only, non condiviso; l'archivio non è stato caricato su Play**. La stessa URL Drive è stata aggiornata in-place con i byte della CI verde per evitare di diffondere una build pre-verifica.
+
+**Protocollo da applicare dopo autorizzazione del titolare:**
+1. Autorizzare uno dei tester maggiorenni già presenti nel programma Android, concordando espressamente il rischio di conflitto firma/necessità di reinstallazione; preferire un telefono con dati di prova.
+2. Distribuire soltanto mediante **Condivisione interna delle app di Google Play**, non tramite una release sui track, e verificare prima il login; fermarsi e segnare BLOCCATO se OAuth fallisce.
+3. Accettare, rifiutare e revocare UMP in SEE; verificare che il backend autorizzi un adulto solo dopo login; uscire/cambiare account; provare offline e notifica → foreground senza mostrare annunci; registrare solo risultati anonimi.
+4. Per approvare la AAB cumulativa **ripetere** sulla build firmata Play le verifiche Android, privacy e notifiche. La riuscita di questo APK non sostituisce il GO AdMob/app-ads.txt/Play/DPO.
+
+**Stato rilascio:** PR #634 **Draft**, senza merge/deploy, senza pubblicazioni e senza annunci reali.
+
+## Rettifica modalità Google Play chiusa + handoff AAB cumulativa — 08/11/2026
+
+**Scelta del titolare:** integrare AdMob direttamente nella **prossima AAB cumulativa** e collaudare attraverso i tester già autorizzati, **senza annunci remunerati né release in produzione**. La chat AAB cumulativa è l'unica titolare del merge, dell'integrazione cross-PR, della firma e dell'eventuale caricamento Play; questa PR #634 prepara e verifica il *solo componente AdMob*.
+
+### Chiarimento importante dalla documentazione Google
+
+[Google AdMob — How to test your ads](https://support.google.com/admob/answer/9388275?hl=en) afferma di usare le unità **demo** soltanto per le prove **prima della pubblicazione sugli store**. Anche il [Google Mobile Ads Next-Gen SDK — Enable test ads](https://developers.google.com/admob/android/next-gen/test-ads) raccomanda di **sostituire gli ID demo prima della pubblicazione** e utilizzare dispositivi di prova per un'app distribuita. [Google Play](https://support.google.com/googleplay/android-developer/answer/9859751?hl=en) considera la versione nel test chiuso una release distribuita tramite lo store ai tester selezionati.
+
+**Pertanto non caricare sul test chiuso** le AAB CI con `ca-app-pub-3940256099942544~3347511713` e `ca-app-pub-3940256099942544/9257395921`. Quegli ID Google SAMPLE sono consentiti qui soltanto per CI locale/off-store, emulatori e APK di QA non distribuiti come release Play.
+
+Per un test dei veri annunci *attraverso Google Play* Google indica gli **ID App/Unità AdMob DEMOS** con le richieste coperte da **modalità test dell'app/versione** in AdMob, quando disponibile, oppure dispositivi tester individualmente registrati in modalità test ([Google — test app](https://support.google.com/admob/answer/17080939?hl=en), funzione con disponibilità dell'account da verificare). Questo richiede verificare che **tutti** i destinatari del test ricevano traffico di test; rimuovere/disabilitare la modalità test può avviare richieste di **annunci reali** dalla stessa AAB. Il flag Gradle di conferma è una **attestazione manuale**, non una verifica tecnica dell'account. Se questo controllo non è dimostrabile, consegnare una AAB **senza SDK pubblicitario attivo** e rinviare le richieste ads.
+
+### Nuovo guard Gradle per la AAB Play chiusa
+
+Il flag `demosReleasePlayClosedQa` (default `false`) è separato da `demosReleaseAdsApproved` (autorizzazione monetizzazione, sempre `false` nei test). Compilare la variante AdMob per test chiuso **solo dopo** aver verificato nell'account AdMob la modalità test per versione/dispositivi, completato verifiche Play/DPO e ricevuto il consenso del titolare per il canale chiuso:
+
+```bash
+# ESEMPLIFICAZIONE PER LA CHAT RESPONSABILE DELLA AAB CUMULATIVA.
+# Richiede gli ID REALI DEMOS esatti, NON inventarli e NON inserirli nel repo.
+# Il flag ownerConfirmed NON verifica lo stato remoto della console.
+./gradlew :app:bundleRelease \
+  -PdemosReleaseAppOpenAds=true \
+  -PdemosReleasePlayClosedQa=true \
+  -PdemosReleasePlayClosedQaOwnerConfirmed=true \
+  -PdemosReleaseAdsTestOnly=false \
+  -PdemosReleaseAdsApproved=false \
+  "-PdemosReleaseAdMobAppId=$DEMOS_REAL_ADMOB_APP_ID" \
+  "-PdemosReleaseAdUnitId=$DEMOS_REAL_APP_OPEN_UNIT_ID"
+```
+
+**Il build rifiuta** la combinazione `demosReleasePlayClosedQa=true` con: mancanza dell'attestazione, `demosReleaseAdsTestOnly=true` (unità demo), `demosReleaseAdsApproved=true`, `demosReleaseQaIsolated=true`, nessun opt-in SDK oppure ID Google SAMPLE. Queste protezioni non rendono *automaticamente* test-only le richieste: **la console AdMob deve esserlo davvero prima di distribuire la AAB**.
+
+### Contratto della release cumulativa
+
+1. Importare **#558 → #634** in quest'ordine; non cherry-pick #634 da sola contro `main`. Non fare merge automatico dalle singole chat.
+2. Integrare la nuova AAB completa con le PR approvate dalla chat release; conservare almeno `versionCode >=16` / `versionName >=1.0.13` provenienti dalla #588, e `android:windowSoftInputMode="adjustResize"` dalla #583. Verificare manifest merge e flussi FCM/notifiche dopo il merge.
+3. Compilare prima l'AAB cumulativa **Ads-free** (default: `demosReleaseAppOpenAds=false`; no SDK, UMP, metadata AdMob, `AD_ID`) e far passare tutti i controlli, poi solo se l'account e Play sono pronti creare l'AAB AdMob closed QA con flag sopra. In entrambi i casi firma Play e nuovo versionCode verificati; non usare la AAB SAMPLE CI come distribuzione.
+4. Prima del test chiuso con ad SDK, rivedere **dichiarazione "Contiene annunci"**, **Google Play Data Safety**, informativa / CMP, policy per i minori, rifiuto e revoca, e valutazione DPO. Google richiede [Data Safety anche sui test chiusi](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en) e [dichiarazione ads](https://support.google.com/googleplay/android-developer/answer/9859455?hl=en) per app con pubblicità.
+5. Solo dopo la reale iscrizione della versione/dispositivi alla modalità test in AdMob, prova su Android di un tester adulto: login, `/auth/me`, consenso/rifiuto/revoca UMP, prime due aperture escluse, limite 6 ore, caricamento autentico, ritorno da notifica *senza* Ad Open, logout/cambio account, FCM. In caso di impossibilità di confermare "TEST MODE" o esito ambiguo **NO-GO** per richieste ads.
+6. Il test chiuso non prova né sostituisce la pubblicazione pubblica necessaria per il collegamento definitivo alla scheda Google Play e la revisione di idoneità AdMob. Restano aperti anche `app-ads.txt` crawler, DPO/Play e AAB cumulativa firmata.
+
+**Non richiedere adesso alcun cambio AdMob o Play al titolare:** prima CI e verifica del contratto; successivamente serviranno ID reale dell'unità App Open (già creata in console), conferma modalità test per i destinatari e autorizzazione esplicita al caricamento nel test chiuso. Nessun test reale, merge, upload Play o ricavo è implicito in questi flag.
+
+### Preflight aggiuntivo: publisher coerente e caso positivo Play closed QA
+
+Nel ramo #634 è ora presente un'ulteriore protezione Gradle per evitare che un App ID reale e l'unità App Open (entrambi formalmente validi) appartengano **a publisher AdMob differenti**. In modalità `demosReleaseAdsTestOnly=false`, il build confronta il prefisso `ca-app-pub-<publisher>` di `demosReleaseAdMobAppId` e `demosReleaseAdUnitId` e fallisce in caso di disallineamento. Copre tanto la QA Play chiusa quanto l'eventuale rilascio successivo con annunci reali.
+
+CI: test di contratto JS + verifiche Gradle negative per ID Google demo, proprietario non confermato e publisher diversi; controllo positivo `:app:help` con **ID sintetici temporanei, NON compilati o distribuiti**, stessa radice publisher, Play closed QA abilitato e dichiarazione esplicita. Gli ID sintetici non rappresentano AdMob DEMOS né autorizzano richieste di annunci. Il build/test riproduce solo il contratto tecnico; **nessuna prova di Test Apps effettivamente abilitato nell'account**. La verifica richiederà la console `Impostazioni → App di test`, con versione AAB esatta e test mode attivo. Se indisponibile, usare il fallback test-device autorizzato o una release senza richieste ads.
+
+L'App ID DEMOS `ca-app-pub-7488681940015678~2926952834` era già stato fornito dal titolare; **il reale ID dell'unità App Open non è stato ancora recuperato in forma testuale verificabile**. Il foglio canonico ADS-08 collega la pagina di gestione unità AdMob `https://admob.google.com/v2/apps/2926952834/adunits/list` ma non riporta l'ID completo dell'unità. Non dedurlo dal publisher ID né usare la Google SAMPLE in Play.
+
+## Correzione privacy account adulto → altro account adulto (08/11/2026)
+
+**Causa:** l'effetto React che informa Android dell'idoneità pubblicitaria ascoltava soltanto il booleano `ads_adult_eligible`. Se una sessione adulta A veniva sostituita da una sessione adulta B senza passare da una renderizzazione `false`, l'effetto non si riattivava; il manager nativo ignorava comunque `true → true`. Di conseguenza il controllo UMP della nuova sessione poteva restare associato allo stato precedente.
+
+**Fix sulla PR #634**:
+- Il bridge React si aggiorna anche quando cambia il `token` o `userData.id`, ma passa all'Android nativo **esclusivamente due booleani** (`eligible` e `revalidateSession`). Token, ID utente, anno di nascita e dati politici non vengono trasmessi al bridge o all'SDK AdMob.
+- Qualunque segnale `eligible=true` valido impone al manager di azzerare l'autorizzazione UMP **di sessione**, invalidare i callback di carico in corso e distruggere l'eventuale creatività pronta, anche se `adultEligible` era già `true`. Viene eseguito nuovamente `requestConsentInfoUpdate`, e solo dopo i controlli UMP, Purpose 1 e vendor Google potrà essere richiesta un'inserzione. Questo **non forza una nuova scelta** in una CMP che conserva legittimamente le preferenze a livello dispositivo.
+- Il bridge di default della release SDK-free conserva il no-op e ora accetta la medesima firma Java; i flag adulti artificiali restano confinati alle prove DEBUG.
+- Nuovo test di regressione in `client/tests/appOpenNativeContract.test.mjs`: verifica dipendenze React per token/ID, solo booleani nel bridge, reset UMP `true→true`, invalidazione callback e compatibilità con release stub.
+
+**QA residua:** test manuale su dispositivo con A adulto verificato → B adulto verificato, provando direttamente il cambio di account senza logout intermedio, senza leggere identità o stringhe TCF nei log; verificare che nessuna richiesta o impressione appartenga alla vecchia autorizzazione. Verificare anche passaggio A adulto → minore/non verificato, cambio di token, logout, rifiuto e revoca. Fino a test fisico/console e AAB cumulativa firmata: **NO-GO annunci reali e test Play closed non autorizzato**.
+
+**Esecuzione CI della correzione:** [GitHub Actions #42532279583](https://github.com/Nictolas/DemosApp/actions/runs/42532279583). Non dichiarare verde il job Android finché non risulta COMPLETED SUCCESS.

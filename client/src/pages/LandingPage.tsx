@@ -2,6 +2,7 @@ import { Link, Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMobile } from "@/hooks/use-mobile";
 import { AuthCard } from "@/components/AuthCard";
+import { AppOpenPrivacyOptions } from "./Impostazioni/components/AppOpenPrivacyOptions";
 import { ArrowRight, Loader2 } from "lucide-react";
 import "./landing-mobile.css";
 import appIcon from "/icona.png";
@@ -55,6 +56,7 @@ export default function LandingPage() {
             <Link href="/privacy-policy">Privacy</Link>
             <Link href="/terms-of-service">Termini</Link>
             <Link href="/cookie-policy">Cookie</Link>
+            <AppOpenPrivacyOptions compact />
           </nav>
         </footer>
       </div>
@@ -158,6 +160,7 @@ export default function LandingPage() {
             <Link href="/cookie-policy" className="text-sm text-gray-500 hover:text-gray-700 underline">
               Cookie Policy
             </Link>
+            <AppOpenPrivacyOptions compact />
           </div>
         </div>
       </footer>
