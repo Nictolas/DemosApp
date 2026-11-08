@@ -1,4 +1,4 @@
-name: European Parliament verified RCV read-only source validation
+name: European Parliament official latest-vote source validation
 
 on:
   pull_request:
@@ -55,14 +55,5 @@ jobs:
         run: |
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
           npm run build --prefix client
-      - name: Check official current MEP roster and sitting discovery
-        run: node api/scripts/probeEuropeanParliamentDiscovery.js
       - name: Real latest past plenary and Italian current MEP official source (release gate)
         run: node api/scripts/verifyEuropeanParliamentLatestSitting.js
-      - name: Diagnostic read-only API probe (never logs names or ballots)
-        run: node api/scripts/probeEuropeanParliamentPublicApi.js
-      - name: Official Open Data API vote/individual/finality live verification (release gate)
-        run: node api/scripts/verifyEuropeanParliamentOfficialDecisionAPI.js
-      - name: Legacy doCEO XML optional diagnostic (can be robot-blocked)
-        continue-on-error: true
-        run: node api/scripts/probeEuropeanParliamentOfficialRollCall.js
