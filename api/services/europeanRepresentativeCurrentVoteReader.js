@@ -53,7 +53,20 @@ async function readVerifiedEuropeanCurrentVote(db, representativeUuid, options={
       "AND x.review_state = 'VERIFIED' " +
       'AND x.reviewed_by IS NOT NULL AND x.reviewed_at IS NOT NULL ' +
       'AND x.source_person_id = c.source_person_id ' +
+      'AND x.verified_at IS NOT NULL ' +
       "WHERE c.institution = 'PE' AND c.representative_key = $2 " +
+      // The importer must not leave a stale vote visible when the final
+      // follower withdraws or the MEP's active mandate expires.
+      'AND EXISTS (SELECT 1 FROM public.political_mandates AS m ' +
+      'WHERE m.user_id = x.representative_id ' +
+      "AND m.office_code = 'E' AND m.status = 'ACTIVE' " +
+      'AND m.starts_at <= now() AND (m.ends_at IS NULL OR m.ends_at > now())) ' +
+      'AND EXISTS (SELECT 1 FROM public.political_selections AS ps ' +
+      'INNER JOIN public.users AS follower ' +
+      "ON follower.id = ps.user_id AND follower.status = 'a' " +
+      "WHERE ps.selection_kind = 'representative' " +
+      "AND ps.political_office_id = 'eu.parliament.it' " +
+      'AND ps.selected_user_id = x.representative_id) ' +
       "AND (x.evidence_url LIKE 'https://data.europarl.europa.eu/%' " +
       "OR x.evidence_url LIKE 'https://www.europarl.europa.eu/%') " +
       'LIMIT 1',
