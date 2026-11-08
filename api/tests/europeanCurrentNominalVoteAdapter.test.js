@@ -66,7 +66,7 @@ test('EP adapter commits atomically and preserves official IDs', async () => {
   const statements=[];
   const client={query:async(sql,values)=>{
     statements.push({sql,values});
-    return {rows:sql.startsWith('INSERT INTO')?[{ballot_id:meta.ballotId}]:[]};
+    return {rows:sql.includes('INSERT INTO public.institutional_current_nominal_votes')?[{ballot_id:meta.ballotId}]:[]};
   },release:()=>statements.push({sql:'RELEASE'})};
   const result=await persistExplicitItalianEuropeanVotes(
     {connect:async()=>client},
