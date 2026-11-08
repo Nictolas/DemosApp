@@ -11,6 +11,8 @@ const path=require('node:path');
 const {Client}=require('pg');
 const {refreshSelectedEuropeanCurrentVote}=
   require('../services/europeanParliamentSelectedCurrentVoteRefresh');
+const {readVerifiedEuropeanCurrentVote}=
+  require('../services/europeanRepresentativeCurrentVoteReader');
 const {
   prepareSelectedEuropeanCurrentOnlyPreview
 }=require('../services/europeanParliamentSelectedCurrentOnlyReader');
@@ -131,6 +133,37 @@ async function main() {
     assert.equal(importerRows[0].representative_key,'demos:'+target);
     assert.equal(importerRows[0].ballot_id,'MTG-PL-'+day+'-DEC-900042');
 
+
+    // Full read-side contract: a canonical current row alone must NOT grant
+    // visibility. The separate verified identity is checked by the API reader
+    // against the exact whole-text official ballot before showing any vote.
+    const finalOfficial={
+      ...candidate(day,42),final:true,
+      ballots:new Map([[personId,'Favorevole']])
+    };
+    let readHttp=0;
+    const validatedRead=await readVerifiedEuropeanCurrentVote(db,target,{
+      fetchDecisions:async requestedDay=>{
+        readHttp++;
+        assert.equal(requestedDay,day);
+        return [finalOfficial];
+      }
+    });
+    assert.deepEqual(validatedRead,{
+      verified:true,mepId:personId,voteId:'MTG-PL-'+day+'-DEC-900042',
+      subject:finalOfficial.subject,date:day,vote:'Favorevole',
+      outcome:'Approvato',sourceUrl:official
+    });
+    assert.equal(readHttp,1);
+
+    // Reject a wrong official order/vote even for a correctly stored record.
+    const mismatched=await readVerifiedEuropeanCurrentVote(db,target,{
+      fetchDecisions:async()=>[{
+        ...finalOfficial,ballots:new Map([[personId,'Contrario']])
+      }]
+    });
+    assert.equal(mismatched,null,'official vote must be reverified at read time');
+
     await db.query(
       'UPDATE public.institutional_nominal_identity_links '+
       "SET review_state='PENDING',reviewed_by=NULL,reviewed_at=NULL "+
@@ -144,6 +177,26 @@ async function main() {
     assert.equal(missing.writesPerformed,0);
     assert.equal(sourceRequests,2,'no additional official API HTTP with zero verified selected links');
 
+    let forbiddenHttp=0;
+    const hiddenAfterRevocation=await readVerifiedEuropeanCurrentVote(db,target,{
+      fetchDecisions:async()=>{forbiddenHttp++;throw Error('REVOKED_REVIEW_SHOULD_SKIP_HTTP');}
+    });
+    assert.equal(hiddenAfterRevocation,null,
+      'revoked identity hides an already stored PE current vote');
+    assert.equal(forbiddenHttp,0,'no source HTTP after revoked identity');
+
+    const rejectedNewer=await writer.upsertVerifiedCurrentVote(db,{
+      ...vote,ballotId:'MTG-PL-'+day+'-DEC-900043',ballotOrder:43
+    });
+    assert.equal(rejectedNewer.changed,false,
+      'direct writer cannot override a reviewer revocation');
+    const persisted=(await db.query(
+      "SELECT ballot_id FROM public.institutional_current_nominal_votes WHERE institution='PE'"
+    )).rows;
+    assert.equal(persisted.length,1);
+    assert.equal(persisted[0].ballot_id,'MTG-PL-'+day+'-DEC-900042',
+      'revocation cannot be used to append or mutate history');
+
     console.log('EP_CANONICAL_SELECTED_CURRENT_WRITER_PG16_SYNTHETIC_PASS',
       JSON.stringify({
         approvedSyntheticIdentities:1,canonicalSelected:1,
@@ -151,7 +204,10 @@ async function main() {
         sameDayOlderIgnored:true,newerOrderReplaced:true,
         currentRows:1,importerThroughRealWriter:true,
         identityRevocationStopsPreview:true,
-        officialApiHttpCalls:0
+        readSideOfficialVerification:true,
+        revokedIdentityHidesCurrentVote:true,
+        directWriterRevocationDenied:true,
+        externalOfficialHttpCalls:0
       }));
   } finally {
     await db.query('ROLLBACK').catch(()=>{});
