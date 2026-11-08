@@ -16,6 +16,12 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   onNavigate,
   onOpenOpinioni
 }) => {
+  // The representative name opens its verified profile. The outer card
+  // chooses a different representative. Mouse/touch release events bubble
+  // before the name's click handler, so stop card navigation at its source.
+  const isDetailsTarget = (target: EventTarget | null) =>
+    target instanceof Element && target.closest('[data-representative-details]') !== null;
+
   const renderRappresentante = (categoriaId: string) => {
     // Controlli di sicurezza per evitare TypeError
     if (!data || !data.rappresentanti || !data.idMap) {
@@ -70,12 +76,26 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
         </div>
         <div className="text-center">
           {rappresentanteData && rappresentanteData.nome && rappresentanteData.cognome ? (
-            <p className="font-medium text-primary cursor-pointer hover:underline text-sm" onClick={(e) => {
-                e.stopPropagation(); // Previeni l'apertura del modal di cambio
+            <p
+              data-representative-details
+              role="button"
+              tabIndex={0}
+              className="font-medium text-primary cursor-pointer hover:underline text-sm"
+              onClick={(e) => {
+                e.stopPropagation();
                 if (rappresentanteUid && rappresentanteData) {
                   onOpenOpinioni(rappresentanteUid, rappresentanteData.nome, rappresentanteData.cognome, rappresentanteData.avatar_config, categoriaId);
                 }
-            }}>
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                e.stopPropagation();
+                if (rappresentanteUid && rappresentanteData) {
+                  onOpenOpinioni(rappresentanteUid, rappresentanteData.nome, rappresentanteData.cognome, rappresentanteData.avatar_config, categoriaId);
+                }
+              }}
+            >
               {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
             </p>
           ) : (
@@ -106,9 +126,11 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
       type="button"
       className="relative flex w-full h-full min-h-0 items-center justify-center rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
       onMouseDown={(e) => {
+        if (isDetailsTarget(e.target)) return;
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
       onMouseUp={(e) => {
+        if (isDetailsTarget(e.target)) return;
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
         setTimeout(handleClick, 100);
       }}
@@ -116,10 +138,12 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
       }}
       onTouchStart={(e) => {
+        if (isDetailsTarget(e.target)) return;
         e.preventDefault();
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
       onTouchEnd={(e) => {
+        if (isDetailsTarget(e.target)) return;
         e.preventDefault();
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
         setTimeout(handleClick, 100);
