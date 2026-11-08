@@ -45,6 +45,10 @@ on:
       - 'api/tests/d12AuthMiddlewarePrivacy.synthetic.test.js'
       - 'api/tests/d12EditProfileNoPersonalConsole.contract.test.js'
       - 'client/src/components/profile/EditProfileForm.tsx'
+      - 'client/src/components/profile/useProfileForm.ts'
+      - 'api/routes/users/profile.js'
+      - 'api/routes/attivismo-tipologie.js'
+      - 'api/tests/d12ActivismEditPrivacy.synthetic.test.js'
       - 'api/tests/d12GenericNoStoreAllResponses.synthetic.test.js'
       - 'api/tests/d12GraziaPrivacyContact.contract.test.js'
       - 'api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js'
@@ -131,6 +135,8 @@ jobs:
         run: node --test api/tests/d12AuthMiddlewarePrivacy.synthetic.test.js
       - name: DEMOS12 profile editor must not print personal data to browser console
         run: node --test api/tests/d12EditProfileNoPersonalConsole.contract.test.js
+      - name: DEMOS12 activism profile self-edit authorization and minimization
+        run: node --test api/tests/d12ActivismEditPrivacy.synthetic.test.js
       - name: DEMOS12 DSAR S4 synthetic deadline and delivery contract (no live data)
         run: node --test api/tests/demos12DsarS4.synthetic.test.js
       - name: DEMOS12 legacy GDPR request no false success (synthetic)
