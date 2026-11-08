@@ -34,6 +34,12 @@ interface ViewOpinioniDialogProps {
   cognome?: string;
   avatarConfig?: string;
   categoria?: 'comune' | 'regione' | 'camera' | 'senato' | 'europeo' | 'provinciale-trento' | 'provinciale-bolzano';
+  // Supplied by the existing representative selection payload, never a separate history query.
+  ultimoVotoEuropeo?: {
+    verified: true; mepId: string; voteId: string; subject: string;
+    date: string; vote: 'Favorevole' | 'Contrario' | 'Astenuto';
+    outcome: 'Approvato' | 'Respinto'; sourceUrl: string;
+  } | null;
 }
 
 export function ViewOpinioniDialog({ 
@@ -43,7 +49,8 @@ export function ViewOpinioniDialog({
   nome,
   cognome,
   avatarConfig,
-  categoria
+  categoria,
+  ultimoVotoEuropeo
 }: ViewOpinioniDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -315,6 +322,31 @@ export function ViewOpinioniDialog({
           </DialogDescription>
         </DialogHeader>
         
+        {/* La sola scheda del rappresentante mostra il voto corrente verificato.
+            Il backend deve riconciliare ID DEMOS ↔ MepId ufficiale senza fuzzy matching. */}
+        {categoria === 'europeo' && (
+          <section aria-label="Ultimo voto del Parlamento europeo" className="shrink-0 mx-4 mb-3 rounded-lg border border-gray-200 p-3 text-sm">
+            <h3 className="font-semibold">Ultimo voto nominale verificato</h3>
+            {ultimoVotoEuropeo?.verified === true &&
+             /^\\d+$/.test(ultimoVotoEuropeo.mepId) &&
+             /^\\d{4}-\\d{2}-\\d{2}$/.test(ultimoVotoEuropeo.date) &&
+             ['Favorevole', 'Contrario', 'Astenuto'].includes(ultimoVotoEuropeo.vote) &&
+             ['Approvato', 'Respinto'].includes(ultimoVotoEuropeo.outcome) &&
+             /^https:\/\/www\\.europarl\\.europa\\.eu\/doceo\//.test(ultimoVotoEuropeo.sourceUrl) ? (
+              <div className="space-y-1">
+                <p className="font-medium break-words">{ultimoVotoEuropeo.subject}</p>
+                <p>Data: {ultimoVotoEuropeo.date}</p>
+                <p>Voto: {ultimoVotoEuropeo.vote}</p>
+                <p>Esito: {ultimoVotoEuropeo.outcome}</p>
+                <a href={ultimoVotoEuropeo.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                  Fonte ufficiale del Parlamento europeo
+                </a>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">Voto individuale non ancora verificabile da una fonte ufficiale.</p>
+            )}
+          </section>
+        )}
         {/* Avatar centrato separato dal DialogTitle */}
         {avatarConfig && (
           <div className="flex shrink-0 justify-center mb-4">
@@ -523,7 +555,7 @@ export function ViewOpinioniDialog({
                 setLocation('/scegli-rappresentante');
               }
             }}>Per compatibilità</Button>
-            <Button className="w-full" variant="outline" onClick={() => { setShowCambiaModal(false); setLocation('/podio-trasparenza'); }}>Per merito</Button>
+            {categoria !== 'europeo' && <Button className="w-full" variant="outline" onClick={() => { setShowCambiaModal(false); setLocation('/podio-trasparenza'); }}>Per merito</Button>}
             <Button className="w-full mt-4" variant="ghost" onClick={() => setShowCambiaModal(false)}>Annulla</Button>
           </div>
         </div>
