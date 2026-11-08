@@ -28,17 +28,16 @@ import com.google.android.libraries.ads.mobile.sdk.appopen.AppOpenAd;
 import com.google.android.libraries.ads.mobile.sdk.appopen.AppOpenAdEventCallback;
 
 /**
- * SOLO debug e solo con -PdemosDebugAppOpenAds=true.
- *
- * In release BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED è SEMPRE false.
- * La procedura usa esclusivamente le unità TEST ufficiali Google e non legge
- * mai ID account, opinioni, voti, geolocalizzazione o dati personali.
+ * SDK manager for opt-in debug and independently gated release candidates.
+ * Default release remains SDK-free; release test candidates use Google TEST ads.
+ * No DEMOS account ID, political opinions, votes, precise locations or profile
+ * values are passed to the ad SDK.
  *
  * L'annuncio può comparire solo se un WebView privo di contenuto principale
  * è effettivamente ancora in caricamento. Non introduce attese artificiali.
  *
- * Per la release reale occorrono: ID veri, opzioni privacy accessibili dalla UI,
- * gestione età, consenso verificato, Play Data Safety e test dispositivi.
+ * A production monetized release requires separately verified AdMob/Play/DPO
+ * permissions, policy declarations and physical-device consent testing.
  */
 final class DemosAppOpenAdsManager {
     private static final String PREFS = "demos_app_open_ads_device_only";
@@ -90,7 +89,7 @@ final class DemosAppOpenAdsManager {
     }
 
     void onCreate() {
-        if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED || !BuildConfig.DEBUG) return;
+        if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
 
         preferences.edit()
             .putInt(LAUNCHES, AppOpenFrequencyPolicy.nextLaunchCount(readLaunchCount()))
@@ -101,7 +100,7 @@ final class DemosAppOpenAdsManager {
     }
 
     void setAdultEligible(boolean confirmedAdult) {
-        if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
+        if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
         // QA-only synthetic adult must not be undone by the anonymous DEMOS
         // authentication state on the test emulator. Flag is impossible in release.
         if (BuildConfig.DEMOS_QA_FORCE_ADULT && !confirmedAdult) return;
@@ -237,8 +236,7 @@ final class DemosAppOpenAdsManager {
     }
 
     boolean arePrivacyOptionsRequired() {
-        return BuildConfig.DEBUG
-            && BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
+        return BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
             && consentInformation != null
             && consentInformation.getPrivacyOptionsRequirementStatus()
                 == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED;
@@ -312,7 +310,7 @@ final class DemosAppOpenAdsManager {
     }
 
     private void initializeSdk() {
-        if (initialized || initializing || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED || !BuildConfig.DEBUG
+        if (initialized || initializing || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
             || !adultEligible || !consentVerifiedForAdultSession || !hasExplicitTcfConsent()) return;
         if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "sdk-initialize-approved");
         initializing = true;
@@ -358,14 +356,14 @@ final class DemosAppOpenAdsManager {
                 // Never log exception messages, identifiers or consent strings.
                 mainHandler.post(() -> initializing = false);
             }
-        }, "demos-ads-test-initialization").start();
+        }, "demos-app-open-initialization").start();
     }
 
-    // A single Google TEST ad may be preloaded after UMP + adult verification.
+    // One App Open creative (Google TEST in all QA candidates) may be preloaded.
     // Preloading is not an impression. Display is still forbidden once the
     // application is usable; maybeShowOnlyWhileReallyLoading() rechecks root.
     private void loadOnlyTestAppOpenAd() {
-        if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
+        if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
             || !adultEligible || !consentVerifiedForAdultSession || !foreground || loading || showing
             || privacyFormOpen || activity.isFinishing() || activity.isDestroyed()) return;
         if (consentInformation == null || !consentInformation.canRequestAds()
