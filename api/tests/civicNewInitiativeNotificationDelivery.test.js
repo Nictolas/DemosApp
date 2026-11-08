@@ -476,8 +476,25 @@ test('official initiative deep links reuse existing fetched list', () => {
     const source = read(path);
     assert.match(source, /new URLSearchParams/);
     assert.match(source, /get\("initiative"\)/);
-    assert.match(source, /deepLinkHandled.current = true/);
+    // A missing record must remain retryable after a source refresh.
+    const itemMatch = source.indexOf('const item = ', source.indexOf('get("initiative")'));
+    const handled = source.indexOf('deepLinkHandled.current = true', itemMatch);
+    const foundGuard = source.indexOf('if (item) {', itemMatch);
+    assert.ok(itemMatch >= 0 && foundGuard > itemMatch &&
+      handled > foundGuard, path + ' must mark handled only once the record exists');
   }
+});
+
+test('native FCM action has allowlisted civic fallback when link is omitted', () => {
+  const source = read('client/src/hooks/useNativePush.ts');
+  assert.match(source, /type === 'civic_new_initiative'/);
+  for (const category of ['iniziative_popolari', 'referendum_abrogativi', 'eci']) {
+    assert.match(source, new RegExp(category + ':'));
+  }
+  assert.match(source, /encodeURIComponent\(officialId\)/);
+  assert.match(source, /getFallbackNotificationTarget\(data.type, data.category, data.official_id\)/);
+  assert.match(source, /typeof officialId !== 'string'/);
+  assert.match(source, /!officialId.trim\(\)/);
 });
 
 test('ECI dispatch requires explicitly enabled GitHub Action and two secrets', () => {

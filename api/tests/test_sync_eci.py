@@ -430,6 +430,20 @@ class SyncEciUnitTests(unittest.TestCase):
             self.assertIn("WHERE status = 'ONGOING'", content, route)
             self.assertIn("ORDER BY end_date ASC NULLS LAST", content, route)
 
+    def test_cache_uses_transaction_advisory_lock_before_snapshot_and_upsert(self):
+        from pathlib import Path
+        src = Path(sync_eci.__file__).read_text(encoding='utf-8')
+        entry = src.index('def _replace_cache(')
+        verified = src.index('_verify_civic_database_identity(', entry)
+        locked = src.index('pg_advisory_xact_lock(', verified)
+        prior_ids = src.index('cur.execute("SELECT id FROM eci")', locked)
+        upsert = src.index('INSERT INTO eci', prior_ids)
+        self.assertLess(entry, verified)
+        self.assertLess(verified, locked)
+        self.assertLess(locked, prior_ids)
+        self.assertLess(prior_ids, upsert)
+        self.assertNotIn('DELETE FROM eci', src[entry:upsert])
+
     def test_main_returns_nonzero_on_sync_failure(self):
         with patch.object(sync_eci, "sync", side_effect=RuntimeError("boom")):
             self.assertEqual(sync_eci.main(["--dry-run"]), 1)
