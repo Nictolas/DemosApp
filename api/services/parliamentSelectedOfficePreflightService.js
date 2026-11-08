@@ -13,6 +13,7 @@ const MONTHS=new Map(Object.entries({
 const MAX_SELECTED=12;
 const memo=new Map();
 const CACHE_MS=24*60*60*1000;
+let scanOffset=0; // Small in-memory cursor: bounded fair coverage of new/old selections.
 
 function norm(value) {
   return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
@@ -100,14 +101,19 @@ const SELECTED_UNREVIEWED_SQL=[
   "AND m.office_code=CASE WHEN ps.political_office_id='it.camera' THEN 'C' ELSE 'S' END",
   'AND m.starts_at<=now() AND (m.ends_at IS NULL OR m.ends_at>now()))',
   'ORDER BY p.id, ps.political_office_id',
-  'LIMIT '+MAX_SELECTED
+  'LIMIT '+MAX_SELECTED+' OFFSET $1'
 ].join(' ');
 
 async function preflightSelectedParliamentaryOffices(pool,options={}){
   // Feature flag defaults off; never used to mutate production or grant VERIFIED.
   if(process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED!=='true')
     return {enabled:false,checked:0,officeMismatches:0,candidates:0,unresolved:0};
-  const {rows}=await pool.query(SELECTED_UNREVIEWED_SQL);
+  let {rows}=await pool.query(SELECTED_UNREVIEWED_SQL,[scanOffset]);
+  if(!rows.length&&scanOffset){
+    scanOffset=0;
+    ({rows}=await pool.query(SELECTED_UNREVIEWED_SQL,[0]));
+  }
+  scanOffset=rows.length===MAX_SELECTED?scanOffset+rows.length:0;
   const result={enabled:true,checked:0,officeMismatches:0,candidates:0,unresolved:0};
   for(const rep of rows){
     let decision={state:'UNAVAILABLE'};
