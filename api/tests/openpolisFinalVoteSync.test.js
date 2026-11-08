@@ -119,6 +119,17 @@ test('authenticated final-vote feed is read-only, with a fail-closed empty cache
   assert.match(sync, /runOpenpolisVotazioniFinaliSync\(\)/);
 });
 
+test('legacy vote detail cannot persist parliamentary nominal-vote history on GET', () => {
+  const route = fs.readFileSync(path.join(__dirname, '../routes/voti-politici.js'), 'utf8');
+  const detailStart = route.indexOf("router.get('/dettagli/:uri', verifyToken");
+  assert.ok(detailStart >= 0, 'the legacy detail endpoint must remain available');
+  const detailRoute = route.slice(detailStart);
+  assert.doesNotMatch(detailRoute, /await saveVotiNominaliToCache\s*\(/,
+    'viewing a parliamentary detail must not append nominal vote snapshots');
+  assert.match(detailRoute, /Latest-only policy PROD-041/,
+    'document policy intent near the old persistence call');
+});
+
 test('scheduled sync uses balanced source importer, not a global 50-ballot quota', () => {
   const job=fs.readFileSync(path.join(__dirname,'../jobs/openpolisVotazioniFinaliJob.js'),'utf8');
   assert.match(job,/fetchVotazioniFinaliPerCamera\(50\)/);
