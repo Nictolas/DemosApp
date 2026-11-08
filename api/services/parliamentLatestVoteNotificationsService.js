@@ -126,6 +126,8 @@ async function selectedRepresentatives(pool, chamber) {
     "ON link.representative_id = p.id AND link.institution = $3 " +
     "WHERE p.nome IS NOT NULL AND p.cognome IS NOT NULL " +
     "AND link.verified_at IS NOT NULL " +
+    "AND link.review_state = 'VERIFIED' AND link.reviewed_by IS NOT NULL " +
+    "AND link.reviewed_at IS NOT NULL " +
     "AND EXISTS (SELECT 1 FROM political_mandates m WHERE m.user_id = p.id " +
     "AND m.status = 'ACTIVE' AND m.office_code = $2 " +
     "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()))";
