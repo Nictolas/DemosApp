@@ -89,3 +89,36 @@ test('API outage never substitutes older ballots as latest verified',async()=>{
      fetchDecisions:async()=>{throw new Error('OFFICIAL_SOURCE_DOWN') }}),
    /OFFICIAL_SOURCE_DOWN/);
 });
+
+
+test('recovers missing MEPs from earlier final sittings but never replaces recent votes with older ones',async()=>{
+  const italian=roster().slice(0,60);
+  const client={get:async url=>{
+    if(url.includes('/meetings?'))return {status:200,data:meetings};
+    if(url.includes('/meps/show-current?')){
+      const start=Number(new URL(url).searchParams.get('offset'));
+      return {status:200,data:{data:roster().slice(start,start+500)}};
+    }
+    throw new Error('unexpected API endpoint');
+  }};
+  const visited=[];
+  const get=async date=>{
+    visited.push(date);
+    const voters=date==='2026-08-09'?italian.slice(0,40):italian;
+    return [{
+      voteId:'MTG-PL-'+date+'-DEC-200001',date,
+      ballots:new Map(voters.map(p=>[p.id.replace('person/',''),date==='2026-08-09'?'Contrario':'Favorevole'])),
+      final:true,verified:true,officialOrder:33,
+      subject:'Verified official final text',
+      outcome:'Approvato',sourceUrl:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-'+date+'/decisions'
+    }];
+  };
+  const out=await collectRecentVerifiedItalianVotes({now:ISO,client,maxSittings:4,fetchDecisions:get});
+  assert.equal(out.covered,60);
+  assert.equal(out.incomplete,false);
+  assert.deepEqual(visited,['2026-08-09','2026-08-08']);
+  assert.equal(out.current.get('100001').vote,'Contrario');
+  assert.equal(out.current.get('100001').date,'2026-08-09');
+  assert.equal(out.current.get('100060').vote,'Favorevole');
+  assert.equal(out.current.get('100060').date,'2026-08-08');
+});
