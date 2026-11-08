@@ -348,13 +348,31 @@ test('ad-capable release is test-only by default and requires explicit approval 
   assert.match(gradle, /demosReleaseAdsTestOnly = \(project\.findProperty\('demosReleaseAdsTestOnly'\) \?: 'true'\)/);
   assert.match(gradle, /demosReleaseAdsApproved = \(project\.findProperty\('demosReleaseAdsApproved'\) \?: 'false'\)/);
   assert.match(gradle, /demosReleaseAdUnitId != demosSampleAppOpenUnitId/);
-  assert.match(gradle, /if \(!demosReleaseAdsApproved\)/);
+  assert.match(gradle, /if \(!demosReleaseAdsApproved && !demosReleasePlayClosedQa\)/);
   assert.match(gradle, /manifest\.srcFile 'src\/debug\/AndroidManifest.xml'/);
   assert.match(gradle, /DEMOS_UMP_DEBUG_EEA', 'false'/);
   assert.match(gradle, /DEMOS_QA_FORCE_ADULT', 'false'/);
   assert.match(manager, /AppOpenFrequencyPolicy\.mayRequest\(/);
   assert.match(manager, /AppOpenTcfConsentPolicy\.allowsGoogleNonPersonalizedAdRequest\(/);
   assert.doesNotMatch(manager, /!BuildConfig\.DEBUG/);
+});
+
+test('closed Google Play QA forbids demo IDs and requires owner test-mode confirmation', () => {
+  assert.match(gradle, /demosReleasePlayClosedQa = \(project\.findProperty\('demosReleasePlayClosedQa'\) \?: 'false'\)/);
+  assert.match(gradle, /demosReleasePlayClosedQaOwnerConfirmed =\s*\(project\.findProperty\('demosReleasePlayClosedQaOwnerConfirmed'\) \?: 'false'\)/);
+  assert.match(gradle, /if \(demosReleasePlayClosedQa && \(!demosReleaseAppOpenAds/);
+  assert.match(gradle, /\|\| demosReleaseQaIsolated \|\| demosReleaseAdsTestOnly/);
+  assert.match(gradle, /\|\| demosReleaseAdsApproved \|\| !demosReleasePlayClosedQaOwnerConfirmed/);
+  assert.match(gradle, /if \(!demosReleaseAdsApproved && !demosReleasePlayClosedQa\)/);
+  assert.match(gradle, /demosReleaseAdMobAppId == demosSampleAppId/);
+  assert.match(gradle, /demosReleaseAdUnitId == demosSampleAppOpenUnitId/);
+  assert.match(gradle, /Google demo IDs are forbidden for Play closed QA/);
+  assert.match(gradle, /DEMOS_QA_FORCE_ADULT', 'false'/);
+  assert.match(gradle, /DEMOS_UMP_DEBUG_EEA', 'false'/);
+  // Google demo AAB is only for off-Play CI. On-Play closed-track QA uses
+  // OWNER's AdMob units with externally verified per-version TEST MODE.
+  const workflow = read('../../.github/workflows/advertising-policy-validation.yml');
+  assert.match(workflow, /No Play release, real ads, device QA or DPO approval is inferred/);
 });
 
 test('isolated test release upgrade is signed for QA only and cannot use real ad IDs', () => {
