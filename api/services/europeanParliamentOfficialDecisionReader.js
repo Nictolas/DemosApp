@@ -23,8 +23,8 @@ function decisionUrl(sittingDate) {
 function labelText(label) {
   if (typeof label === 'string') return label.trim();
   if (!label || typeof label !== 'object') return '';
-  if (typeof label.en === 'string') return label.en.trim();
   if (typeof label.it === 'string') return label.it.trim();
+  if (typeof label.en === 'string') return label.en.trim();
   if (typeof label['@value'] === 'string') return label['@value'].trim();
   return '';
 }
@@ -53,13 +53,13 @@ function parseOfficialDecisionBallots(payload, sittingDate) {
     if (ids.has(d.activity_id)) throw new Error('EP_DUPLICATED_OFFICIAL_DECISION_ID');
     ids.add(d.activity_id);
     const title = labelText(d.activity_label);
-    const heading = labelText(d.headingLabel);
-    const subject = heading && heading !== 'Final vote' ? heading : title;
+    // Heading can contain political groups; never expose or retain it as subject.
+    const subject = title;
     if (!subject) continue;
 
     // "PLENARY_OUTCOME" and adopted/rejected alone do not establish
     // finality: an amendment can also be adopted/rejected.
-    const finalityText = [title, heading, labelText(d.referenceText)]
+    const finalityText = [title, labelText(d.referenceText)]
       .filter(Boolean).join(' ');
     const final = /\bfinal vote\b|\bvotazione finale\b/i.test(finalityText);
 
@@ -81,8 +81,11 @@ function parseOfficialDecisionBallots(payload, sittingDate) {
       if (ambiguous) break;
     }
     if (ambiguous || ballots.size === 0) continue;
-    const officialOrder = Number.isSafeInteger(d.activity_order) && d.activity_order >= 0
-      ? d.activity_order : null;
+    // EP API represents official order as strings such as "22.0".
+    const orderText = String(d.activity_order ?? '');
+    const parsedOrder = /^\d+(?:\.0+)?$/.test(orderText) ? Number(orderText) : NaN;
+    const officialOrder = Number.isSafeInteger(parsedOrder) && parsedOrder >= 0
+      ? parsedOrder : null;
 
     records.push({
       voteId: d.activity_id, date: sittingDate, subject, outcome,
