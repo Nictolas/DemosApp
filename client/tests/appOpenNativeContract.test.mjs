@@ -94,6 +94,7 @@ test('notification return and background resume cannot surface a cached App Open
   const show = manager.slice(manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
   assert.ok(load.indexOf('!coldLaunchDisplayWindowOpen') > 0);
   assert.ok(load.indexOf('!coldLaunchDisplayWindowOpen') < load.indexOf('AppOpenAd.load('));
+  assert.ok(load.indexOf('!coldLaunchDisplayWindowOpen', load.indexOf('public void onAdLoaded(')) > load.indexOf('public void onAdLoaded('));
   assert.ok(show.indexOf('!coldLaunchDisplayWindowOpen') > 0);
   const guardJsCallback = show.indexOf('result -> {');
   assert.ok(show.indexOf('!coldLaunchDisplayWindowOpen', guardJsCallback) > guardJsCallback);
