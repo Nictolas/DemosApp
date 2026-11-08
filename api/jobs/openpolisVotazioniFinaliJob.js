@@ -66,6 +66,26 @@ async function runOpenpolisVotazioniFinaliSync() {
     } catch {
       console.warn('[parliamentFinalNotifications] Refresh unavailable; vote list sync remains independent');
     }
+    // EU current-only votes share this EXISTING 6-hour job; do not add
+    // another cron or scan all 76 MEPs. The PR #635 module is loaded only
+    // after an explicit, separately reviewed flag is enabled. The module is
+    // not present on this stacked Draft branch until both PRs are composed.
+    if (process.env.PARLIAMENT_EP_CURRENT_REFRESH_ENABLED === 'true') {
+      try {
+        const { refreshSelectedEuropeanCurrentVote } =
+          require('../services/europeanParliamentSelectedCurrentVoteRefresh');
+        const epResult = await refreshSelectedEuropeanCurrentVote(pool);
+        // Aggregates only; never print voter/follower identities or source IDs.
+        console.log('[parliamentEuropeanCurrentVote] Result', {
+          enabled: epResult.enabled, prepared: epResult.prepared,
+          changed: epResult.changed, skipped: epResult.skipped
+        });
+      } catch {
+        // Fail closed; importing votes never authorizes identity approval,
+        // fallback to pe:<MepId>, nominal history or an older unverified vote.
+        console.warn('[parliamentEuropeanCurrentVote] Unavailable; no fallback import');
+      }
+    }
     console.log('[openpolisVotazioniFinali] Sync completed', { fetched: items.length, saved, added });
     return { success: true, fetched: items.length, added, total: afterRows[0].count };
   } catch (error) {
