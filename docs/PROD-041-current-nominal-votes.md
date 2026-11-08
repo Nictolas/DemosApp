@@ -573,3 +573,13 @@ must dedupe valid repeats, ignore foreign hosts/chambers, withhold
 ambiguous URLs, drop deselected senators, and leave all identity links
 unchanged. The static audit test forbids DML/DDL.
 No production or staging data has been mutated.
+
+
+## Bridge Parlamento europeo — Draft, verifica prima del rilascio (08/11/2026)
+
+- La PR #633 ora impone `representativeKey=demos:<UUID>` al writer PE. Qualunque chiave `pe:<MepId>` viene rifiutata prima di interrogare il database.
+- La singola istruzione SQL PE controlla e blocca con `FOR SHARE` il collegamento UUID↔MepId approvato (`review_state='VERIFIED'`, revisore, data), l'URL di prova ufficiale, il mandato E attivo e almeno una selezione canonica `eu.parliament.it` appartenente a un follower attivo. Senza condizioni valide, non effettua alcuna scrittura. La scheda continua a richiedere la prova verificata in lettura.
+- L'adattatore PE richiede metadata dell'identità già revisionata e produce soltanto la chiave DEMOS. La migrazione `api/database/20261108_ep_verified_identity_bridge.sql` è stata portata dalla proposta collaudata della PR #635: CHECK PE su MepId numerici da 1 a 9 cifre, preservando Camera/Senato, PK/UNIQUE, review gate e RLS. **Il file non è stato applicato a staging o produzione.**
+- La suite PostgreSQL 16 effimera include i casi di rifiuto dopo revoca review, sostituzione indebita MepId e assenza di follower, oltre a scritture concorrenti, replay e unicità di voto. L'esito della CI va verificato sulla HEAD dopo ogni modifica.
+
+**Rimane NO-GO:** collegamento dei tre UUID europei da revisionare (uno con anno di nascita discordante), E2E autenticato sullo staging unico, QA AAB Android, controllo DPO, autorizzazioni specifiche a modifiche schema, cleanup, merge/deploy e pubblicazione.
