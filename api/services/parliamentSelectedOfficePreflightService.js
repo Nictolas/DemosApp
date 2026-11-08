@@ -114,14 +114,14 @@ const SELECTED_UNREVIEWED_SQL=[
 async function preflightSelectedParliamentaryOffices(pool,options={}){
   // Feature flag defaults off; never used to mutate production or grant VERIFIED.
   if(process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED!=='true')
-    return {enabled:false,checked:0,officeMismatches:0,candidates:0,unresolved:0};
+    return {enabled:false,checked:0,officeMismatches:0,birthDateMismatches:0,candidates:0,unresolved:0};
   let {rows}=await pool.query(SELECTED_UNREVIEWED_SQL,[scanOffset]);
   if(!rows.length&&scanOffset){
     scanOffset=0;
     ({rows}=await pool.query(SELECTED_UNREVIEWED_SQL,[0]));
   }
   scanOffset=rows.length===MAX_SELECTED?scanOffset+rows.length:0;
-  const result={enabled:true,checked:0,officeMismatches:0,candidates:0,unresolved:0};
+  const result={enabled:true,checked:0,officeMismatches:0,birthDateMismatches:0,candidates:0,unresolved:0};
   for(const rep of rows){
     let decision={state:'UNAVAILABLE'};
     const urls=profileCandidates(rep);
@@ -136,6 +136,7 @@ async function preflightSelectedParliamentaryOffices(pool,options={}){
     }
     result.checked++;
     if(decision.state==='OFFICE_MISMATCH')result.officeMismatches++;
+    else if(decision.state==='DOB_MISMATCH')result.birthDateMismatches++;
     else if(decision.state==='CANDIDATE_ONLY')result.candidates++;
     else result.unresolved++;
   }
