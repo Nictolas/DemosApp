@@ -112,22 +112,23 @@ async function selectedRepresentatives(pool, chamber) {
     chamber === 'Senato' ? 'it.senato' : null;
   const mandateOffice = chamber === 'Camera' ? 'C' : 'S';
   if (!office) throw new Error('LATEST_VOTE_INVALID_CHAMBER');
-  // Current-vote coverage must include EVERY vetted active representative,
-  // even when no citizen currently follows them. Notification eligibility is
-  // separate: one shared vote row globally, zero notification for unfollowed
-  // representatives. No per-follower duplicate writes.
+  // FREE-TIER RULE: fetch current votes only for politicians selected by at
+  // least one ACTIVE citizen. One politician row regardless of follower count.
+  // Keep explicit approval and active mandate gates, and use EXISTS to avoid
+  // multiplying rows for people followed by many citizens.
   const sql =
-    "SELECT DISTINCT p.id, p.nome, p.cognome, link.source_person_id, link.evidence_url, " +
-    "EXISTS (SELECT 1 FROM political_selections ps " +
-    "JOIN users follower ON follower.id = ps.user_id AND lower(follower.status) = 'a' " +
-    "WHERE ps.selected_user_id = p.id AND ps.selection_kind = 'representative' " +
-    "AND ps.political_office_id = $1) AS has_followers " +
+    "SELECT p.id, p.nome, p.cognome, link.source_person_id, link.evidence_url, " +
+    "TRUE AS has_followers " +
     "FROM users p JOIN public.institutional_nominal_identity_links link " +
     "ON link.representative_id = p.id AND link.institution = $3 " +
     "WHERE p.nome IS NOT NULL AND p.cognome IS NOT NULL " +
     "AND link.verified_at IS NOT NULL " +
     "AND link.review_state = 'VERIFIED' AND link.reviewed_by IS NOT NULL " +
     "AND link.reviewed_at IS NOT NULL " +
+    "AND EXISTS (SELECT 1 FROM political_selections ps " +
+    "JOIN users follower ON follower.id = ps.user_id AND lower(follower.status) = 'a' " +
+    "WHERE ps.selected_user_id = p.id AND ps.selection_kind = 'representative' " +
+    "AND ps.political_office_id = $1) " +
     "AND EXISTS (SELECT 1 FROM political_mandates m WHERE m.user_id = p.id " +
     "AND m.status = 'ACTIVE' AND m.office_code = $2 " +
     "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()))";
@@ -142,7 +143,10 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
       !verified.source?.url || !Array.isArray(verified.members) || verified.members.length < 120) {
     throw new Error('LATEST_VOTE_SOURCE_MISMATCH');
   }
-  const matches = reps.map(rep => ({ rep, ballot: matchUniqueMember(rep, verified.members, reps, {chamber:vote.camera,sourceType:verified.source.type}) }))
+  // Never write an unfollowed representative even if a caller supplies
+  // arbitrary rows instead of using selectedRepresentatives().
+  const selected = reps.filter(rep => rep.has_followers === true);
+  const matches = selected.map(rep => ({ rep, ballot: matchUniqueMember(rep, verified.members, selected, {chamber:vote.camera,sourceType:verified.source.type}) }))
     .filter(x => x.ballot);
   if (!matches.length) return { changed: 0, matched: 0, updated: [] };
   const order = voteOrder(vote);
@@ -173,9 +177,6 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
       // in the notification feed if the canonical latest vote was unchanged.
       if (!currentResult.changed) continue;
       changed++;
-      // This keeps the canonical latest vote current for unselected MPs, but
-      // avoids storing in-app notifications or triggering push for them.
-      if (rep.has_followers === false) continue;
       const hash = crypto.createHash('sha256').update(String(rep.id) + ':' + vote.openpolis_id).digest('hex');
       const sql = 'INSERT INTO notifiche_voti_parlamento ' +
         '(id_utente, politico, camera, titolo, testo, voto, data, votazione_hash, openpolis_id, vote_order) ' +
@@ -233,16 +234,8 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
   if (process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED !== 'true') {
     return { enabled: false, checked: 0, changed: 0 };
   }
-  const { rows } = await pool.query(LATEST_FINAL_BALLOTS_SQL);
-  // Latest vote is PER VERIFIED REPRESENTATIVE regardless of whether
-  // a citizen follows them; follower selection only controls notifications.
-  // A representative missing the newest roll-call may appear in an earlier
-  // final. Search newest first with up to 50 sources PER chamber.
-  const votes = rows.filter(vote => isRecentFinal(vote))
-    .sort((a, b) => {
-      const date = dateIso(b.data_votazione).localeCompare(dateIso(a.data_votazione));
-      return date || voteOrder(b) - voteOrder(a);
-    });
+  // Cheap selection checks first. If no verified followed representatives
+  // exist, do not even read candidate roll calls or make network requests.
   const allByChamber = new Map();
   const pendingByChamber = new Map();
   for (const chamber of ['Camera', 'Senato']) {
@@ -250,6 +243,16 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
     allByChamber.set(chamber, reps);
     pendingByChamber.set(chamber, new Map(reps.map(rep => [String(rep.id), rep])));
   }
+  if (![...pendingByChamber.values()].some(pending => pending.size > 0))
+    return { enabled: true, checked: 0, changed: 0, unavailable: 0 };
+  const { rows } = await pool.query(LATEST_FINAL_BALLOTS_SQL);
+  // Latest is per selected representative. An individual absent from the
+  // newest roll-call may appear in an earlier verified final ballot.
+  const votes = rows.filter(vote => isRecentFinal(vote))
+    .sort((a, b) => {
+      const date = dateIso(b.data_votazione).localeCompare(dateIso(a.data_votazione));
+      return date || voteOrder(b) - voteOrder(a);
+    });
   let changed = 0, checked = 0, unavailable = 0;
   for (const vote of votes) {
     const pending = pendingByChamber.get(vote.camera);
