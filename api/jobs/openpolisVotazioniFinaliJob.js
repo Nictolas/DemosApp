@@ -7,6 +7,7 @@ const cron = require('node-cron');
 const { getPool } = require('../config/database');
 const { fetchVotazioniFinaliPerCamera, saveToDb } = require('../services/openpolisVotazioniFinaliService');
 const { refreshLatestParliamentVoteNotifications } = require('../services/parliamentLatestVoteNotificationsService');
+const { preflightSelectedParliamentaryOffices } = require('../services/parliamentSelectedOfficePreflightService');
 
 async function ensureTable(pool) {
   await pool.query(`
@@ -45,6 +46,18 @@ async function runOpenpolisVotazioniFinaliSync() {
     const saved = await saveToDb(items, pool);
     const { rows: afterRows } = await pool.query('SELECT COUNT(*)::int AS count FROM openpolis_votazioni_finali_decisive');
     const added = Math.max(0, afterRows[0].count - beforeRows[0].count);
+    // Selected-MP identity/office screening is read-only, disabled by
+    // default, independently rate-limited (max 12 profiles/cycle, 24h cache).
+    // It never alters a mandate, a citizen selection or an identity link.
+    if (process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED === 'true') {
+      try {
+        const officeAudit = await preflightSelectedParliamentaryOffices(pool);
+        // Aggregate-only operational signal; no names, voter IDs or DOB.
+        console.log('[parliamentSelectedIdentityPreflight]', officeAudit);
+      } catch {
+        console.warn('[parliamentSelectedIdentityPreflight] Unavailable; no identity was approved');
+      }
+    }
     // Only an explicitly enabled, reviewed release may update latest vote notifications.
     // This feature never sends push messages; public ballot source checks fail closed.
     try {
