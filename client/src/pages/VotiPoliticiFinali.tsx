@@ -21,7 +21,7 @@ type VotoFinale = {
   data_scraping: string | null;
 };
 
-type VotoNominale = { name: string; group: string; vote: string };
+type VotoNominale = { name: string; vote: string };
 type VotiNominaliResponse = {
   success: boolean;
   voteId: string;
@@ -130,7 +130,7 @@ export default function VotiPoliticiFinali() {
   const visibleMembers = useMemo(() => {
     const q = memberSearch.trim().toLocaleLowerCase("it");
     return (nominal.data?.members || []).filter(m =>
-      !q || [m.name, m.group, m.vote].some(x => x.toLocaleLowerCase("it").includes(q))
+      !q || [m.name, m.vote].some(x => x.toLocaleLowerCase("it").includes(q))
     );
   }, [memberSearch, nominal.data?.members]);
   const trustedSource = nominal.data?.source?.url || "";
@@ -227,15 +227,15 @@ export default function VotiPoliticiFinali() {
                       target="_blank" rel="noopener noreferrer">Apri la fonte dei voti <ExternalLink className="h-4 w-4" /></a>}
                     <Input value={memberSearch} onChange={e => setMemberSearch(e.target.value)}
                       aria-label="Cerca parlamentare o voto"
-                      placeholder="Cerca parlamentare, gruppo o voto…" />
+                      placeholder="Cerca parlamentare o voto…" />
                     <div className="max-h-[55dvh] overflow-auto overscroll-contain rounded border"
                       role="region" aria-label="Voti nominali dei parlamentari" tabIndex={0}>
-                      <table className="min-w-[500px] w-full text-sm text-left">
+                      <table className="min-w-[340px] w-full text-sm text-left">
                         <thead className="sticky top-0 bg-white">
-                          <tr><th className="p-2">Parlamentare</th><th className="p-2">Gruppo</th><th className="p-2">Voto / stato</th></tr>
+                          <tr><th className="p-2">Parlamentare</th><th className="p-2">Voto / stato</th></tr>
                         </thead>
                         <tbody>{visibleMembers.map(m => <tr key={m.name} className="border-t">
-                          <td className="p-2">{m.name}</td><td className="p-2">{m.group}</td>
+                          <td className="p-2">{m.name}</td>
                           <td className="p-2">{m.vote}</td>
                         </tr>)}</tbody>
                       </table>

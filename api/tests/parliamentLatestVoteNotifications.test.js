@@ -15,8 +15,8 @@ const finalVote = (chamber, id, date = today) => ({
 });
 const members = Array.from({length: 125}, (_, i) =>
   ({ name: 'COMPONENTE PARLAMENTARE ' + i, group: 'GRUPPO', vote: 'Favorevole' }));
-members[3] = { name: 'DE LUCA MARIA', group: 'GRUPPO', vote: 'In missione' };
-const rep = { id: '00000000-0000-4000-8000-000000000001', nome: 'Maria', cognome: 'De Luca' };
+members[3] = { name: 'DE LUCA MARIA', group: 'GRUPPO', vote: 'In missione', sourcePersonId:'https://documenti.camera.it/deputato/fixture-maria' };
+const rep = { id: '00000000-0000-4000-8000-000000000001', nome: 'Maria', cognome: 'De Luca', source_person_id:'https://documenti.camera.it/deputato/fixture-maria',has_followers:true };
 
 test('one most recent final ballot per chamber; numeric order beats string order on same day', () => {
   const votes = newestByChamber([
@@ -41,30 +41,68 @@ test('exact, accent-insensitive, order-insensitive name matching only', () => {
   assert.equal(matchUniqueMember(rep, members, [rep]).vote, 'In missione');
   assert.equal(matchUniqueMember({ ...rep, nome:'Mari' }, members, [{ ...rep,nome:'Mari' }]), null);
   assert.equal(matchUniqueMember(rep, members, [rep,{...rep,id:'duplicate'}]), null);
-  assert.equal(matchUniqueMember(rep, [...members, {name:'MARIA DE LUCA',group:'GRUPPO',vote:'Contrario'}], [rep]), null);
+  assert.equal(matchUniqueMember(rep, [...members, {name:'MARIA DE LUCA',group:'GRUPPO',vote:'Contrario',sourcePersonId:'https://documenti.camera.it/deputato/fixture-maria'}], [rep]), null);
   assert.equal(matchUniqueMember(rep, [{name:'DE LUCA MARIA',group:'GRUPPO',vote:'Ignoto'}], [rep]), null);
 });
 
 test('Peppe De Cristofaro (DEMOS) matches Giuseppe De Cristofaro (Senate) only by explicit vetted alias', () => {
-  const peppe={id:'00000000-0000-4000-8000-000000000021',nome:'Peppe',cognome:'De Cristofaro'};
+  const peppe={id:'00000000-0000-4000-8000-000000000021',nome:'Peppe',cognome:'De Cristofaro',source_person_id:'https://parlamento19.openpolis.it/persone/de-cristofaro'};
   const other={id:'00000000-0000-4000-8000-000000000022',nome:'Franco',cognome:'Alberti'};
   assert.ok(memberNameVariants(peppe).has('de cristofaro giuseppe'));
   assert.equal(matchUniqueMember(peppe,[
-    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario'}
+    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario',sourcePersonId:'https://parlamento19.openpolis.it/persone/de-cristofaro'}
   ],[peppe,other])?.vote,'Contrario');
   assert.equal(matchUniqueMember(peppe,[
-    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Assente'}
+    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Assente',sourcePersonId:'https://parlamento19.openpolis.it/persone/de-cristofaro'}
   ],[peppe])?.vote,'Assente');
   assert.equal(matchUniqueMember(peppe,[
-    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario'},
-    {name:'Giuseppe De Cristofaro',group:'Misto',vote:'Favorevole'}
+    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario',sourcePersonId:'https://parlamento19.openpolis.it/persone/de-cristofaro'},
+    {name:'Giuseppe De Cristofaro',group:'Misto',vote:'Favorevole',sourcePersonId:'https://parlamento19.openpolis.it/persone/de-cristofaro'}
   ],[peppe]),null,'duplicates are ambiguous');
   assert.equal(matchUniqueMember(peppe,[
-    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario'}
+    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario',sourcePersonId:'https://parlamento19.openpolis.it/persone/de-cristofaro'}
   ],[peppe,{...peppe,id:'duplicate',nome:'Giuseppe'}]),null,'competing selected representative is ambiguous');
   assert.equal(matchUniqueMember({...peppe,nome:'Peppo'},[
-    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario'}
+    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario',sourcePersonId:'https://parlamento19.openpolis.it/persone/de-cristofaro'}
   ],[{...peppe,nome:'Peppo'}]),null,'not a general nickname approximation');
+});
+
+test('name-only, absent source ID and duplicated source links never identify a voter', () => {
+  assert.equal(matchUniqueMember({...rep,source_person_id:null}, members, [rep]), null);
+  assert.equal(matchUniqueMember(rep,members.map(({sourcePersonId,...rest})=>rest),[rep]),null);
+  assert.equal(matchUniqueMember(rep,[...members,{name:'DE LUCA MARIA',vote:'Favorevole',sourcePersonId:rep.source_person_id}],[rep]),null);
+  assert.equal(matchUniqueMember(rep,members,[rep,{...rep,id:'00000000-0000-4000-8000-000000000002'}]),null);
+});
+
+test('real Camera name-only official roster needs separately vetted institutional ID link', () => {
+  const canonical={...rep,evidence_url:'https://www.camera.it/deputati/scheda-ufficiale-verificata'};
+  const noPersonLinks=members.map(row=>({...row,sourcePersonId:null}));
+  const expected=matchUniqueMember(canonical,noPersonLinks,[canonical],
+    {chamber:'Camera',sourceType:'official'});
+  assert.equal(expected?.sourcePersonId,rep.source_person_id);
+  assert.equal(expected?.attributionMethod,'vetted_camera_official_identity');
+  assert.equal(matchUniqueMember({...canonical,evidence_url:null},noPersonLinks,[canonical],
+    {chamber:'Camera',sourceType:'official'}),null);
+  assert.equal(matchUniqueMember({...canonical,evidence_url:'https://attacker.example/deputati/abc'},
+    noPersonLinks,[canonical],{chamber:'Camera',sourceType:'official'}),null);
+  assert.equal(matchUniqueMember(canonical,noPersonLinks,[canonical],
+    {chamber:'Senato',sourceType:'openpolis'}),null);
+  assert.equal(matchUniqueMember(canonical,noPersonLinks,[canonical],
+    {chamber:'Camera',sourceType:'openpolis'}),null);
+  const ambiguous=[...noPersonLinks,
+    {name:'MARIA DE LUCA',vote:'Contrario',sourcePersonId:null}];
+  assert.equal(matchUniqueMember(canonical,ambiguous,[canonical],
+    {chamber:'Camera',sourceType:'official'}),null);
+  const anchoredToOther=noPersonLinks.map(row =>
+    row.name==='DE LUCA MARIA'
+      ? {...row,sourcePersonId:'https://documenti.camera.it/deputato/other'} : row);
+  assert.equal(matchUniqueMember(canonical,anchoredToOther,[canonical],
+    {chamber:'Camera',sourceType:'official'}),null);
+  assert.equal(matchUniqueMember(canonical,noPersonLinks,[
+    canonical,{...canonical,id:'00000000-0000-4000-8000-000000000099',
+      source_person_id:'https://www.camera.it/deputati/altro-99'}
+  ],{chamber:'Camera',sourceType:'official'}),null,
+  'two candidate mappings for the same official Camera name must never assign a vote');
 });
 
 test('verified identity, date, chamber and roster required before any write', async () => {
@@ -72,7 +110,7 @@ test('verified identity, date, chamber and roster required before any write', as
   const fake = { connect: () => { touched = true; throw new Error('unexpected database write'); } };
   const vote = finalVote('Camera', 'vs19_730_097');
   const verified = {voteId:vote.openpolis_id,chamber:'Senato',date:today,
-    source:{url:'https://example.org'},members};
+    source:{type:'openpolis',url:'https://example.org'},members};
   await assert.rejects(persistLatestForChamber(fake,vote,verified,[rep]), /LATEST_VOTE_SOURCE_MISMATCH/);
   assert.equal(touched,false);
 });
@@ -83,6 +121,12 @@ test('one-row UPSERT resets reactions only when new vote really replaced the old
   const client = {
     query: async (sql, args) => {
       queries.push({sql,args});
+      // Both canonical and notification mock UPSERT must report no rows
+      // for a stale/replayed vote; the changed count now tracks current state.
+      if (sql.includes('SELECT p.id') || sql.includes('FOR SHARE OF ps,follower,p,m,l'))
+        return {rows:[rep]};
+      if (sql.includes('INSERT INTO public.institutional_current_nominal_votes'))
+        return {rows:resultRows.length?[{ballot_id:'fixture'}]:[]};
       if (sql.includes('INSERT INTO notifiche_voti_parlamento')) return { rows: resultRows };
       return { rows: [] };
     },
@@ -90,13 +134,16 @@ test('one-row UPSERT resets reactions only when new vote really replaced the old
   };
   const vote = finalVote('Camera', 'vs19_730_097');
   const verified = { voteId:vote.openpolis_id,chamber:vote.camera,date:today,
-    source:{url:'https://documenti.camera.it/verified'},members };
+    source:{type:'official',url:'https://documenti.camera.it/verified'},members };
   let outcome = await persistLatestForChamber({connect:async()=>client}, vote, verified, [rep]);
   assert.equal(outcome.changed,1);
-  const upsert = queries.find(q=>q.sql.includes('INSERT INTO'));
-  assert.match(upsert.sql,/ON CONFLICT \(id_utente, camera\) DO UPDATE/);
+  const upsert = queries.find(q=>q.sql.includes('INSERT INTO notifiche_voti_parlamento'));
+  assert.ok(queries.some(q => q.sql.includes('INSERT INTO public.institutional_current_nominal_votes')), 'current vote must be written in same transaction');
+  assert.match(upsert.sql,/ON CONFLICT \(id_utente\) DO UPDATE/);
+  assert.match(upsert.sql,/camera=EXCLUDED.camera/);
   assert.match(upsert.sql,/vote_order/);
   assert.match(upsert.sql,/COALESCE\(notifiche_voti_parlamento.vote_order, -1\) < EXCLUDED.vote_order/);
+  assert.match(upsert.sql,/notifiche_voti_parlamento.camera = EXCLUDED.camera/);
   assert.equal(upsert.args[5],'In missione');
   assert.equal(upsert.args[8],vote.openpolis_id);
   assert.equal(queries.filter(q=>q.sql.startsWith('DELETE FROM reazioni')).length,1);
@@ -104,6 +151,63 @@ test('one-row UPSERT resets reactions only when new vote really replaced the old
   outcome = await persistLatestForChamber({connect:async()=>client},vote,verified,[rep]);
   assert.equal(outcome.changed,0);
   assert.equal(queries.filter(q=>q.sql.startsWith('DELETE FROM reazioni')).length,1);
+});
+
+test('fresh selection and review are required inside transaction, not stale has_followers snapshot', async () => {
+  const vote=finalVote('Camera','vs19_742_005');
+  const verified={voteId:vote.openpolis_id,chamber:'Camera',date:today,
+    source:{type:'official',url:'https://documenti.camera.it/verified'},members};
+  const seen=[];
+  const client={
+    query:async sql=>{
+      seen.push(sql);
+      if(sql.includes('SELECT p.id'))return {rows:[]};
+      if(sql.includes('INSERT INTO'))throw Error('stale selected snapshot must not write');
+      return {rows:[]};
+    },
+    release:()=>{}
+  };
+  const result=await persistLatestForChamber({connect:async()=>client},vote,verified,[rep]);
+  assert.deepEqual(result,{changed:0,matched:1,updated:[]});
+  assert.equal(seen[0],'BEGIN');
+  assert.equal(seen.at(-1),'COMMIT');
+  assert.ok(seen.some(sql=>sql.includes("link.review_state = 'VERIFIED'")));
+});
+
+test('newly followed same-name Camera representative makes name-only vote attribution ambiguous', async () => {
+  const canonical={...rep,evidence_url:'https://www.camera.it/deputati/elenco/19-12345'};
+  const newRep={...canonical,id:'00000000-0000-4000-8000-000000000095',
+    source_person_id:'https://www.camera.it/deputati/elenco/19-54321'};
+  const noIds=members.map(({sourcePersonId,...row})=>row);
+  const vote=finalVote('Camera','vs19_742_006');
+  const verified={voteId:vote.openpolis_id,chamber:'Camera',date:today,
+    source:{type:'official',url:'https://documenti.camera.it/verified'},members:noIds};
+  let touchedWriter=false;
+  const client={
+    query:async sql=>{
+      if(sql.includes('SELECT p.id'))return {rows:[canonical,newRep]};
+      if(sql.includes('FOR SHARE OF ps,follower,p,m,l'))throw Error('ambiguous must not lock for write');
+      if(sql.includes('INSERT INTO'))touchedWriter=true;
+      return {rows:[]};
+    },
+    release:()=>{}
+  };
+  const output=await persistLatestForChamber({connect:async()=>client},vote,verified,[canonical]);
+  assert.equal(output.changed,0);
+  assert.equal(output.matched,1,'old roster was unambiguous before follower changed');
+  assert.equal(touchedWriter,false,'the current selected set must be re-matched before writing');
+});
+
+test('unselected verified MP cannot be written even if the caller passes it explicitly', async () => {
+  let poolConnected=false;
+  const vote=finalVote('Camera','vs19_731_098');
+  const verified={voteId:vote.openpolis_id,chamber:'Camera',date:today,
+    source:{type:'official',url:'https://documenti.camera.it/record'},members};
+  const result=await persistLatestForChamber({
+    connect:async()=>{poolConnected=true;throw Error('unselected write attempted');}
+  },vote,verified,[{...rep,has_followers:false}]);
+  assert.deepEqual(result,{changed:0,matched:0,updated:[]});
+  assert.equal(poolConnected,false,'no transaction, DB write, notification or FCM for unselected MP');
 });
 
 test('feature remains disabled by default: no reads, writes, network or push', async () => {
@@ -120,7 +224,7 @@ test('feature remains disabled by default: no reads, writes, network or push', a
   }
 });
 
-test('enabled orchestration uses only selected active representatives and one verified latest source', async () => {
+test('enabled orchestration refreshes only selected active MPs with explicitly vetted IDs', async () => {
   const before=process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
   process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED='true';
   const queries = [];
@@ -131,11 +235,13 @@ test('enabled orchestration uses only selected active representatives and one ve
     query: async sql=>{
       queries.push(sql);
       if(sql.includes('SELECT openpolis_id')) return {rows:[vote]};
-      if(sql.includes('SELECT DISTINCT p.id')) return {rows:[rep]};
+      if(sql.includes('SELECT p.id')) return {rows:[rep]};
       throw Error('unexpected SQL');
     },
     connect:async()=>({
-      query:async sql=>({rows:sql.includes('INSERT INTO')?[{id:'new-note'}]:[]}),
+      query:async sql=>({rows:sql.includes('SELECT p.id')?[rep]:
+        sql.includes('FOR SHARE OF ps,follower,p,m,l')?[rep]:
+        sql.includes('INSERT INTO')?[{id:'new-note'}]:[]}),
       release:()=>{}
     })
   };
@@ -145,13 +251,20 @@ test('enabled orchestration uses only selected active representatives and one ve
         fetches++;
         assert.equal(sourceVote.data_votazione,today);
         return {voteId:vote.openpolis_id,chamber:vote.camera,date:today,
-          source:{url:'https://documenti.camera.it/record'},members};
+          source:{type:'official',url:'https://documenti.camera.it/record'},members};
       }
     });
     assert.equal(fetches,1);
     assert.deepEqual(outcome,{enabled:true,checked:1,changed:1,unavailable:0});
     assert.ok(queries.some(sql=>sql.includes('political_mandates')));
     assert.ok(queries.some(sql=>sql.includes('political_selections ps')));
+    assert.ok(queries.some(sql=>sql.includes('AS has_followers')));
+    assert.equal(queries[0].includes('SELECT p.id'),true,'selection must precede loading final-vote candidates');
+    assert.ok(queries.some(sql=>sql.includes('TRUE AS has_followers')));
+    assert.ok(queries.some(sql=>sql.includes("link.review_state = 'VERIFIED'")));
+    assert.ok(queries.some(sql=>sql.includes('link.reviewed_by IS NOT NULL')));
+    assert.ok(queries.some(sql=>sql.includes('link.reviewed_at IS NOT NULL')));
+    assert.ok(queries.some(sql=>sql.includes('EXISTS (SELECT 1 FROM political_selections ps')));
     assert.ok(queries.some(sql=>sql.includes('ps.selection_kind')));
     assert.ok(queries.some(sql=>sql.includes('follower.status')));
   } finally {
@@ -160,10 +273,33 @@ test('enabled orchestration uses only selected active representatives and one ve
   }
 });
 
+test('zero selected representatives: no ballot DB read, source HTTP, or writes', async () => {
+  const before=process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
+  process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED='true';
+  let selectedQueries=0;
+  const pool={
+    query:async sql=>{
+      if(sql.includes('SELECT p.id')){selectedQueries++;return {rows:[]};}
+      throw Error('should not query final ballots without followers');
+    },
+    connect:()=>{throw Error('should not open a write transaction');}
+  };
+  try{
+    const result=await refreshLatestParliamentVoteNotifications(pool,{
+      getVerifiedFinalBallots:()=>{throw Error('should not fetch live roll-call');}
+    });
+    assert.deepEqual(result,{enabled:true,checked:0,changed:0,unavailable:0});
+    assert.equal(selectedQueries,2,'one bounded selection query for each Italian chamber');
+  }finally{
+    if(before===undefined)delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
+    else process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED=before;
+  }
+});
+
 test('each selected deputy gets their own latest verified final vote, even if missing the chamber latest', async () => {
   const old=process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
   process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED='true';
-  const rep2={id:'00000000-0000-4000-8000-000000000010',nome:'Paolo',cognome:'Rossi'};
+  const rep2={id:'00000000-0000-4000-8000-000000000010',nome:'Paolo',cognome:'Rossi',source_person_id:'https://documenti.camera.it/deputato/fixture-paolo',has_followers:true};
   const latest=finalVote('Camera','vs19_732_003',today);
   const previous=finalVote('Camera','vs19_731_002',today);
   let fetched=0, committed=0;
@@ -171,16 +307,21 @@ test('each selected deputy gets their own latest verified final vote, even if mi
   const baseMembers=Array.from({length:125},(_,i)=>({
     name:'UNRELATED NOMINAL MEMBER '+i,group:'GRUPPO',vote:'Favorevole'
   }));
-  const rosterA=[...baseMembers,{name:'DE LUCA MARIA',group:'GRUPPO',vote:'Favorevole'}];
-  const rosterB=[...baseMembers,{name:'ROSSI PAOLO',group:'GRUPPO',vote:'Contrario'}];
+  const rosterA=[...baseMembers,{name:'DE LUCA MARIA',group:'GRUPPO',vote:'Favorevole',sourcePersonId:'https://documenti.camera.it/deputato/fixture-maria'}];
+  const rosterB=[...baseMembers,{name:'ROSSI PAOLO',group:'GRUPPO',vote:'Contrario',sourcePersonId:'https://documenti.camera.it/deputato/fixture-paolo'}];
   const pool={
     query:async (sql,params=[])=>{
       if(sql.includes('SELECT openpolis_id'))return {rows:[previous,latest]};
-      if(sql.includes('SELECT DISTINCT p.id'))return {rows:params[0]==='it.camera'?[rep,rep2]:[]};
+      if(sql.includes('SELECT p.id'))return {rows:params[0]==='it.camera'?[rep,rep2]:[]};
       throw new Error('unexpected query');
     },
     connect:async()=>({
       query:async (sql,params)=>{
+        // SELECT lock also begins with SELECT p.id: handle that narrower
+        // authorization query first, then the generic selected roster.
+        if(sql.includes('FOR SHARE OF ps,follower,p,m,l'))return {rows:[{id:params[0]}]};
+        if(sql.includes('SELECT p.id'))return {rows:[rep,rep2]};
+        if(sql.includes('INSERT INTO public.institutional_current_nominal_votes'))return {rows:[{ballot_id:'fixture'}]};
         if(sql.includes('INSERT INTO notifiche_voti_parlamento')){
           inserts.push({id:params[0],vote:params[5],source:params[8]});
           return {rows:[{id:'synthetic'}]};
@@ -221,6 +362,9 @@ test('migration preserves old rows, requires unique representative/chamber, and 
   assert.match(sql,/CREATE UNIQUE INDEX IF NOT EXISTS notifiche_voti_parlamento_latest_rep_camera/);
   assert.match(sql,/'In missione'/);
   assert.match(sql,/ADD COLUMN IF NOT EXISTS openpolis_id/);
+  const global=fs.readFileSync(path.join(root,'api/database/20261108_latest_parliament_notifications_one_per_rep.sql'),'utf8');
+  assert.match(global,/PROD041_NOTIFICATIONS_CROSS_CHAMBER_DUPLICATES_REQUIRE_REVIEW/);
+  assert.match(global,/CREATE UNIQUE INDEX IF NOT EXISTS notifiche_voti_parlamento_latest_rep/);
   const job=fs.readFileSync(path.join(root,'api/jobs/openpolisVotazioniFinaliJob.js'),'utf8');
   assert.match(job,/refreshLatestParliamentVoteNotifications\(pool\)/);
   const notifications=fs.readFileSync(path.join(root,'api/routes/notifiche.js'),'utf8');

@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseVerifiedFinalBallots } = require('../services/parliamentVerifiedFinalBallotsService');
+const { parseVerifiedFinalBallots, sourcePersonHref } = require('../services/parliamentVerifiedFinalBallotsService');
 
 const camera = { openpolis_id:'vs19_730_097', camera:'Camera', data_votazione:'2026-10-21' };
 const senato = { openpolis_id:'19-469-3', camera:'Senato', data_votazione:'2026-10-28' };
@@ -23,6 +23,18 @@ function openpolisSenateHtml(status='Contrario') {
     '<table><tr><th>Senatore</th><th>Voto</th><th>Gruppo</th><th>Ribelle</th></tr>' +
     rows.join('')+'</table></body></html>';
 }
+
+test('person-profile anchors are required for stable source identity; names alone are insufficient', () => {
+  assert.equal(sourcePersonHref('/deputati/fixture-123','Camera'),'https://documenti.camera.it/deputati/fixture-123');
+  assert.equal(sourcePersonHref('/persone/fixture-123','Senato'),'https://parlamento19.openpolis.it/persone/fixture-123');
+  assert.equal(sourcePersonHref('https://evil.test/deputati/123','Camera'),null);
+  assert.equal(sourcePersonHref('/votazioni/19-469-6','Senato'),null);
+  assert.equal(sourcePersonHref('','Camera'),null);
+  const linked=officialCameraHtml().replace('CANDIDATO NOMINATIVO 0','<a href="/deputati/fixture-123">CANDIDATO NOMINATIVO 0</a>');
+  const members=parseVerifiedFinalBallots(linked,camera).members;
+  assert.equal(members[0].sourcePersonId,'https://documenti.camera.it/deputati/fixture-123');
+  assert.equal(members[1].sourcePersonId,null,'name-only row does not invent identity');
+});
 
 test('the correct Camera final roll-call retains each official member vote', () => {
   const result = parseVerifiedFinalBallots(officialCameraHtml(),camera);
@@ -83,7 +95,13 @@ test('only explicit final ballots are eligible in route; existing old nominal ca
   assert.match(route,/votazioni-finali-decisive\/:openpolisId\/voti-nominali/);
   assert.match(route,/WHERE openpolis_id = \$1 AND data_votazione >= CURRENT_DATE/);
   assert.match(route,/res\.status\(503\)/);
+  assert.match(route, /members: data\.members\.map\(/, 'public nominal API must strip political-group metadata');
   assert.match(page,/Vedi voti/);
   assert.match(page,/non il sito istituzionale del Senato/);
   assert.match(page,/Nessun voto viene attribuito/);
+  // The old ballot-detail API must never disclose persisted personal vote history.
+  assert.doesNotMatch(route, /FROM\s+parlamento_voti_nominali/i);
+  assert.doesNotMatch(route, /SELECT\s+DISTINCT\s+\?senatore\s+\?nomeSenatore/i);
+  assert.match(route, /voti_nominali:\s*null/);
+  assert.doesNotMatch(page, /m\.group|Gruppo<\/th>|Cerca parlamentare, gruppo/);
 });

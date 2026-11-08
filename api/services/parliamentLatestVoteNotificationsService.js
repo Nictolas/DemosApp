@@ -6,6 +6,7 @@
 const crypto = require('node:crypto');
 const { getVerifiedFinalBallots } = require('./parliamentVerifiedFinalBallotsService');
 const { sendFinalBallotPush } = require('./parliamentFinalBallotPushService');
+const { upsertVerifiedCurrentVote } = require('./institutionalCurrentNominalVotesService');
 
 const ALLOWED = new Set(['Favorevole', 'Contrario', 'Astensione', 'Astenuto', 'Astenuto R',
   'Assente', 'In missione', 'In congedo', 'Non ha partecipato',
@@ -61,17 +62,49 @@ function memberNameVariants(rep) {
   return variants;
 }
 
-function matchUniqueMember(rep, members, allReps) {
+function officialCameraIdentityEvidence(rep) {
+  // Camera's genuine final-vote roster has names but no person href. Only
+  // a separate vetted official Camera person-ID bridge can disambiguate it.
+  // A free-form name or a link from an unrelated website is insufficient.
+  let identity, evidence;
+  try {
+    identity = new URL(rep.source_person_id);
+    evidence = new URL(rep.evidence_url);
+  } catch { return false; }
+  const officialHosts = new Set(['www.camera.it','camera.it','dati.camera.it','documenti.camera.it']);
+  return identity.protocol === 'https:' && evidence.protocol === 'https:' &&
+    officialHosts.has(identity.hostname) && officialHosts.has(evidence.hostname) &&
+    !identity.username && !identity.password && !identity.hash &&
+    !evidence.username && !evidence.password && !evidence.hash &&
+    /\/(?:deputat|ocd\/deputato)/i.test(identity.pathname);
+}
+
+function matchUniqueMember(rep, members, allReps, context = {}) {
+  const sourcePersonId = rep?.source_person_id;
+  if (typeof sourcePersonId !== 'string' || !sourcePersonId ||
+      !Array.isArray(members) || !Array.isArray(allReps)) return null;
+  if (allReps.filter(other => other.source_person_id === sourcePersonId).length !== 1)
+    return null;
   const variants = memberNameVariants(rep);
-  if ([...variants].some(name => !name)) return null;
-  // Reject two selected politicians who could map to the same official
-  // roll-call name, including aliases.
-  const ambiguous = allReps.filter(other =>
+  // One official source-person link in the actual ballot row is strongest.
+  const byId = members.filter(row => row.sourcePersonId === sourcePersonId);
+  if (byId.length > 1) return null;
+  if (byId.length === 1) {
+    return ALLOWED.has(byId[0].vote) && variants.has(normalizeName(byId[0].name))
+      ? byId[0] : null;
+  }
+  // No fallback for Senate/EP or a conflicting nonempty person link.
+  if (context.chamber !== 'Camera' || context.sourceType !== 'official' ||
+      !officialCameraIdentityEvidence(rep)) return null;
+  const matchedName = members.filter(row => variants.has(normalizeName(row.name)));
+  if (matchedName.length !== 1 || !ALLOWED.has(matchedName[0].vote) ||
+      matchedName[0].sourcePersonId) return null;
+  // Reject any other mapped representative whose name or vetted alias could
+  // fit the same name-only Camera row; only this one may be attributed.
+  if (allReps.filter(other =>
     [...memberNameVariants(other)].some(name => variants.has(name))
-  ).length !== 1;
-  if (ambiguous) return null;
-  const rows = members.filter(row => variants.has(normalizeName(row.name)));
-  return rows.length === 1 && ALLOWED.has(rows[0].vote) ? rows[0] : null;
+  ).length !== 1) return null;
+  return { ...matchedName[0], sourcePersonId, attributionMethod: 'vetted_camera_official_identity' };
 }
 
 async function selectedRepresentatives(pool, chamber) {
@@ -79,27 +112,87 @@ async function selectedRepresentatives(pool, chamber) {
     chamber === 'Senato' ? 'it.senato' : null;
   const mandateOffice = chamber === 'Camera' ? 'C' : 'S';
   if (!office) throw new Error('LATEST_VOTE_INVALID_CHAMBER');
-  // Authoritative current choices: do not read stale legacy TEXT projections
-  // or create one copy per follower. Active follower + active politician mandate.
+  // FREE-TIER RULE: fetch current votes only for politicians selected by at
+  // least one ACTIVE citizen. One politician row regardless of follower count.
+  // Keep explicit approval and active mandate gates, and use EXISTS to avoid
+  // multiplying rows for people followed by many citizens.
+  // Also quarantine issue #396 cross-chamber duplicated legacy identities
+  // until the currently selected mandate has independent official provenance.
   const sql =
-    "SELECT DISTINCT p.id, p.nome, p.cognome " +
-    "FROM users p JOIN political_selections ps ON ps.selected_user_id = p.id " +
+    "SELECT p.id, p.nome, p.cognome, link.source_person_id, link.evidence_url, " +
+    "TRUE AS has_followers " +
+    "FROM users p JOIN public.institutional_nominal_identity_links link " +
+    "ON link.representative_id = p.id AND link.institution = $3 " +
+    "WHERE p.nome IS NOT NULL AND p.cognome IS NOT NULL " +
+    "AND link.verified_at IS NOT NULL " +
+    "AND link.review_state = 'VERIFIED' AND link.reviewed_by IS NOT NULL " +
+    "AND link.reviewed_at IS NOT NULL " +
+    "AND EXISTS (SELECT 1 FROM political_selections ps " +
     "JOIN users follower ON follower.id = ps.user_id AND lower(follower.status) = 'a' " +
-    "WHERE ps.selection_kind = 'representative' AND ps.political_office_id = $1 " +
-    "AND p.nome IS NOT NULL AND p.cognome IS NOT NULL " +
+    "WHERE ps.selected_user_id = p.id AND ps.selection_kind = 'representative' " +
+    "AND ps.political_office_id = $1) " +
     "AND EXISTS (SELECT 1 FROM political_mandates m WHERE m.user_id = p.id " +
     "AND m.status = 'ACTIVE' AND m.office_code = $2 " +
-    "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()))";
-  const { rows } = await pool.query(sql, [office, mandateOffice]);
+    "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW())) " +
+    // Issue #396: two different DEMOS accounts can describe one politician
+    // with the same full name and DOB, with fictitious C/S ACTIVE mandates
+    // created by legacy imports. A reviewed identity link ALONE must not
+    // reactivate the wrong historic office. Require migration of the chosen
+    // mandate to an officially verified source before it is eligible.
+    "AND NOT EXISTS (SELECT 1 FROM public.users alt " +
+    "JOIN public.political_mandates alt_m ON alt_m.user_id = alt.id " +
+    "WHERE alt.id <> p.id AND p.data_nascita IS NOT NULL " +
+    "AND alt.data_nascita = p.data_nascita " +
+    "AND lower(trim(alt.nome)) = lower(trim(p.nome)) " +
+    "AND lower(trim(alt.cognome)) = lower(trim(p.cognome)) " +
+    "AND alt_m.office_code = CASE WHEN $2 = 'C' THEN 'S' ELSE 'C' END " +
+    "AND alt_m.source = 'LEGACY_BACKFILL' AND alt_m.status = 'ACTIVE' " +
+    "AND alt_m.starts_at <= NOW() AND (alt_m.ends_at IS NULL OR alt_m.ends_at > NOW()) " +
+    "AND EXISTS (SELECT 1 FROM public.political_mandates legacy " +
+    "WHERE legacy.user_id = p.id AND legacy.office_code = $2 " +
+    "AND legacy.source = 'LEGACY_BACKFILL' AND legacy.status = 'ACTIVE' " +
+    "AND legacy.starts_at <= NOW() " +
+    "AND (legacy.ends_at IS NULL OR legacy.ends_at > NOW())))";
+  const { rows } = await pool.query(sql, [office, mandateOffice, chamber]);
   return rows;
 }
+// Re-evaluate the selected representative INSIDE the write transaction.
+// An active selection or identity review may have been revoked during an
+// expensive official roll-call HTTP fetch. FOR SHARE of all five live rows
+// serializes opt-out, mandate/review edits and the current-vote commit.
+// It is not enough to trust an old has_followers:true value.
+const LOCK_SELECTED_NOMINAL_ELIGIBILITY_SQL = [
+  'SELECT p.id FROM public.political_selections ps',
+  'JOIN public.users follower ON follower.id=ps.user_id',
+  'JOIN public.users p ON p.id=ps.selected_user_id',
+  'JOIN public.political_mandates m ON m.user_id=p.id',
+  'JOIN public.institutional_nominal_identity_links l ON l.representative_id=p.id',
+  'WHERE p.id=$1::uuid',
+  "AND ps.selection_kind='representative'",
+  'AND ps.political_office_id=$2',
+  "AND lower(follower.status)='a'",
+  'AND m.office_code=$3',
+  "AND m.status='ACTIVE' AND m.starts_at<=now()",
+  'AND (m.ends_at IS NULL OR m.ends_at>now())',
+  'AND l.institution=$4 AND l.source_person_id=$5 AND l.evidence_url=$6',
+  "AND l.review_state='VERIFIED'",
+  'AND l.reviewed_by IS NOT NULL AND l.reviewed_at IS NOT NULL',
+  'AND l.verified_at IS NOT NULL',
+  'LIMIT 1 FOR SHARE OF ps,follower,p,m,l'
+].join(' ');
+
 async function persistLatestForChamber(pool, vote, verified, reps) {
-  if (verified.voteId !== vote.openpolis_id || verified.chamber !== vote.camera ||
+  const expectedSourceType = vote.camera === 'Camera' ? 'official' : 'openpolis';
+  if (verified?.source?.type !== expectedSourceType ||
+      verified.voteId !== vote.openpolis_id || verified.chamber !== vote.camera ||
       verified.date !== dateIso(vote.data_votazione) ||
       !verified.source?.url || !Array.isArray(verified.members) || verified.members.length < 120) {
     throw new Error('LATEST_VOTE_SOURCE_MISMATCH');
   }
-  const matches = reps.map(rep => ({ rep, ballot: matchUniqueMember(rep, verified.members, reps) }))
+  // Never write an unfollowed representative even if a caller supplies
+  // arbitrary rows instead of using selectedRepresentatives().
+  const selected = reps.filter(rep => rep.has_followers === true);
+  const matches = selected.map(rep => ({ rep, ballot: matchUniqueMember(rep, verified.members, selected, {chamber:vote.camera,sourceType:verified.source.type}) }))
     .filter(x => x.ballot);
   if (!matches.length) return { changed: 0, matched: 0, updated: [] };
   const order = voteOrder(vote);
@@ -108,19 +201,61 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
   const updated = [];
   try {
     await client.query('BEGIN');
+    // The selection read before network I/O is never an authorization to
+    // write. Repeat the complete selected-only + duplicate-backfill gate
+    // at commit time, then lock the actual eligible rows until COMMIT.
+    const currentSelected = await selectedRepresentatives(client, vote.camera);
+    const eligibleNow = new Map(currentSelected.map(item => [String(item.id), item]));
     for (const { rep, ballot } of matches) {
+      const fresh = eligibleNow.get(String(rep.id));
+      if (!fresh || fresh.source_person_id !== rep.source_person_id ||
+          fresh.evidence_url !== rep.evidence_url) continue;
+      // A newly followed/approved politician could compete for a name-only
+      // Camera row while the source was being fetched. Re-do unique roster
+      // attribution against the FRESH full selected set before any write.
+      const rechecked = matchUniqueMember(fresh, verified.members, currentSelected,
+        {chamber:vote.camera,sourceType:verified.source.type});
+      if (!rechecked || rechecked.vote !== ballot.vote ||
+          rechecked.sourcePersonId !== ballot.sourcePersonId) continue;
+      const office = vote.camera === 'Camera' ? 'it.camera' : 'it.senato';
+      const mandateOffice = vote.camera === 'Camera' ? 'C' : 'S';
+      const lock = await client.query(LOCK_SELECTED_NOMINAL_ELIGIBILITY_SQL,
+        [rep.id, office, mandateOffice, vote.camera, rep.source_person_id, rep.evidence_url]);
+      if (lock.rows.length !== 1) continue;
+      // A single stable DEMOS representative UUID; verified source attribution
+      // must already have passed the unique-member fail-closed guard above.
+      // Both current state and in-app notification commit in this transaction.
+      const currentResult = await upsertVerifiedCurrentVote(client, {
+        institution: vote.camera,
+        representativeKey: 'demos:' + String(rep.id),
+        sourcePersonId: ballot.sourcePersonId || null,
+        ballotId: vote.openpolis_id,
+        voteDate: dateIso(vote.data_votazione),
+        ballotOrder: order,
+        status: ballot.vote,
+        ballotTitle: vote.titolo,
+        ballotOutcome: vote.esito,
+        sourceUrl: verified.source.url,
+        sourceType: vote.camera === 'Camera' ? 'camera_ufficiale' : 'senato_openpolis',
+        verified: true
+      });
+      // An old cross-chamber retry must not create a second current event
+      // in the notification feed if the canonical latest vote was unchanged.
+      if (!currentResult.changed) continue;
+      changed++;
       const hash = crypto.createHash('sha256').update(String(rep.id) + ':' + vote.openpolis_id).digest('hex');
       const sql = 'INSERT INTO notifiche_voti_parlamento ' +
         '(id_utente, politico, camera, titolo, testo, voto, data, votazione_hash, openpolis_id, vote_order) ' +
         'VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10) ' +
-        'ON CONFLICT (id_utente, camera) DO UPDATE SET ' +
-        'politico=EXCLUDED.politico, titolo=EXCLUDED.titolo, testo=EXCLUDED.testo, ' +
+        'ON CONFLICT (id_utente) DO UPDATE SET ' +
+        'politico=EXCLUDED.politico, camera=EXCLUDED.camera, titolo=EXCLUDED.titolo, testo=EXCLUDED.testo, ' +
         'voto=EXCLUDED.voto, data=EXCLUDED.data, votazione_hash=EXCLUDED.votazione_hash, ' +
         'openpolis_id=EXCLUDED.openpolis_id, vote_order=EXCLUDED.vote_order, ' +
         'data_creazione=CURRENT_TIMESTAMP, likes=0, dislikes=0 ' +
         'WHERE notifiche_voti_parlamento.data IS NULL ' +
         'OR notifiche_voti_parlamento.data < EXCLUDED.data ' +
         'OR (notifiche_voti_parlamento.data = EXCLUDED.data ' +
+        'AND notifiche_voti_parlamento.camera = EXCLUDED.camera ' +
         'AND COALESCE(notifiche_voti_parlamento.vote_order, -1) < EXCLUDED.vote_order) ' +
         'RETURNING id';
       const result = await client.query(sql,
@@ -128,7 +263,6 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
           vote.titolo, 'Stato da fonte verificata: ' + ballot.vote, ballot.vote,
           dateIso(vote.data_votazione), hash, vote.openpolis_id, order]);
       if (result.rows.length) {
-        changed++;
         updated.push({ representativeId: rep.id, status: ballot.vote });
         // Do not carry reactions from the superseded vote to the new one.
         await client.query('DELETE FROM reazioni WHERE comunicazione_id = $1', [String(result.rows[0].id)]);
@@ -166,15 +300,8 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
   if (process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED !== 'true') {
     return { enabled: false, checked: 0, changed: 0 };
   }
-  const { rows } = await pool.query(LATEST_FINAL_BALLOTS_SQL);
-  // Latest vote is PER REPRESENTATIVE, not the last vote per chamber.
-  // A representative missing the newest roll-call may appear in an earlier
-  // final. Search newest first with up to 50 sources PER chamber.
-  const votes = rows.filter(vote => isRecentFinal(vote))
-    .sort((a, b) => {
-      const date = dateIso(b.data_votazione).localeCompare(dateIso(a.data_votazione));
-      return date || voteOrder(b) - voteOrder(a);
-    });
+  // Cheap selection checks first. If no verified followed representatives
+  // exist, do not even read candidate roll calls or make network requests.
   const allByChamber = new Map();
   const pendingByChamber = new Map();
   for (const chamber of ['Camera', 'Senato']) {
@@ -182,6 +309,16 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
     allByChamber.set(chamber, reps);
     pendingByChamber.set(chamber, new Map(reps.map(rep => [String(rep.id), rep])));
   }
+  if (![...pendingByChamber.values()].some(pending => pending.size > 0))
+    return { enabled: true, checked: 0, changed: 0, unavailable: 0 };
+  const { rows } = await pool.query(LATEST_FINAL_BALLOTS_SQL);
+  // Latest is per selected representative. An individual absent from the
+  // newest roll-call may appear in an earlier verified final ballot.
+  const votes = rows.filter(vote => isRecentFinal(vote))
+    .sort((a, b) => {
+      const date = dateIso(b.data_votazione).localeCompare(dateIso(a.data_votazione));
+      return date || voteOrder(b) - voteOrder(a);
+    });
   let changed = 0, checked = 0, unavailable = 0;
   for (const vote of votes) {
     const pending = pendingByChamber.get(vote.camera);
@@ -194,7 +331,7 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
       // member/status remains unresolved and may be found in an older final.
       const allReps = allByChamber.get(vote.camera);
       const matched = [...pending.values()].filter(rep =>
-        matchUniqueMember(rep, verified.members || [], allReps)
+        matchUniqueMember(rep, verified.members || [], allReps, {chamber:vote.camera,sourceType:verified.source?.type})
       );
       if (!matched.length) {
         checked++;
@@ -224,6 +361,6 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
   }
   return { enabled: true, checked, changed, unavailable };
 }
-module.exports = { LATEST_FINAL_BALLOTS_SQL, normalizeName, memberNameVariants, voteOrder, isRecentFinal, newestByChamber,
+module.exports = { LOCK_SELECTED_NOMINAL_ELIGIBILITY_SQL, LATEST_FINAL_BALLOTS_SQL, normalizeName, memberNameVariants, voteOrder, isRecentFinal, newestByChamber,
   matchUniqueMember, selectedRepresentatives, persistLatestForChamber,
   refreshLatestParliamentVoteNotifications };

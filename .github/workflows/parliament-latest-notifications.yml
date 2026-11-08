@@ -2,17 +2,47 @@ name: DEMOS Parliament Latest Notification Validation
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/parliament-verified-ballots-20261103]
     paths:
       - 'api/services/parliamentLatestVoteNotificationsService.js'
+      - 'api/services/parliamentSelectedOfficePreflightService.js'
+      - 'api/tests/parliamentSelectedOfficePreflight.test.js'
+      - 'api/routes/voti-politici.js'
+      - 'api/services/institutionalCurrentNominalVotesService.js'
+      - 'api/services/europeanCurrentNominalVoteAdapter.js'
+      - 'api/tests/europeanCurrentNominalVoteAdapter.test.js'
+      - 'api/database/20261108_institutional_current_nominal_votes.sql'
+      - 'api/database/20261108_institutional_nominal_identity_links.sql'
+      - 'api/database/20261108_institutional_identity_review_gate.sql'
+      - 'api/database/20261108_ep_verified_identity_bridge.sql'
+      - 'api/database/20261108_institutional_current_vote_outcome.sql'
+      - 'client/src/components/LatestItalianNominalVote.tsx'
+      - 'client/src/components/ProfileRepresentatives.tsx'
+      - 'client/tests/latestItalianNominalVote.test.mjs'
+      - 'api/database/20261108_latest_parliament_notifications_one_per_rep.sql'
+      - 'api/tests/institutionalCurrentNominalVotes.test.js'
       - 'api/services/parliamentFinalBallotPushService.js'
       - 'api/tests/parliamentFinalBallotPush.test.js'
       - 'api/tests/parliamentLatestVotePostgres.integration.js'
+      - 'api/tests/prod041SyntheticBackupRestore.sh'
+      - 'api/tests/prod041LiveIdentityCapabilityProbe.js'
+      - 'api/database/20261108_senate_identity_candidates_readonly.sql'
+      - 'api/database/20261108_selected_mp_identity_review_readonly.sql'
+      - 'api/database/20261108_selected_official_registry_audit_readonly.sql'
+      - 'api/database/20261108_selected_first_party_vs_openpolis_dob_READONLY.sql'
+      - 'api/database/20261108_selected_senate_official_id_candidates_readonly.sql'
+      - 'api/database/20261108_selected_public_dob_correction_REQUIRES_GO.sql'
+      - 'api/tests/prod041SelectedDobCandidate.postgres.js'
+      - 'api/database/20261108_three_selected_dob_preflight_READONLY.sql'
+      - 'api/tests/prod041DobGate.static.test.js'
+      - 'api/tests/senateIdentityCandidatesReadonly.test.js'
+      - 'docs/PROD-041-current-nominal-votes.md'
       - 'api/create-notifiche-voti-parlamento-table.sql'
       - 'client/src/hooks/useNativePush.ts'
       - 'client/public/firebase-messaging-sw.js'
       - 'api/database/20261103_latest_parliament_votes.sql'
       - 'api/jobs/openpolisVotazioniFinaliJob.js'
+      - 'api/tests/parliamentEuropeanCurrentJobWiring.test.js'
       - 'api/routes/notifiche.js'
       - 'api/tests/parliamentLatestVoteNotifications.test.js'
       - 'api/services/parlamentoEuropeoService.js'
@@ -61,10 +91,19 @@ jobs:
       - name: Check syntax and execute replacement and fail-closed tests
         run: |
           node --check api/services/parliamentLatestVoteNotificationsService.js
+          node --check api/services/parliamentSelectedOfficePreflightService.js
+          node --test api/tests/parliamentSelectedOfficePreflight.test.js
           node --check api/services/parliamentFinalBallotPushService.js
           node --check api/jobs/openpolisVotazioniFinaliJob.js
+          node --test api/tests/parliamentEuropeanCurrentJobWiring.test.js
           node --check api/routes/notifiche.js
           node --test api/tests/parliamentLatestVoteNotifications.test.js api/tests/parliamentFinalBallotPush.test.js api/tests/parliamentVerifiedFinalBallots.test.js
+          node --check api/services/institutionalCurrentNominalVotesService.js
+          node --test api/tests/institutionalCurrentNominalVotes.test.js
+          node --test api/tests/senateIdentityCandidatesReadonly.test.js
+          node --test api/tests/prod041DobGate.static.test.js
+          node --check api/services/europeanCurrentNominalVoteAdapter.js
+          node --test api/tests/europeanCurrentNominalVoteAdapter.test.js
           node --check api/services/parlamentoEuropeoService.js
           node --check api/services/parltrackService.js
           node --test api/tests/europeanVoteLatestOnlyContract.test.js
@@ -73,8 +112,21 @@ jobs:
           TEST_PARLIAMENT_PG_EPHEMERAL: 'true'
           TEST_PARLIAMENT_PG_URL: postgres://demos_test:temporary_ci_only@127.0.0.1:55432/demos_test
         run: node api/tests/parliamentLatestVotePostgres.integration.js
+      - name: Inspect live official source identity links (read only, aggregate counts)
+        run: node api/tests/prod041LiveIdentityCapabilityProbe.js
+      - name: Verify encrypted legacy backup and restore with synthetic votes only
+        env:
+          TEST_PARLIAMENT_PG_EPHEMERAL: 'true'
+        run: bash api/tests/prod041SyntheticBackupRestore.sh
+      - name: Rehearse three selected public DOB corrections in isolated ephemeral PG16
+        env:
+          TEST_PARLIAMENT_PG_EPHEMERAL: 'true'
+          TEST_PARLIAMENT_PG_URL: postgres://demos_test:temporary_ci_only@127.0.0.1:55432/demos_test
+        run: |
+          node --check api/tests/prod041SelectedDobCandidate.postgres.js
+          node api/tests/prod041SelectedDobCandidate.postgres.js
       - name: Verify notification UI wiring
-        run: node --test client/tests/parliamentNotificationIntegration.test.mjs
+        run: node --test client/tests/parliamentNotificationIntegration.test.mjs client/tests/latestItalianNominalVote.test.mjs
       - name: Install frontend dependencies (no scripts)
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend

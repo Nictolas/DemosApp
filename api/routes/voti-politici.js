@@ -5,6 +5,7 @@ const { getPool } = require('../config/database');
 const { loadFromDb: loadOpenpolisUltimiDdl, fetchUltimiDdlApprovati, saveToDb: saveOpenpolisDdlToDb } = require('../services/openpolisCosaSuccedeService');
 const { loadFromDb: loadOpenpolisVotazioniFinali } = require('../services/openpolisVotazioniFinaliService');
 const { getVerifiedFinalBallots } = require('../services/parliamentVerifiedFinalBallotsService');
+const { getCurrentVote } = require('../services/institutionalCurrentNominalVotesService');
 const axios = require('axios');
 
 const router = express.Router();
@@ -819,7 +820,9 @@ router.get('/votazioni-finali-decisive/:openpolisId/voti-nominali', verifyToken,
       date: data.date,
       source: data.source,
       total: data.members.length,
-      members: data.members
+      // PROD-041: groups are used solely to verify source roster integrity.
+
+      members: data.members.map(({ name, vote }) => ({ name, vote }))
     });
   } catch (error) {
     console.warn('[voti-finali-nominali] Fonte nominale non verificabile', error?.message);
@@ -1328,6 +1331,24 @@ router.get('/ultime', verifyToken, async (req, res) => {
   }
 });
 
+// PROD-041: only current verified nominal status, never an individual history.
+// Does not modify the European user interface.
+router.get('/rappresentanti/:id/ultimo-voto', verifyToken, async (req, res) => {
+  const chamber = req.query.camera;
+  const representativeId = String(req.params.id || '');
+  if (!['Camera', 'Senato'].includes(chamber) ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(representativeId)) {
+    return res.status(400).json({ success: false, error: 'Identificativo o istituzione non valido' });
+  }
+  try {
+    const record = await getCurrentVote(pool, chamber, 'demos:' + representativeId);
+    return res.json({ success: true, data: record || null });
+  } catch {
+    // Schema not released, unavailable data, or database failure: never guess a vote.
+    return res.status(503).json({ success: false, data: null, error: 'Ultimo voto verificato non disponibile' });
+  }
+});
+
 // GET /api/voti-politici/ultima - Alias per compatibilità (restituisce solo la prima)
 router.get('/ultima', verifyToken, async (req, res) => {
   try {
@@ -1534,141 +1555,10 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
     
     const votazione = result.rows[0];
     
-    // Arricchisci con voti nominali se disponibili (solo Senato)
-    let votiNominali = {
-      favorevoli: [],
-      contrari: [],
-      astenuti: []
-    };
-    
-    // Prima prova a recuperare dalla tabella cache
-    try {
-      const votiCacheQuery = `
-        SELECT nome_politico, voto
-        FROM parlamento_voti_nominali
-        WHERE uri_votazione = $1
-        ORDER BY voto, nome_politico
-      `;
-      const votiCacheResult = await pool.query(votiCacheQuery, [decodedUri]);
-      
-      if (votiCacheResult.rows.length > 0) {
-        // Usa i dati dalla cache
-        votiCacheResult.rows.forEach(row => {
-          if (row.voto === 'Favorevole') {
-            votiNominali.favorevoli.push(row.nome_politico);
-          } else if (row.voto === 'Contrario') {
-            votiNominali.contrari.push(row.nome_politico);
-          } else if (row.voto === 'Astenuto') {
-            votiNominali.astenuti.push(row.nome_politico);
-          }
-        });
-        console.log(`✅ Voti nominali recuperati dalla cache: ${votiCacheResult.rows.length} voti`);
-      } else if (votazione.camera === 'Senato') {
-        // Se non ci sono in cache, recupera da SPARQL e salva
-        console.log(`📥 Voti nominali non in cache, recupero da SPARQL...`);
-        
-        try {
-        // Query per voti favorevoli
-        const queryFavorevoli = `
-          PREFIX osr: <http://dati.senato.it/osr/>
-          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-          
-          SELECT DISTINCT ?senatore ?nomeSenatore
-          WHERE {
-            <${decodedUri}> osr:favorevole ?senatore .
-            OPTIONAL { ?senatore rdfs:label ?nomeSenatore . }
-          }
-          LIMIT 200
-        `;
-        
-        const params = new URLSearchParams();
-        params.append('query', queryFavorevoli);
-        params.append('format', 'json');
-        
-        const responseFav = await axios.get(`https://dati.senato.it/sparql?${params.toString()}`, {
-          headers: {
-            'Accept': 'application/sparql-results+json, application/json',
-            'User-Agent': 'Mozilla/5.0'
-          },
-          timeout: 15000
-        });
-        
-        const bindingsFav = responseFav.data?.results?.bindings || [];
-        votiNominali.favorevoli = bindingsFav
-          .map(b => b.nomeSenatore?.value)
-          .filter(nome => nome && nome.trim() !== '');
-        
-        // Query per voti contrari
-        const queryContrari = `
-          PREFIX osr: <http://dati.senato.it/osr/>
-          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-          
-          SELECT DISTINCT ?senatore ?nomeSenatore
-          WHERE {
-            <${decodedUri}> osr:contrario ?senatore .
-            OPTIONAL { ?senatore rdfs:label ?nomeSenatore . }
-          }
-          LIMIT 200
-        `;
-        
-        params.set('query', queryContrari);
-        const responseContr = await axios.get(`https://dati.senato.it/sparql?${params.toString()}`, {
-          headers: {
-            'Accept': 'application/sparql-results+json, application/json',
-            'User-Agent': 'Mozilla/5.0'
-          },
-          timeout: 15000
-        });
-        
-        const bindingsContr = responseContr.data?.results?.bindings || [];
-        votiNominali.contrari = bindingsContr
-          .map(b => b.nomeSenatore?.value)
-          .filter(nome => nome && nome.trim() !== '');
-        
-        // Query per astenuti
-        const queryAstenuti = `
-          PREFIX osr: <http://dati.senato.it/osr/>
-          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-          
-          SELECT DISTINCT ?senatore ?nomeSenatore
-          WHERE {
-            <${decodedUri}> osr:astenuto ?senatore .
-            OPTIONAL { ?senatore rdfs:label ?nomeSenatore . }
-          }
-          LIMIT 200
-        `;
-        
-        params.set('query', queryAstenuti);
-        const responseAst = await axios.get(`https://dati.senato.it/sparql?${params.toString()}`, {
-          headers: {
-            'Accept': 'application/sparql-results+json, application/json',
-            'User-Agent': 'Mozilla/5.0'
-          },
-          timeout: 15000
-        });
-        
-        const bindingsAst = responseAst.data?.results?.bindings || [];
-        votiNominali.astenuti = bindingsAst
-          .map(b => b.nomeSenatore?.value)
-          .filter(nome => nome && nome.trim() !== '');
-        
-        console.log(`✅ Recuperati ${votiNominali.favorevoli.length} favorevoli, ${votiNominali.contrari.length} contrari, ${votiNominali.astenuti.length} astenuti`);
-        
-        // Latest-only policy PROD-041: this legacy detail lookup is read-only.
-        // Do not append snapshots to parlamento_voti_nominali or create
-        // retroactive notifications when an authenticated user opens a detail.
-        // The separately gated #576 pipeline checks the final ballot source
-        // and replaces the latest entry for the selected representative.
-        
-      } catch (error) {
-        console.warn(`⚠️ Errore nel recupero voti nominali: ${error.message}`);
-        // Continua senza voti nominali
-      }
-      }
-    } catch (error) {
-      console.warn(`⚠️ Errore nel recupero voti nominali dalla cache: ${error.message}`);
-    }
-    
+    // PROD-041: non leggere la cache nominale storica per votazione.
+    // La scheda della votazione conserva esclusivamente dati aggregati;
+    // l'ultimo voto individuale verificato usa la nuova API per ID stabile.
+
     // Formatta la risposta
     const descrizioneCompleta = votazione.descrizione_openpolis || 
                                votazione.descrizione || 
@@ -1709,11 +1599,8 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
       presidente: votazione.metadati?.presidente || null,
       tipo_seduta: votazione.metadati?.sedutaTipo || null,
       uri_seduta: votazione.uri_seduta,
-      
-      // Voti nominali (solo se disponibili)
-      voti_nominali: votiNominali.favorevoli.length > 0 || 
-                    votiNominali.contrari.length > 0 || 
-                    votiNominali.astenuti.length > 0 ? votiNominali : null,
+      // No historical individual vote roster in ballot-detail responses.
+      voti_nominali: null,
       
       // Metadati completi
       metadati: votazione.metadati || {},
