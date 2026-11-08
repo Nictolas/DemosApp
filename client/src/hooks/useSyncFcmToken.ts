@@ -9,22 +9,16 @@ import { apiRequest } from "@/lib/queryClient";
  */
 export function useSyncFcmToken() {
   const { user } = useAuth();
-  const { enabled, token: fcmToken, permission, requestPermission, getToken, transport } = usePushNotifications();
+  const { enabled, token: fcmToken, permission, getToken, transport } = usePushNotifications();
 
   useEffect(() => {
     if (!user?.id || !enabled) return;
 
-    if (permission === null || permission === 'default') {
-      const permissionStorageKey = `push_permission_requested_${transport}`;
-      const hasRequested = localStorage.getItem(permissionStorageKey);
-      if (!hasRequested) {
-        void requestPermission();
-        localStorage.setItem(permissionStorageKey, 'true');
-      }
-      return;
-    }
-
-    if (permission === 'denied') return;
+    // Never open an OS/browser notification-permission dialog on login.
+    // Only the user's explicit "Consenti notifiche" action in
+    // NotifichePreferenze may request permission. The server separately
+    // enforces topic-specific preferences (default OFF for civic alerts).
+    if (permission !== 'granted') return;
 
     if (permission === 'granted' && !fcmToken) {
       void getToken();
@@ -53,5 +47,5 @@ export function useSyncFcmToken() {
     };
 
     void saveToken();
-  }, [user?.id, enabled, fcmToken, permission, requestPermission, getToken, transport]);
+  }, [user?.id, enabled, fcmToken, permission, getToken, transport]);
 }

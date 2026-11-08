@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { getMessaging, getToken as getFCMToken, onMessage, Messaging } from 'firebase/messaging';
 import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
+import { PUSH_PERMISSION_CHANGED_EVENT, notifyPushPermissionChanged } from '@/lib/push-permission-events';
 
 function isNativeApp(): boolean {
   try {
@@ -44,10 +45,13 @@ export function useFCM() {
       return;
     }
 
-    // Verifica permesso notifiche
-    if ('Notification' in window) {
-      setPermission(Notification.permission);
-    }
+    // A separate background token-sync hook is mounted beside Preferences:
+    // both must see explicit OS permission changes without a new prompt.
+    const refreshPermission = () => {
+      if ('Notification' in window) setPermission(Notification.permission);
+    };
+    window.addEventListener(PUSH_PERMISSION_CHANGED_EVENT, refreshPermission);
+    refreshPermission();
 
     // Inizializza Firebase Messaging con le credenziali essenziali
     // NOTA: Per FCM web NON serve Firestore o altri servizi Firebase
@@ -85,6 +89,7 @@ export function useFCM() {
       console.warn('   VITE_FIREBASE_VAPID_KEY:', import.meta.env.VITE_FIREBASE_VAPID_KEY ? 'PRESENTE' : 'MANCANTE');
       console.warn('   Le notifiche push web non funzioneranno.');
     }
+    return () => window.removeEventListener(PUSH_PERMISSION_CHANGED_EVENT, refreshPermission);
   }, []);
 
   // Richiedi permesso notifiche
@@ -101,6 +106,7 @@ export function useFCM() {
 
     if (Notification.permission === 'granted') {
       setPermission('granted');
+      notifyPushPermissionChanged();
       await getToken();
       return;
     }
@@ -108,12 +114,14 @@ export function useFCM() {
     if (Notification.permission === 'denied') {
       setError(new Error('Permesso notifiche negato'));
       setPermission('denied');
+      notifyPushPermissionChanged();
       return;
     }
 
     try {
       const permission = await Notification.requestPermission();
       setPermission(permission);
+      notifyPushPermissionChanged();
       
       if (permission === 'granted') {
         await getToken();

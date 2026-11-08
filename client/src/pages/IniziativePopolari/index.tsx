@@ -87,12 +87,16 @@ export default function IniziativePopolari() {
     if (deepLinkHandled.current || isLoading || isError || !user) return;
     const id = new URLSearchParams(window.location.search).get("initiative");
     if (!id) return;
-    deepLinkHandled.current = true;
-    const item = filteredAndSortedIniziative.find(
+    // Il push può riferirsi a una iniziativa ufficiale senza scadenza:
+    // l'elenco filtrato la nasconde, ma il dettaglio deve restare raggiungibile.
+    const item = iniziativeUfficiali.find(
       entry => String(entry.id_ministero ?? entry.id) === id
     );
-    if (item) startEditView(item);
-  }, [filteredAndSortedIniziative, isLoading, isError, user]);
+    if (item) {
+      deepLinkHandled.current = true;
+      startEditView(item);
+    }
+  }, [iniziativeUfficiali, isLoading, isError, user]);
 
   // Redirect se non autenticato
   if (isAuthLoading) {
