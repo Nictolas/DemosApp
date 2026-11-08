@@ -5,6 +5,9 @@ on:
     paths:
       - 'api/services/europeanParliamentVerifiedRollCallReader.js'
       - 'api/tests/europeanParliamentVerifiedRollCallReader.test.js'
+      - 'api/tests/europeanParliamentOfficialDecisionReader.test.js'
+      - 'api/services/europeanParliamentOfficialDecisionReader.js'
+      - 'api/scripts/verifyEuropeanParliamentOfficialDecisionAPI.js'
       - 'api/scripts/probeEuropeanParliamentOfficialRollCall.js'
       - 'api/scripts/probeEuropeanParliamentPublicApi.js'
       - 'client/src/pages/VotiParlamentoEuropeo.tsx'
@@ -35,12 +38,17 @@ jobs:
       - name: Strict official identifier/source/absence/order/cache contracts
         run: |
           node --check api/services/europeanParliamentVerifiedRollCallReader.js
-          node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js
+          node --check api/services/europeanParliamentOfficialDecisionReader.js
+          node --check api/routes/voti-parlamento-europeo.js
+          node --test api/tests/europeanParliamentVerifiedRollCallReader.test.js api/tests/europeanParliamentOfficialDecisionReader.test.js
       - name: Frontend type/build regression
         run: |
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
           npm run build --prefix client
       - name: Diagnostic read-only API probe (never logs names or ballots)
         run: node api/scripts/probeEuropeanParliamentPublicApi.js
-      - name: Real read-only official July 2026 roll-call source (release gate)
+      - name: Official Open Data API vote/individual/finality live verification (release gate)
+        run: node api/scripts/verifyEuropeanParliamentOfficialDecisionAPI.js
+      - name: Legacy doCEO XML optional diagnostic (can be robot-blocked)
+        continue-on-error: true
         run: node api/scripts/probeEuropeanParliamentOfficialRollCall.js
