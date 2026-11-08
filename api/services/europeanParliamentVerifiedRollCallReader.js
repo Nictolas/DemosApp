@@ -19,13 +19,13 @@ const inflight = new Map();
 
 function canonicalMepId(value) {
   const text = String(value == null ? '' : value).trim();
-  if (!/^(?:\\d+|(?:person\\/)?\\d+)$/.test(text)) return null;
+  if (!/^(?:\d+|(?:person\/)?\d+)$/.test(text)) return null;
   const digits = text.split('/').pop();
-  return /^(?:0|[1-9]\\d*)$/.test(digits) ? digits : null;
+  return /^(?:0|[1-9]\d*)$/.test(digits) ? digits : null;
 }
 
 function officialRcvUrl(sittingDate) {
-  if (!/^20\\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])$/.test(sittingDate)) {
+  if (!/^20\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/.test(sittingDate)) {
     throw new TypeError('INVALID_EP_SITTING_DATE');
   }
   const date = new Date(sittingDate + 'T00:00:00Z');
@@ -71,7 +71,7 @@ function parseOfficialRollCallXml(xml, sittingDate, sourceUrl = officialRcvUrl(s
     const identifier = $(item).attr('Identifier') || $(item).attr('identifier');
     if (!identifier || seenVoteIds.has(identifier)) throw new Error('EP_RCV_DUPLICATE_OR_MISSING_VOTE_ID');
     seenVoteIds.add(identifier);
-    const subject = descendants($, item, 'RollCallVote.Description.Text').first().text().replace(/\\s+/g, ' ').trim();
+    const subject = descendants($, item, 'RollCallVote.Description.Text').first().text().replace(/\s+/g, ' ').trim();
     if (!subject) continue; // never fabricate a subject
     const ballots = new Map();
     let ambiguous = false;
