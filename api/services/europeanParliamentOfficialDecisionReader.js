@@ -61,7 +61,9 @@ function parseOfficialDecisionBallots(payload, sittingDate) {
     // finality: an amendment can also be adopted/rejected.
     const finalityText = [title, labelText(d.referenceText)]
       .filter(Boolean).join(' ');
-    const final = /\bfinal vote\b|\bvotazione finale\b/i.test(finalityText);
+    // Official decisions mark final resolutions with "(as a whole)" or
+    // "(insieme del testo)"; adopted/rejected amendments must not qualify.
+    const final = /\bfinal vote\b|\bvotazione finale\b|\(\s*as a whole\s*\)|\(\s*insieme del testo\s*\)/i.test(finalityText);
 
     const ballots = new Map();
     let ambiguous = false;
