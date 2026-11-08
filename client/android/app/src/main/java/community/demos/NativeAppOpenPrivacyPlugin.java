@@ -26,7 +26,10 @@ public class NativeAppOpenPrivacyPlugin extends Plugin {
             return;
         }
         Boolean confirmed = call.getBoolean("eligible");
-        activity.setAppOpenAdultEligibility(Boolean.TRUE.equals(confirmed), call::resolve);
+        // Only anonymous booleans enter native code; no token, account ID or age.
+        boolean revalidateSession = Boolean.TRUE.equals(confirmed)
+            && Boolean.TRUE.equals(call.getBoolean("revalidateSession"));
+        activity.setAppOpenAdultEligibility(Boolean.TRUE.equals(confirmed), revalidateSession, call::resolve);
     }
 
     @PluginMethod
