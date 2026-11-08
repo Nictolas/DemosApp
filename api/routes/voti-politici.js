@@ -4,7 +4,7 @@ const { generaAnalisiLegge, recuperaAnalisiDaCache } = require('../services/legg
 const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { loadFromDb: loadOpenpolisUltimiDdl, fetchUltimiDdlApprovati, saveToDb: saveOpenpolisDdlToDb } = require('../services/openpolisCosaSuccedeService');
-const { loadFromDb: loadOpenpolisVotazioniFinali, fetchVotazioniFinaliDecisive, saveToDb: saveOpenpolisVotazioniFinaliToDb } = require('../services/openpolisVotazioniFinaliService');
+const { loadFromDb: loadOpenpolisVotazioniFinali } = require('../services/openpolisVotazioniFinaliService');
 const { getVerifiedFinalBallots } = require('../services/parliamentVerifiedFinalBallotsService');
 const axios = require('axios');
 
@@ -1080,17 +1080,18 @@ router.get('/votazioni-finali-decisive/:openpolisId/voti-nominali', verifyToken,
 router.get('/votazioni-finali-decisive', verifyToken, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
-    let rows = await loadOpenpolisVotazioniFinali(pool, limit);
+    // Authenticated feed is read-only: source refresh belongs to the scheduled
+    // importer or the explicitly Admin-only synchronization route, never GET.
+    // An empty cache must not trigger an unreviewed upstream import on page load.
+    const rows = await loadOpenpolisVotazioniFinali(pool, limit);
     if (rows.length === 0) {
-      try {
-        const items = await fetchVotazioniFinaliDecisive(limit);
-        if (items.length > 0) {
-          await saveOpenpolisVotazioniFinaliToDb(items, pool);
-          rows = await loadOpenpolisVotazioniFinali(pool, limit);
-        }
-      } catch (e) {
-        console.warn('⚠️ Fallback fetch votazioni finali:', e.message);
-      }
+      return res.status(503).json({
+        success: false,
+        error: 'Fonte votazioni finali temporaneamente non disponibile',
+        message: 'La cache delle votazioni finali non è ancora disponibile. Riprova più tardi.',
+        data: [],
+        count: 0
+      });
     }
     const data = rows.map(r => ({
       id: r.id,
