@@ -71,6 +71,26 @@ test('unknown same-day official order fails closed rather than assuming vote IDs
   const r=selectLatestFinalRollCall([parseOfficialDecisionBallots(body(a,b),DAY)],['person/1234']);
   assert.equal(r.has('1234'),false);
 });
+test('real EP final-vote labels from 2026 qualify, while amendments do not',()=>{
+  const finalLabel = rec('199517',{
+    activity_order:'35.0',
+    activity_label:{it:'RC-B10-0476/2026 – Proposta di risoluzione (insieme del testo)',
+      en:'RC-B10-0476/2026 – Motion for a resolution (as a whole)'},
+    headingLabel:{it:'Gruppi parlamentari (nome non esponibile)'}
+  });
+  const amendment = rec('199504',{
+    activity_order:'19.0',
+    activity_label:{it:'RC-B10-0476/2026 – § 7/3',en:'RC-B10-0476/2026 – § 7/3'}
+  });
+  const result = parseOfficialDecisionBallots(body(amendment,finalLabel),DAY);
+  assert.equal(result.length,2);
+  assert.equal(result.find(x=>x.voteId.endsWith('199517')).final,true);
+  assert.equal(result.find(x=>x.voteId.endsWith('199504')).final,false);
+  assert.equal(result.find(x=>x.voteId.endsWith('199517')).officialOrder,35);
+  assert.match(result.find(x=>x.voteId.endsWith('199517')).subject,/insieme del testo/);
+  assert.doesNotMatch(result.find(x=>x.voteId.endsWith('199517')).subject,/Gruppi parlamentari/);
+});
+
 test('cache and concurrent deduplication are in-memory only',async()=>{
   let calls=0;
   const client={get:async()=>{calls++;return {status:200,data:body(rec())}}};
