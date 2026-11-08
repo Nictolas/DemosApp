@@ -4,8 +4,8 @@
 
 ## Decision and implementation
 
-A representative has **one current nominal vote**, not a timeline. The
-database enforces a single row per `(institution, representative_key)`;
+A representative has **one current nominal vote**, not a timeline. A chamber or institutional transition cannot leave two rows for the same DEMOS identity; same-day ballots from different institutions are not ordered by unrelated sequence numbers. The
+database enforces a single row per `representative_key` (also across office transitions);
 the writer atomically replaces it only when `(vote_date, ballot_order)`
 is newer. An older or equal-order replay cannot overwrite current state.
 Same-day ambiguous sequencing must remain unresolved rather than guessed.
