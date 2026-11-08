@@ -8,8 +8,8 @@ const path=require('node:path');
 const {Client}=require('pg');
 
 const conn=new URL(process.env.TEST_PARLIAMENT_PG_URL||'postgres://invalid');
-if(process.env.GITHUB_ACTIONS!=='true ||
-   process.env.TEST_PARLIAMENT_PG_EPHEMERAL!=='true ||
+if(process.env.GITHUB_ACTIONS!=='true' ||
+   process.env.TEST_PARLIAMENT_PG_EPHEMERAL!=='true' ||
    !['localhost','127.0.0.1'].includes(conn.hostname) ||
    conn.port!=='55432'||conn.pathname!=='/demos_test'||
    conn.username!=='demos_test')
