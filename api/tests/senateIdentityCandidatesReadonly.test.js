@@ -83,3 +83,26 @@ test('selected-only existing senate official-ID candidate audit stays read-only 
   assert.doesNotMatch(body,/institutional_nominal_identity_links|ON CONFLICT|pg_catalog/i);
   assert.doesNotMatch(body,/SELECT\s+[^;]*ps\.user_id\s+AS\s+follower/i);
 });
+
+
+test('secondary Openpolis slug discrepancy does not override the first-party official DOB',()=>{
+  const sql=fs.readFileSync(path.join(__dirname,
+    '../database/20261108_selected_first_party_vs_openpolis_dob_READONLY.sql'),'utf8');
+  const body=sql.replace(/--[^\n]*/g,'').replace(/\/\*[\s\S]*?\*\//g,'');
+  assert.match(body,/WITH reference\(/);
+  assert.match(body,/JOIN public\.users follower ON follower\.id=ps\.user_id AND lower\(follower\.status\)='a'/);
+  assert.match(body,/ps\.selection_kind='representative'/);
+  assert.match(body,/public\.voti_camera/);
+  assert.match(body,/COUNT\(DISTINCT v\.url_openpolis\)/);
+  assert.match(body,/SECONDARY_SLUG_CONFLICTS_WITH_FIRST_PARTY/);
+  assert.match(body,/FIRST_PARTY_BIO_MATCH_ONLY_ID_NOT_VERIFIED/);
+  assert.match(body,/NEEDS_NEW_FIRST_PARTY_REGISTRY_REVIEW/);
+  assert.match(body,/source_profile_count>1/);
+  assert.doesNotMatch(body,/\b(?:INSERT|UPDATE|DELETE|MERGE|TRUNCATE|DROP|ALTER|CREATE|GRANT|REVOKE|COPY|CALL|DO|EXECUTE)\b/i);
+  assert.doesNotMatch(body,/institutional_nominal_identity_links|ON CONFLICT/i);
+  assert.doesNotMatch(body,/SELECT\s+[^;]*ps\.user_id\s+AS\s+follower/i);
+  // Institution-backed Peppe DOB and erroneous secondary slug are different:
+  // the review report is intentionally allowed to show the conflict.
+  assert.match(body,/'peppe de cristofaro','it\.senato',DATE '1971-06-26'/);
+  assert.doesNotMatch(body,/\bSET\s+data_nascita/i);
+});
