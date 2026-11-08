@@ -187,6 +187,8 @@ router.get('/', verifyToken, async (req, res) => {
                'notifiche_demos' AS tabella_origine
         FROM notifiche_demos
         WHERE (id_utente IS NULL OR id_utente = $1::uuid)
+          -- Operational alerts remain in the admin logs but are not citizen notices.
+          AND COALESCE(titolo, '') !~ '^DEMOS — (Critico|Elevato|Attenzione|CRITICAL|HIGH|WARN): (Errore server|Avviso operativo)$'
         ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
         LIMIT 50
       `, [user_id]);
@@ -902,6 +904,8 @@ router.get('/ultima', verifyToken, async (req, res) => {
           'notifiche_demos' as tabella_origine
         FROM notifiche_demos
         WHERE (id_utente IS NULL OR id_utente = $1::uuid)
+          -- Operational alerts remain in the admin logs but are not citizen notices.
+          AND COALESCE(titolo, '') !~ '^DEMOS — (Critico|Elevato|Attenzione|CRITICAL|HIGH|WARN): (Errore server|Avviso operativo)$'
         ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
         LIMIT 1
       `, [userId]);

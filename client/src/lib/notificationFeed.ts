@@ -7,6 +7,16 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 export const isValidNotificationUserId = (id: unknown): id is string =>
   typeof id === "string" && UUID_PATTERN.test(id);
 
+// Admin diagnostics are not user-facing notifications. Keep their database
+// records and backend error monitoring; the browser also hides them when the
+// backend has not yet been deployed (badge and page share this fetcher).
+const OPERATIONAL_ALERT_TITLE = /^DEMOS — (?:Critico|Elevato|Attenzione|CRITICAL|HIGH|WARN): (?:Errore server|Avviso operativo)$/;
+
+export function isOperationalDiagnosticNotice(value: { tipo_notifica?: string; titolo?: string } | null): boolean {
+  return !!value && value.tipo_notifica === 'demos' &&
+    OPERATIONAL_ALERT_TITLE.test(String(value.titolo || ''));
+}
+
 // One user-scoped React Query entry is shared between the page and its badge.
 // Keeping the user id only in memory prevents a stale account's feed from being
 // shown to the next account and avoids leaking the identifier via request URLs.
@@ -21,7 +31,11 @@ export async function fetchNotificationFeed(): Promise<NotificheData> {
     throw new Error("Impossibile caricare le notifiche");
   }
 
-  return payload as NotificheData;
+  return {
+    ...payload,
+    notifiche: payload.notifiche.filter((item: { tipo_notifica?: string; titolo?: string }) =>
+      !isOperationalDiagnosticNotice(item))
+  } as NotificheData;
 }
 
 export const notificationFeedQueryPolicy = {
