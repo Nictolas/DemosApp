@@ -210,6 +210,13 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
       const fresh = eligibleNow.get(String(rep.id));
       if (!fresh || fresh.source_person_id !== rep.source_person_id ||
           fresh.evidence_url !== rep.evidence_url) continue;
+      // A newly followed/approved politician could compete for a name-only
+      // Camera row while the source was being fetched. Re-do unique roster
+      // attribution against the FRESH full selected set before any write.
+      const rechecked = matchUniqueMember(fresh, verified.members, currentSelected,
+        {chamber:vote.camera,sourceType:verified.source.type});
+      if (!rechecked || rechecked.vote !== ballot.vote ||
+          rechecked.sourcePersonId !== ballot.sourcePersonId) continue;
       const office = vote.camera === 'Camera' ? 'it.camera' : 'it.senato';
       const mandateOffice = vote.camera === 'Camera' ? 'C' : 'S';
       const lock = await client.query(LOCK_SELECTED_NOMINAL_ELIGIBILITY_SQL,
