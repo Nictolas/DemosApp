@@ -1,3 +1,42 @@
+## Proposta schema verificata su PostgreSQL 16 — 08/11/2026
+
+**Nuovo avanzamento, ancora NON applicato a DEMOS.** Preparato il file
+`docs/operations/PROD041_EP_BRIDGE_MIGRATION_PROPOSAL.sql`
+come proposta per il proprietario della PR #633, non come migration
+applicabile automaticamente. La proposta modifica soltanto i due
+vincoli `institution` e `source_person_id` della tabella
+`institutional_nominal_identity_links`:
+`PE` + MepId **numerico esatto da 1 a 9 cifre**; Camera e Senato
+conservano ID di lunghezza 12–250. Il preflight fallisce se
+`review_state` manca, se i vincoli originali differiscono da
+quelli osservati nello staging, o se i dati già presenti violano
+la regola; non approva identità, non modifica i permessi RLS,
+PK/UNIQUE o le regole `PENDING`/`VERIFIED`.
+
+[GitHub Actions 42523025429](https://github.com/Nictolas/DemosApp/actions/runs/42523025429):
+**tutti e tre i job SUCCESS**: test PG16 isolato
+(`EP_BRIDGE_PROPOSAL_PG16_SYNTHETIC_PASS`) con utenti e link
+sintetici, test del lettore e della coda di revisione e prova
+Chrome reale su dati sintetici. La prova PostgreSQL richiede
+`EP_SCHEMA_FIXTURE_ONLY=true`, database locale
+`ep_bridge_ci_fixture` e verifica Camera/Senato precedenti
+conservati, RLS, `PE` numerico accettato e rifiuto di ID PE
+malformati e di promozione `VERIFIED` senza revisore.
+**Zero connessioni allo staging o produzione in quel job.**
+
+Handoff consegnato al proprietario:
+[commento PR #633](https://github.com/Nictolas/DemosApp/pull/633#issuecomment-6727077799).
+La proposta **non autorizza** merge/deploy/DDL, non risolve il
+writer #633 che attualmente usa `pe:<MepId>` anziché la chiave
+univoca `demos:<UUID>`, né sostituisce il controllo umano sulle
+tre identità selezionate (inclusa una discrepanza nell'anno di nascita).
+
+**Ancora NO-GO:** schema e writer PR #633, revisione umana, import
+reale e E2E autenticato su staging unificato, QA Android/DPO/GO.
+Nessun AAB da caricare ora.
+
+---
+
 ## Stato di integrazione più recente — selezioni PE CANONICHE (08/11/2026)
 
 **Correzione rispetto ai checkpoint precedenti:** la tabella
