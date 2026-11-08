@@ -60,6 +60,10 @@ final class DemosAppOpenAdsManager {
     private ConsentInformation consentInformation;
     private AppOpenAd readyAd;
     private boolean foreground = false;
+    // A foreground resume after the Activity was paused (e.g. notification tap,
+    // consent dialog or another app) is NOT a fresh app launch. Never show a
+    // cached ad over a transiently empty WebView during such a return.
+    private boolean coldLaunchDisplayWindowOpen = true;
     private boolean initialized = false;
     private boolean loading = false;
     private long lastLoadAttemptElapsedMs = 0L;
@@ -233,6 +237,13 @@ final class DemosAppOpenAdsManager {
 
     void onPause() {
         foreground = false;
+        coldLaunchDisplayWindowOpen = false;
+        // This creative was loaded for the cold launch only. A notification or
+        // another Activity must not resurrect it during a subsequent resume.
+        if (readyAd != null) {
+            readyAd.destroy();
+            readyAd = null;
+        }
     }
 
     boolean arePrivacyOptionsRequired() {
@@ -364,7 +375,8 @@ final class DemosAppOpenAdsManager {
     // application is usable; maybeShowOnlyWhileReallyLoading() rechecks root.
     private void loadOnlyTestAppOpenAd() {
         if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
-            || !adultEligible || !consentVerifiedForAdultSession || !foreground || loading || showing
+            || !adultEligible || !consentVerifiedForAdultSession || !foreground
+            || !coldLaunchDisplayWindowOpen || loading || showing
             || privacyFormOpen || activity.isFinishing() || activity.isDestroyed()) return;
         if (consentInformation == null || !consentInformation.canRequestAds()
             || !hasExplicitTcfConsent()
@@ -418,7 +430,8 @@ final class DemosAppOpenAdsManager {
     }
 
     private void maybeShowOnlyWhileReallyLoading() {
-        if (!foreground || showing || readyAd == null || !hasIntervalElapsed()
+        if (!foreground || !coldLaunchDisplayWindowOpen || showing
+            || readyAd == null || !hasIntervalElapsed()
             || !adultEligible || !consentVerifiedForAdultSession || !hasExplicitTcfConsent()) return;
 
         long age = SystemClock.elapsedRealtime() - readyAtElapsedMs;
@@ -439,6 +452,7 @@ final class DemosAppOpenAdsManager {
             result -> {
                 if (!"true".equals(result)
                     || !foreground
+                    || !coldLaunchDisplayWindowOpen
                     || showing
                     || privacyFormOpen
                     || !consentInformation.canRequestAds() || !adultEligible || !consentVerifiedForAdultSession || !hasExplicitTcfConsent()
