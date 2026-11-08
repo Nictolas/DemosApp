@@ -2,6 +2,43 @@
 
 Data: 06/11/2026. Ambito: richieste a `privacy@demos.community` relative a Grazia, Attivisti, Organizzazioni e Proponi soggetto. Nessuna richiesta reale viene registrata in questo file.
 
+## 08/11/2026 — Decisioni confermate: videocall, rettifica profili e retention (NON operative)
+
+**Fonte decisionale:** conferma esplicita del titolare nella conversazione DEMOS 12 dell'08/11/2026. Questa sezione integra le note precedenti senza convertire le ipotesi di durata in policy approvate. Non è un collaudo, non certifica la liceità, non autorizza flag, pagamenti o rilascio.
+
+### VER-ORG-01 — Prima approvazione di un'Organizzazione
+
+1. Richiesta esclusivamente del presidente o rappresentante legale, con identità CIE **effettivamente verificata**. Una sessione autenticata, la CIE dichiarata nel modulo o il middleware `requireVerifiedCivicIdentity` quando consente il differimento NON costituiscono questa prova.
+2. **Videocall privata obbligatoria prima della prima approvazione** con l'Admin autorizzato: collegamento al caso, presenza dell'istante e conferma della volontà di presentare l'organizzazione. Nessun riconoscimento automatico con una semplice spunta client.
+3. Verifica **separata** della carica tramite registro pubblico attendibile oppure documento idoneo, controllando validità e corrispondenza con il referente CIE. La videocall da sola **non** dimostra la rappresentanza legale; in caso di incongruenze, richiesta pendente o rifiutata, senza pubblicazione.
+4. **Non registrare la videocall** e non conservare copie del documento o della CIE salvo necessità specifica motivata e autorizzata. Proposta di evidenza minima in area privata ad accesso ristretto: ID pratica, ID interno referente, esito CIE, data della videocall, ID Admin verificatore, esito/typologia fonte della verifica della carica, decisione motivata minimizzata, eventuale data di rinnovo della verifica. Non inserire nominativi, link alla chiamata, documento, CF o prove di carica in Google Sheet/GitHub. Tempi di conservazione delle evidenze ancora da decidere.
+5. Approvazione server-side consentita soltanto se la verifica della **stessa pratica e della stessa identità** è conclusa con esito positivo; riesaminare alla variazione del rappresentante o di attributi identitari. La procedura di schedulazione della chiamata e il record attestante l'esito sono **da implementare e testare**, senza attestare videocall già svolte.
+
+### VER-ATT-01 — Autocandidatura e modifiche Attivisti
+
+- Solo autocandidatura, CIE reale obbligatoria; nome e cognome verificati devono corrispondere al soggetto del profilo. La possibilità tecnica di compilare un testo libero non è prova della corrispondenza.
+- **Dati ordinari** del profilo (descrizione, contatti/link pubblici ammessi, contenuti non identitari) modificabili direttamente dall'Attivista autenticato e titolare del profilo, con validazione server-side, controlli accesso e audit minimo ove necessario; niente coda Admin obbligatoria per ogni correzione.
+- Modifica di **identità verificata** (nome, cognome o associazione al soggetto) richiede nuova verifica CIE e riassociazione sicura prima che il nuovo nome appaia pubblico; non permettere di aggirare la verifica con la modifica della descrizione o tramite API alternative.
+- Contestazioni di impersonificazione, dati illeciti e richieste di rimozione seguono il percorso DPO/DSAR e possono comportare oscuramento cautelativo motivato. Il normale aggiornamento del profilo da parte del titolare non va automaticamente trattato come DSAR.
+- La PR Draft non offre ancora prova E2E dei controlli CIE, della proprietà del profilo e della distinzione campi ordinari/identitari. **Gate NO-GO** fino a prove su fixture e revisione delle API legacy.
+
+### RET-18/19/20 — Ipotesi numeriche **da sottoporre** al DPO/legale
+
+| ID | Ipotesi illustrativa, NON approvata | Evento iniziale e dati | Verifica necessaria prima di automazioni |
+| --- | --- | --- | --- |
+| RP-18 | **90 giorni** | Dal rigetto comunicato; proposta respinta non pubblica, dati/fonte da minimizzare o cancellare alla scadenza | Eventuale ricorso, fondamento della durata, sospensioni motivate per controversia, copie provider e prevenzione duplicati |
+| RP-19 | **12 mesi di audit minimo dopo il ritiro**; profilo pubblicato soltanto finché la pubblicazione è lecita e utile | Oscuramento pubblico tempestivo alla revoca/ritiro; audit separato dal profilo, fonte e note, da minimizzare | Base giuridica, diritto alla cancellazione, contenuto audit indispensabile, blocco anti-ripubblicazione, cache e restore |
+| RP-20 | **3 anni** | Dalla chiusura del caso DSAR; conservare solo registro minimo di risposta e decisione, non documenti identitari per l'intero periodo | Finalità probatoria, diritti, contenzioso, backup, accessi, corrispondenza con RP-11 |
+
+**Non implementare TTL, job di cancellazione o blocchi permanenti basati su queste cifre** finché il titolare/DPO con verifica legale mirata non ha adottato durate motivate per categoria. Non dedurre che la durata dei voti (finché account/consenso restano validi) valga per pratiche di moderazione, registri DSAR o documenti di riconoscimento.
+
+### Prove tecniche da produrre prima del GO
+
+- Test backend con fixture sintetiche: CIE mancante/falsa/differita => rifiuto; rappresentante senza carica verificata o senza videocall => rifiuto; persona diversa dalla pratica => rifiuto; esito verificato => solo allora valutabile per approvazione, previa verifica GDPR; cambi identitari richiedono nuova verifica.
+- Test permessi: un altro account non può modificare profilo Attivista, dati identitari non aggiornabili con endpoint ordinario, ritiro/contestazione protetti, nessun URL sensibile o documento CIE nei log e nelle API pubbliche.
+- Confermare nel ramo Draft schema e backend per registrazione minima della verifica, senza registrare video; controllare diritti, minimizzazione, RP-18/19/20, informative artt. 13/14, art. 9 per attivismo, art. 10 ove pertinente per Grazia, screening DPIA art. 35.
+- Prove operative DSAR-02..06, staging unico **solo** con DEMOS 10 e autorizzazione specifica, e Android fisico restano separate. **Nessun flag o pagamento attivo; NO-GO.**
+
 ## Stato delle prove
 
 - **DSAR-01 — ricezione tecnica: PASS limitato.** Un messaggio sintetico proveniente da Outlook è arrivato nella Gmail di destinazione passando per l'inoltro Porkbun. Evidenza: intestazioni RFC822 e `Delivered-To` conservate nella casella autorizzata; runbook `DEMOS12_GRAZIA_DSAR_RUNBOOK_2026-11-05.md`. Questo non dimostra una procedura di risposta, né una garanzia di consegna futura.
