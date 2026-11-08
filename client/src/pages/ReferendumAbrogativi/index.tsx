@@ -30,11 +30,15 @@ export default function ReferendumAbrogativi() {
     if (deepLinkHandled.current || isLoading || isError || !user) return;
     const id = new URLSearchParams(window.location.search).get("initiative");
     if (!id) return;
-    deepLinkHandled.current = true;
     const item = referendumUfficiali.find(
       entry => String(entry.id_ministero ?? entry.id) === id
     );
-    if (item) startEditView(item);
+    if (item) {
+      // Aspetta che il record ufficiale sia disponibile: non consumare il tap
+      // mentre la cache/ricarica contiene temporaneamente una lista vuota.
+      deepLinkHandled.current = true;
+      startEditView(item);
+    }
   }, [referendumUfficiali, isLoading, isError, user]);
 
   // Redirect se non autenticato

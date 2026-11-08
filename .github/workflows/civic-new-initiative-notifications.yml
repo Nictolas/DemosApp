@@ -69,6 +69,8 @@ on:
       - 'api/tests/civicMinisteroScheduler.test.js'
       - '.github/workflows/civic-ministero-sync.yml'
       - 'api/scripts/sync_eci.py'
+      - 'api/tests/test_sync_eci.py'
+      - 'api/tests/test_eci_sync_postgres.py'
       - 'api/tests/civicNewInitiativeNotificationPreparation.test.js'
       - 'api/routes/notifiche.js'
       - 'api/tests/civicPreferencesReadOnly.http.test.js'
@@ -189,6 +191,8 @@ jobs:
           python -m unittest api.tests.test_civic_staging_existing_devices_postgres -v
           python -m unittest api.tests.test_civic_staging_runtime_access_postgres -v
           python -m unittest api.tests.test_civic_migration_postgres -v
+      - name: ECI overlapping syncs on two real ephemeral PostgreSQL connections
+        run: python -m unittest api.tests.test_eci_sync_postgres -v
       - name: Two real PostgreSQL socket observations, never a session approval
         run: node --test api/tests/civicSessionAffinityPostgres.integration.test.js
   frontend-build:
