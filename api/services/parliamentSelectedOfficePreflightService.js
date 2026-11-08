@@ -70,7 +70,10 @@ function profileEvidence(html,rep,expectedOffice,url){
   const birth=header.match(/\bNato il\s+(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})\b/i);
   if(!birth)return {state:'DOB_UNAVAILABLE'};
   const sourceDob=birth[3]+'-'+MONTHS.get(birth[2].toLowerCase())+'-'+birth[1].padStart(2,'0');
-  if(sourceDob!==dob)return {state:'DOB_MISMATCH'};
+  // This is a THIRD-PARTY Openpolis profile. A stale/incorrect DOB on
+  // that page or in its slug is NOT evidence that DEMOS's birthdate is
+  // wrong. Only the first-party Camera/Senato registry can adjudicate.
+  if(sourceDob!==dob)return {state:'SECONDARY_SOURCE_DOB_CONFLICT'};
   const officeMatches=[...header.matchAll(/\b(Deputato|Senatore)\s+dal\s+\d{1,2}\/\d{1,2}\/\d{4}\b/gi)];
   if(officeMatches.length!==1)return {state:'OFFICE_UNAVAILABLE'};
   const office=officeMatches[0][1].toLowerCase()==='deputato'?'it.camera':'it.senato';
@@ -116,14 +119,14 @@ const SELECTED_UNREVIEWED_SQL=[
 async function preflightSelectedParliamentaryOffices(pool,options={}){
   // Feature flag defaults off; never used to mutate production or grant VERIFIED.
   if(process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED!=='true')
-    return {enabled:false,checked:0,officeMismatches:0,birthDateMismatches:0,candidates:0,unresolved:0};
+    return {enabled:false,checked:0,officeMismatches:0,secondarySourceDobConflicts:0,candidates:0,unresolved:0};
   let {rows}=await pool.query(SELECTED_UNREVIEWED_SQL,[scanOffset]);
   if(!rows.length&&scanOffset){
     scanOffset=0;
     ({rows}=await pool.query(SELECTED_UNREVIEWED_SQL,[0]));
   }
   scanOffset=rows.length===MAX_SELECTED?scanOffset+rows.length:0;
-  const result={enabled:true,checked:0,officeMismatches:0,birthDateMismatches:0,candidates:0,unresolved:0};
+  const result={enabled:true,checked:0,officeMismatches:0,secondarySourceDobConflicts:0,candidates:0,unresolved:0};
   for(const rep of rows){
     let decision={state:'UNAVAILABLE'};
     const urls=profileCandidates(rep);
@@ -138,7 +141,7 @@ async function preflightSelectedParliamentaryOffices(pool,options={}){
     }
     result.checked++;
     if(decision.state==='OFFICE_MISMATCH')result.officeMismatches++;
-    else if(decision.state==='DOB_MISMATCH')result.birthDateMismatches++;
+    else if(decision.state==='SECONDARY_SOURCE_DOB_CONFLICT')result.secondarySourceDobConflicts++;
     else if(decision.state==='CANDIDATE_ONLY')result.candidates++;
     else result.unresolved++;
   }
