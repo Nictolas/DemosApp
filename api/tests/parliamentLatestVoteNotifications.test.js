@@ -317,8 +317,10 @@ test('each selected deputy gets their own latest verified final vote, even if mi
     },
     connect:async()=>({
       query:async (sql,params)=>{
-        if(sql.includes('SELECT p.id'))return {rows:[rep,rep2]};
+        // SELECT lock also begins with SELECT p.id: handle that narrower
+        // authorization query first, then the generic selected roster.
         if(sql.includes('FOR SHARE OF ps,follower,p,m,l'))return {rows:[{id:params[0]}]};
+        if(sql.includes('SELECT p.id'))return {rows:[rep,rep2]};
         if(sql.includes('INSERT INTO public.institutional_current_nominal_votes'))return {rows:[{ballot_id:'fixture'}]};
         if(sql.includes('INSERT INTO notifiche_voti_parlamento')){
           inserts.push({id:params[0],vote:params[5],source:params[8]});
