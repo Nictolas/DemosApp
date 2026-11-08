@@ -42,7 +42,7 @@ function assertVerifiedVote(vote) {
   if (typeof sourcePersonId !== 'string' || !sourcePersonId.trim() ||
       sourcePersonId.length > 250) throw new Error('CURRENT_VOTE_SOURCE_PERSON_REQUIRED');
   if (vote.institution === 'PE') {
-    if (!/^[1-9]\\d{0,8}$/.test(sourcePersonId))
+    if (!/^[1-9]\d{0,8}$/.test(sourcePersonId))
       throw new Error('CURRENT_VOTE_SOURCE_PERSON_INVALID');
   } else {
     let personUrl;
@@ -55,7 +55,7 @@ function assertVerifiedVote(vote) {
     if (!['http:', 'https:'].includes(personUrl.protocol) ||
         !allowed.includes(personUrl.hostname.toLowerCase()) ||
         personUrl.username || personUrl.password || personUrl.hash ||
-        !/\\/(?:deputat|senat|person|ocd\\/deputato)/i.test(personUrl.pathname))
+        !/\/(?:deputat|senat|person|ocd\/deputato)/i.test(personUrl.pathname))
       throw new Error('CURRENT_VOTE_SOURCE_PERSON_INVALID');
   }
   return { ...vote, representativeKey:key, voteDate:date, sourceUrl:url.toString() };
