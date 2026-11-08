@@ -1,3 +1,69 @@
+## Stato di integrazione più recente — selezioni PE CANONICHE (08/11/2026)
+
+**Correzione rispetto ai checkpoint precedenti:** la tabella
+`political_selections` in produzione CONTIENE già **3 selezioni
+europee**: codice esatto `eu.parliament.it` e `selection_kind='representative'`.
+Il precedente controllo con filtro `ILIKE '%euro%'` aveva restituito
+falsamente zero, perché non riconosceva quel codice. I 3 UUID
+canonici coincidono esattamente con i 3 target esistenti nella
+proiezione legacy che hanno mandato `office_code='E'` attivo.
+
+**Nuova regola tecnica implementata sulla PR #635:**
+`api/services/europeanParliamentSelectedCurrentOnlyReader.js` richiede
+una vera selezione canonica in `political_selections`, follower
+`users.status='a'`, mandato E/ACTIVE in finestra temporale valida
+e link d'identità PE con `review_state='VERIFIED'`, reviewer, data
+e fonte ufficiale. Nessuna selezione legacy basta a far importare
+un voto. Se zero link verificati, zero HTTP alle API PE. Niente
+storico, nomi nella query del writer, partiti, gruppi o DML.
+
+**Nuovo report per revisore, SQL esclusivamente SELECT:**
+`api/database/20261108_ep_selected_identity_review_readonly.sql`.
+Il report è destinato solo al revisore autorizzato; fa una FULL OUTER
+JOIN tra selezioni canoniche e la colonna legacy, evita doppioni,
+non restituisce follower ID, voti o DOB, non assegna MepId e non
+attribuisce mai lo stato VERIFIED. Audit aggregato effettivamente
+eseguito su Supabase produzione:
+- `CANONICAL_SELECTED_ACTIVE_EU_MANDATE`: **3** riferimenti unici,
+  **3** selezioni canoniche, **3** proiezioni legacy corrispondenti.
+- `LEGACY_NON_UUID`: **3** riferimenti distinti, **6** selezioni
+  legacy, **0** idonei a corrente.
+- `UUID_NO_ACTIVE_EU_MANDATE`: **1** riferimento distinto,
+  **1** selezione legacy, **0** idonei.
+- **0** assegnazioni automatiche di MepId e **0** approvazioni
+  false. Nessun dato personale dei follower estratto.
+
+**Evidenza istituzionale preparata, non approvata:** le
+pagine ufficiali del Parlamento europeo permettono di individuare
+tre profili con MepId per la revisione degli eletti canonici.
+Il controllo anagrafico minimizzato ha trovato **1 discordanza**
+fra data di nascita DEMOS e data della pagina istituzionale,
+e **2 date non registrate** in DEMOS. L'identità discordante
+richiede verifica umana prima di poter associare un voto; nessuna
+data è stata modificata, nessun link è stato scritto e nessun
+nome/UUID è stato aggiunto alla documentazione pubblica.
+
+**Staging unificato:** ha le tabelle `political_selections`,
+`political_mandates` e bridge, ma zero selezioni europee
+canoniche e zero link PE VERIFIED. Il `EXPLAIN` con la query
+CANONICA ha superato il controllo PostgreSQL, usando indici;
+la colonna legacy `user_representatives.rappresentante_europeo`
+assente su staging **non blocca più il reader canonico**. Per
+un vero E2E occorreranno fixture autorizzate e compatibilità
+PR #633 per MepId PE numerici brevi, poi prova autenticata.
+Nessun DDL/DML, merge o deploy.
+
+**Handoff a PR #633**:
+https://github.com/Nictolas/DemosApp/pull/633#issuecomment-6726851417.
+
+I blocchi di rilascio restano 3:
+(1) bridge e writer canonico PE con revisione umana e DOB discordante;
+(2) E2E import su staging unico con selezione reale di prova e
+autenticazione; (3) Android AAB, DPO/retention e via libera
+esplicito. Non dichiarare HO FINITO.
+
+---
+
 ## CHECKPOINT CORRENTE — SOLO SELEZIONATI, compatibilità staging (08/11/2026)
 
 **Codice nuovo, verificato in CI:** `api/services/europeanParliamentSelectedCurrentOnlyReader.js`
