@@ -72,6 +72,12 @@ on:
       - 'api/tests/test_sync_eci.py'
       - 'api/tests/test_eci_sync_postgres.py'
       - 'api/tests/civicEciSchedulerGate.test.js'
+      - 'api/staging/unified_staging_app_safety.js'
+      - 'api/staging/unified_staging_civic_readonly_canary.js'
+      - 'api/staging/unified_staging_preflight_server.js'
+      - 'api/tests/unifiedStagingAppSafety.test.js'
+      - 'api/tests/unifiedStagingCivicReadOnlyCanary.test.js'
+      - 'api/tests/unifiedStagingPreflightServer.test.js'
       - 'api/tests/civicNewInitiativeNotificationPreparation.test.js'
       - 'api/routes/notifiche.js'
       - 'api/tests/civicPreferencesReadOnly.http.test.js'
@@ -155,6 +161,8 @@ jobs:
           node --check api/tests/notificationAdminReportPrivacy.http.test.js
           node --check api/routes/segnalazioni.js
           node --test --test-concurrency=1 api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/civicPushDeliveryGuard.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js api/tests/civicSessionAffinityProbe.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/civicRenderBootProbe.test.js api/tests/civicRenderDirectDnsProbe.test.js api/tests/civicPreferencesReadOnly.http.test.js api/tests/civicPreferenceGuardRecovery.http.test.js api/tests/civicFcmTokenMutation.http.test.js api/tests/civicLegacyFcmStorage.test.js api/tests/notificationSchemaCache.test.js api/tests/notificationFeedSchemaPerf.http.test.js api/tests/notificationBadgePrivacy.contract.test.js api/tests/notificationAdminReportPrivacy.http.test.js
+      - name: Isolated unified-staging preflight/canary safety contracts, no cloud
+        run: node --test api/tests/unifiedStagingAppSafety.test.js api/tests/unifiedStagingCivicReadOnlyCanary.test.js api/tests/unifiedStagingPreflightServer.test.js
       - name: Verify private recipients independently without Node runner IPC
         run: node api/tests/civicRecipientIsolation.http.test.js
       - name: Python ECI source tests (no real API, DB or push)
