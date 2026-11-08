@@ -68,6 +68,7 @@ async function main(){
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_nominal_identity_links.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_identity_review_gate.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_identity_review_gate.sql'),'utf8'));
+    await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_ep_verified_identity_bridge.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_vote_outcome.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_vote_outcome.sql'),'utf8'));
     // Regression: 65 new Camera votes must NOT push a less frequent Senate
@@ -126,6 +127,30 @@ async function main(){
     const noteId=rows[0].id;
     assert.equal(rows[0].voto,'In missione','no invented against vote');
     await pool.query('INSERT INTO reazioni (comunicazione_id,utente_id) VALUES ($1,$2)',[noteId,follower]);
+
+    // A direct writer call cannot bypass a revoked review, a different MepId
+    // or the lack of any active canonical selection.
+    const epAttempt=(id,person)=>({
+      institution:'PE', representativeKey:'demos:'+epPeople[0],
+      sourcePersonId:person,ballotId:id,
+      voteDate:'2026-10-24',ballotOrder:44,status:'Favorevole',
+      ballotTitle:'Security regression fixture',
+      sourceUrl:'https://data.europarl.europa.eu/api/v2/vote-results/fixture',
+      sourceType:'pe_ufficiale',verified:true
+    });
+    await pool.query("UPDATE public.institutional_nominal_identity_links SET review_state='PENDING',reviewed_by=NULL,reviewed_at=NULL WHERE institution='PE' AND representative_id=$1",[epPeople[0]]);
+    assert.equal((await upsertVerifiedCurrentVote(pool,epAttempt('MTG-PL-2026-10-24-DEC-20','12345'))).changed,false,
+      'revoked VERIFIED identity must block writer directly');
+    await pool.query("UPDATE public.institutional_nominal_identity_links SET review_state='VERIFIED',reviewed_by=$2,reviewed_at=now() WHERE institution='PE' AND representative_id=$1",[epPeople[0],other]);
+    assert.equal((await upsertVerifiedCurrentVote(pool,epAttempt('MTG-PL-2026-10-24-DEC-21','12346'))).changed,false,
+      'another official MepId cannot overwrite this UUID');
+    await pool.query("DELETE FROM political_selections WHERE political_office_id='eu.parliament.it' AND selected_user_id=$1",[epPeople[0]]);
+    assert.equal((await upsertVerifiedCurrentVote(pool,epAttempt('MTG-PL-2026-10-24-DEC-22','12345'))).changed,false,
+      'zero active followers prevents a new vote even with a VERIFIED identity');
+    assert.equal((await pool.query("SELECT count(*)::int n FROM public.institutional_current_nominal_votes WHERE representative_key=$1",['demos:'+epPeople[0]])).rows[0].n,1,
+      'failed authorization cannot append another vote');
+    await pool.query("INSERT INTO political_selections(user_id,selected_user_id,selection_kind,political_office_id) VALUES ($1,$2,'representative','eu.parliament.it')",[follower,epPeople[0]]);
+
     result=await persistLatestForChamber(pool,second,verified(second),reps);
     assert.equal(result.changed,1);
     rows=(await read()).rows;
@@ -201,7 +226,29 @@ async function main(){
     });
     assert.equal(sameDayOtherChamber.changed,false,
       'different chamber sequence numbers are incomparable on the same date');
-    const italianMepMap=new Map([['12345',{id:'12345'}],['12346',{id:'12346'}]]);
+
+    // Three synthetic selected MEPs: review and official source IDs are mandatory.
+    const epPeople=[
+      '00000000-0000-4000-8000-000000000005',
+      '00000000-0000-4000-8000-000000000006',
+      '00000000-0000-4000-8000-000000000007'
+    ];
+    for (let i=0;i<epPeople.length;i++) {
+      const mepId=String(12345+i);
+      await pool.query("INSERT INTO users(id,nome,cognome,status) VALUES ($1,'PE','Fixture','a')",[epPeople[i]]);
+      await pool.query("INSERT INTO political_mandates(user_id,status,office_code,starts_at) VALUES ($1,'ACTIVE','E',now()-interval '1 day')",[epPeople[i]]);
+      await pool.query("INSERT INTO political_selections(user_id,selected_user_id,selection_kind,political_office_id) VALUES ($1,$2,'representative','eu.parliament.it')",[follower,epPeople[i]]);
+      await pool.query("INSERT INTO public.institutional_nominal_identity_links(institution,representative_id,source_person_id,evidence_url,review_state,reviewed_by,reviewed_at) VALUES ('PE',$1,$2,$3,'VERIFIED',$4,now())",
+        [epPeople[i],mepId,'https://data.europarl.europa.eu/person/'+mepId,other]);
+    }
+    const epLink=(id,index)=>({
+      id,representativeId:epPeople[index],review_state:'VERIFIED',
+      reviewed_by:other,reviewed_at:'2026-11-08T20:00:00Z',
+      evidence_url:'https://data.europarl.europa.eu/person/'+id
+    });
+    const italianMepMap=new Map([
+      ['12345',epLink('12345',0)],['12346',epLink('12346',1)]
+    ]);
     const epBase={voteDate:'2026-10-20',ballotOrder:10,
       ballotTitle:'Official EP fixture',
       sourceUrl:'https://data.europarl.europa.eu/api/v2/vote-results/fixture',
@@ -221,14 +268,14 @@ async function main(){
     const epRows=(await pool.query(
       "SELECT representative_key,ballot_id,vote FROM public.institutional_current_nominal_votes WHERE institution='PE' ORDER BY representative_key"
     )).rows;
-    assert.equal(epRows.length,2,'one EP current vote per official stable MEP ID');
-    assert.equal(epRows[0].representative_key,'pe:12345');
+    assert.equal(epRows.length,2,'one PE current vote per verified DEMOS UUID');
+    assert.equal(epRows[0].representative_key,'demos:'+epPeople[0]);
     assert.equal(epRows[0].vote,'Astenuto');
     assert.equal(epRows[1].vote,'Contrario');
     // Competing writers run against one stable MEP key; PostgreSQL must
     // retain only the most recent verified vote irrespective of commit order.
     const concurrent=(id,date,order,status)=>upsertVerifiedCurrentVote(pool,{
-      institution:'PE', representativeKey:'pe:12347',sourcePersonId:'12347',
+      institution:'PE', representativeKey:'demos:'+epPeople[2],sourcePersonId:'12347',
       ballotId:id,voteDate:date,ballotOrder:order,status,
       ballotTitle:'Concurrent EP source fixture',
       sourceUrl:'https://data.europarl.europa.eu/api/v2/vote-results/fixture',
@@ -239,7 +286,7 @@ async function main(){
       concurrent('MTG-PL-2026-10-22-ITM-2','2026-10-22',2,'Favorevole')
     ]);
     const latestEp=(await pool.query(
-      "SELECT ballot_id,vote FROM public.institutional_current_nominal_votes WHERE representative_key='pe:12347'"
+      'SELECT ballot_id,vote FROM public.institutional_current_nominal_votes WHERE representative_key=$1', ['demos:'+epPeople[2]]
     )).rows;
     assert.equal(latestEp.length,1,'concurrent writers cannot append duplicate vote');
     assert.equal(latestEp[0].ballot_id,'MTG-PL-2026-10-22-ITM-2');
