@@ -329,7 +329,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          out=app/build/outputs/apk/release/isolated-qa
+          out=qa-isolated-apks
           mkdir -p "$out"
           ./gradlew :app:assembleRelease \
             -PdemosReleaseQaIsolated=true \
@@ -396,8 +396,8 @@ jobs:
 
             # Test a release-mode upgrade and a fresh install in the SAME isolated
             # package. It cannot touch community.demos or the Play tester build.
-            baseline=client/android/app/build/outputs/apk/release/isolated-qa/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk
-            candidate=client/android/app/build/outputs/apk/release/isolated-qa/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk
+            baseline=client/android/qa-isolated-apks/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk
+            candidate=client/android/qa-isolated-apks/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk
             test -s "$baseline" && test -s "$candidate"
             adb install "$baseline"
             adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
