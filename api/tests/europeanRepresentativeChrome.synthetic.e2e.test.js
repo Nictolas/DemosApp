@@ -121,9 +121,19 @@ test('Chrome 320/390: real European representative card, one verified vote and f
             'Long subject must fit viewport '+screen.width+'x'+screen.height);
           assert.ok(authenticated>0,'All synthetic API calls require auth header');
           if(full){
-            await card.getByText('Data: 2026-10-22',{exact:true}).waitFor();
-            assert.ok(await card.getByText('Voto: Favorevole',{exact:true}).isVisible());
-            assert.ok(await card.getByText('Esito: Approvato',{exact:true}).isVisible());
+            const dateLabel=card.getByText('Data: 2026-10-22',{exact:true});
+            await dateLabel.scrollIntoViewIfNeeded({timeout:10000});
+            assert.ok(await dateLabel.isVisible());
+            // The official subject is intentionally long and the mobile
+            // section scrolls inside 35dvh; bring each following field into
+            // view before asserting visibility rather than checking a
+            // currently clipped child of the overflow container.
+            const voteLabel=card.getByText('Voto: Favorevole',{exact:true});
+            await voteLabel.scrollIntoViewIfNeeded({timeout:10000});
+            assert.ok(await voteLabel.isVisible());
+            const outcomeLabel=card.getByText('Esito: Approvato',{exact:true});
+            await outcomeLabel.scrollIntoViewIfNeeded({timeout:10000});
+            assert.ok(await outcomeLabel.isVisible());
             assert.equal(await card.locator('a[href="'+official+'"]').count(),1);
             assert.equal(await card.getByText('Voto individuale non ancora verificabile').count(),0);
           }else{
