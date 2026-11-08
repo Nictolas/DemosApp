@@ -67,7 +67,7 @@ test('feature switch off makes no DB/HTTP requests; when enabled scans only sele
   const db={query:async()=>{throw Error('disabled DB read')}};
   try{
     assert.deepEqual(await preflightSelectedParliamentaryOffices(db),
-      {enabled:false,checked:0,officeMismatches:0,candidates:0,unresolved:0});
+      {enabled:false,checked:0,officeMismatches:0,birthDateMismatches:0,candidates:0,unresolved:0});
     process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED='true';
     const queries=[];
     const reps=[
@@ -91,7 +91,7 @@ test('feature switch off makes no DB/HTTP requests; when enabled scans only sele
       return data[name];
     }});
     assert.deepEqual(result,
-      {enabled:true,checked:4,officeMismatches:2,candidates:1,unresolved:1});
+      {enabled:true,checked:4,officeMismatches:2,birthDateMismatches:0,candidates:1,unresolved:1});
     assert.equal(queries.length,1);
     assert.equal(fetched,3,'no HTTP for missing birthdate');
     assert.match(queries[0],/political_selections/);
@@ -100,6 +100,31 @@ test('feature switch off makes no DB/HTTP requests; when enabled scans only sele
     assert.match(queries[0],/LIMIT 12/);
     assert.doesNotMatch(queries[0],/\b(INSERT|UPDATE|DELETE|TRUNCATE|MERGE|DROP|ALTER)\b/i);
     assert.equal(SELECTED_UNREVIEWED_SQL,queries[0]);
+  }finally{
+    if(old===undefined)delete process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED;
+    else process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED=old;
+  }
+});
+
+test('wrong legacy DOB is counted without granting VERIFIED or writing personal data',async()=>{
+  const old=process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED;
+  process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED='true';
+  const expected={nome:'Carlo',cognome:'Calenda',
+    data_nascita:'1973-09-04',expected_office:'it.senato'};
+  let calls=0;
+  try{
+    const result=await preflightSelectedParliamentaryOffices({
+      query:async(sql)=>{assert.match(sql,/SELECT DISTINCT p.id/);return {rows:[expected]};},
+      connect:()=>{throw Error('identity preflight must not open write transaction');}
+    },{fetchPage:async()=>{
+      calls++;
+      return html('Carlo Calenda','1973-04-09','Senatore');
+    }});
+    assert.deepEqual(result,{
+      enabled:true,checked:1,officeMismatches:0,birthDateMismatches:1,
+      candidates:0,unresolved:0
+    });
+    assert.equal(calls,1);
   }finally{
     if(old===undefined)delete process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED;
     else process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED=old;
