@@ -74,3 +74,31 @@ Fonti ufficiali: https://developers.google.com/admob/android/next-gen/app-open/s
 - La sola presenza dei test e degli APK non dimostra successo: **verificare lo stato della run GitHub al commit effettivo** prima di segnare PASS. APK isolati NON sono AAB, NON vanno pubblicati su Google Play.
 
 Rimangono obbligatorie QA con dispositivi Android fisici e upgrade dal pacchetto realmente distribuito con firma Play/App Signing, oltre ai gate DPO e Play Console.
+
+## Collaudi chiusi e compatibilità AAB cumulativa (08/11/2026)
+
+### Evidenza CI verificata
+
+- PR [#634](https://github.com/Nictolas/DemosApp/pull/634) sul commit `8e8b9db54e48433caf43dfd50a5209a415ccf241`: [workflow 42513706857](https://github.com/Nictolas/DemosApp/actions/runs/42513706857) **COMPLETED SUCCESS, 2/2 job**. Entrambi `advertising-policy` e `android-native-debug-compile` sono PASS.
+- Nello step `Build opt-in release candidate with Google TEST ads only` sono PASS la compilazione e il controllo della **AAB release non firmata**, con sola App ID di esempio Google, unità TEST, metadati AdMob; non è una AAB Play firmata. La normale release continua a essere **Ads-free**, senza dipendenze GMA/UMP, AdMob App ID e permission `AD_ID`.
+- Emulatore Android API35: PASS con utenza anonima/offline, compilazione di APK release isolati, installazione baseline Ads-free, aggiornamento `adb install -r` verso TEST-ads, installazione pulita, verifica processo e assenza di crash AndroidRuntime rilevati. Non sono stati effettuati test consentiti da una sessione autenticata reale.
+- Il [workflow 42513706828](https://github.com/Nictolas/DemosApp/actions/runs/42513706828) dei contratti catalogo è **SUCCESS**. I CI precedenti non sostituiscono il test dell'AAB realmente integrata e firmata.
+- Pacchetto QA `community.demos.qaage` con Google TEST, **senza età sintetica**, archiviato nel Drive privato del titolare, non distribuito pubblicamente. Per il pacchetto isolato OAuth/Google login devono essere effettivamente verificati sul dispositivo: non presumerne il funzionamento.
+
+### Compatibilità verificata a livello di diff (nessuna build combinata attestata)
+
+| Integrazione | Evidenza repository | Azione per l'integratore AAB |
+| --- | --- | --- |
+| [#558](https://github.com/Nictolas/DemosApp/pull/558) | Base diretta della #634, entrambe Draft | Integrare **prima #558, poi #634**. Non fondere la #634 direttamente con `main` ignorando la base. |
+| [#588](https://github.com/Nictolas/DemosApp/pull/588) (DEMOS 10, ECI/push) | Toccato **`client/android/app/build.gradle`** con `versionCode 16`, `versionName "1.0.13"`; la #634 parte da codice 15 / 1.0.12. Le modifiche JS di #588 a `useNativePush.ts` non si sovrappongono direttamente al manager Java AdMob. | Nella branch di integrazione preservare **16 / 1.0.13 o superiore**, senza annullare la logica di opt-in Gradle della #634; poi **recompilare e testare**. |
+| [#583](https://github.com/Nictolas/DemosApp/pull/583) (tastiera) | Modifica `client/android/app/src/main/AndroidManifest.xml` per `android:windowSoftInputMode="adjustResize"`. La #634 usa il **manifest debug** soltanto per la variante advertising opt-in, senza modificare il manifest principale. | Mantenere `adjustResize` e verificare nel manifest unito **sia** la modalità tastiera sia, solo nella variante ad-capable, il metadato AdMob; testare tastiera su telefono. |
+| Notifiche/FCM e Google login | #634 non modifica `useNativePush.ts` né i flussi FCM; la semplice assenza di patch comuni non certifica la compatibilità runtime. | Build configurata Firebase e test su dispositivo: login, ricezione/tap delle notifiche, ritorno in foreground, apertura deep link, assenza di annunci su pagina già pronta. |
+
+**Confine di responsabilità:** questa PR prepara AdMob, mentre la chat/branch dell'integrazione AAB cumulativa è responsabile del merge coordinato, numero di versione, firma e rilascio. Nessuna PR viene fusa da questa verifica; la #634 resta Draft e in NO-GO annunci reali.
+
+### Gate che richiedono ancora prove esterne
+
+- **Tester Android fisico** (account adulto, minore e anonimo ove disponibili): verificare installazione e upgrade del pacchetto reale, login Google, CMP/UMP, rifiuto e revoca, sessioni/offline, notifiche, caricamenti naturali, visibilità e cap a sei ore. APK `qaage` con suffisso diverso non dimostra upgrade del pacchetto Play né login compatibile.
+- **Accesso alle console** AdMob e Google Play: stato app, review, `app-ads.txt` accettato dal crawler, dichiarazione pubblicità, Data Safety, target età, requisiti fiscali/publisher. La sola presenza del file `app-ads.txt` non conferma la scansione.
+- **DPO**: verifica finale e motivata della informativa, basi giuridiche, CMP vendor, revoca e dati effettivamente elaborati. Nessun automatismo può sostituire le decisioni effettive del titolare/DPO.
+- **Build AAB cumulativa effettiva**: CI e signing verificati, versionCode corretto, installazione/aggiornamento Play, confronto dei manifest binari e contenuto SDK/permessi; release senza ads reali fino a GO separato.
