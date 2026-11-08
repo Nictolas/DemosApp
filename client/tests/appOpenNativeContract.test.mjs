@@ -373,6 +373,10 @@ test('closed Google Play QA forbids demo IDs and requires owner test-mode confir
   // OWNER's AdMob units with externally verified per-version TEST MODE.
   const workflow = read('../../.github/workflows/advertising-policy-validation.yml');
   assert.match(workflow, /No Play release, real ads, device QA or DPO approval is inferred/);
+  assert.match(workflow, /-PdemosReleasePlayClosedQa=true/);
+  assert.match(workflow, /-PdemosReleasePlayClosedQaOwnerConfirmed=true/);
+  assert.match(workflow, /-PdemosReleaseAdsTestOnly=false/);
+  assert.match(workflow, /PASS: closed Play QA rejects missing owner test-mode confirmation and Google demo IDs/);
 });
 
 test('isolated test release upgrade is signed for QA only and cannot use real ad IDs', () => {
