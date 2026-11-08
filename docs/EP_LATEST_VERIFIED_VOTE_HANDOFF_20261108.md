@@ -193,3 +193,24 @@ Il test finale deve confermare i nuovi risultati sul commit più recente:
 non usare il successo di un commit precedente come prova di questa HEAD.
 La prova è su date campione 2026 e **non certifica l'individuazione
 automatica dell'ultima seduta effettiva** del Parlamento europeo.
+
+## Crosswalk PE — incompatibilità rilevata nella PR #633 (HEAD 0ea56e43)
+Dopo la verifica della migration proposta
+`api/database/20261108_institutional_nominal_identity_links.sql` della PR #633
+è stato rilevato un **blocco concreto**: la colonna `institution` accetta
+solo Camera/Senato; la `source_person_id` richiede 12–250 caratteri,
+mentre l'ID `person/<MepId>` proveniente dall'API ufficiale PE si
+normalizza in un numero tipicamente di 5–6 cifre. Non si può quindi
+usare questo bridge senza ulteriori modifiche del proprietario
+della persistenza.
+
+Commento di coordinamento https://github.com/Nictolas/DemosApp/pull/633#issuecomment-6724777687 :
+è richiesto al proprietario di #633 un crosswalk PE ↔
+`users.id UUID` verificato da fonte istituzionale, prova URL
+ufficiale, vincoli di unicità e `representative_key='demos:<UUID>'`.
+La tabella current-only non deve produrre anche `pe:<MepId>`
+per la stessa persona. Tutte le modifiche di schema e writer restano
+di sua esclusiva competenza; **questo ramo non applica migration**.
+
+Questo checkpoint si riferisce alla HEAD sopra citata e deve essere
+riverificato se la PR #633 progredisce.
