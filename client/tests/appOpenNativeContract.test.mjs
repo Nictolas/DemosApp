@@ -181,7 +181,7 @@ test('debug-only EEA UMP test mode cannot leak a production ad ID or enable rele
   assert.match(gradle, /demosDebugQaPlayInternalSharing = demosDebugUmpEea && demosDebugQaForceAdult &&/);
   assert.match(gradle, /demosDebugQaRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&/);
   assert.match(gradle, /if \(demosDebugQaRealAge\) \{\s*applicationIdSuffix '\.qaage'/);
-  assert.match(gradle, /else if \(demosDebugUmpEea && !demosDebugQaPlayInternalSharing\) \{\s*applicationIdSuffix '\.qaopen'/);
+  assert.match(gradle, /else if \(demosDebugUmpEea && !demosDebugQaPlayInternalSharing\s*&& !demosDebugQaPlayRealAge\) \{\s*applicationIdSuffix '\.qaopen'/);
   assert.match(gradle, /demosDebugQaPlayInternalSharing = demosDebugUmpEea && demosDebugQaForceAdult &&/);
   assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_QA_FORCE_ADULT', 'false'/);
   assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_UMP_DEBUG_EEA', 'false'/);
@@ -195,6 +195,27 @@ test('debug-only EEA UMP test mode cannot leak a production ad ID or enable rele
   assert.doesNotMatch(manifest, /ca-app-pub-7488681940015678/);
   assert.match(gradle, /DEMOS_APP_OPEN_UNIT_ID', '"ca-app-pub-3940256099942544\/9257395921"'/);
   assert.doesNotMatch(releaseStub, /ConsentDebugSettings|MobileAds|UserMessagingPlatform/);
+});
+
+test('Play Internal App Sharing offers a real-age QA variant without bypassing identity checks', () => {
+  assert.match(gradle, /demosDebugQaPlayRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&/);
+  assert.match(gradle, /project\.findProperty\('demosDebugQaPlayRealAge'\)/);
+  assert.match(gradle, /&& !demosDebugQaPlayRealAge\) \{\s*applicationIdSuffix '\.qaopen'/);
+  const workflow = read('../../.github/workflows/advertising-policy-validation.yml');
+  const stepStart = workflow.indexOf('- name: Package real-age debug APK for Play Internal App Sharing');
+  const stepEnd = workflow.indexOf('- name: Archive real-age only-for-internal-sharing debug APK', stepStart);
+  assert.ok(stepStart >= 0 && stepEnd > stepStart);
+  const qaStep = workflow.slice(stepStart, stepEnd);
+  assert.match(qaStep, /-PdemosDebugQaForceAdult=false/);
+  assert.match(qaStep, /-PdemosDebugQaPlayRealAge=true/);
+  assert.match(qaStep, /-PdemosDebugUmpEea=true/);
+  assert.match(qaStep, /package: name='community\.demos'/);
+  assert.match(qaStep, /DEMOS_QA_FORCE_ADULT = false;/);
+  assert.match(qaStep, /DEMOS_UMP_DEBUG_EEA = true;/);
+  assert.match(qaStep, /com\.google\.android\.gms\.ads\.APPLICATION_ID/);
+  assert.doesNotMatch(qaStep, /-PdemosDebugQaForceAdult=true/);
+  assert.doesNotMatch(qaStep, /-PdemosReleaseAdsApproved=true/);
+  assert.match(workflow, /DEMOS-PLAY-INTERNAL-REAL-AGE-DEBUG-TEST-ONLY/);
 });
 
 test('UMP configuration errors fail closed instead of using cached consent or initializing ads', () => {
