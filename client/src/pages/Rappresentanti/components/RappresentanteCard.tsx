@@ -16,9 +16,9 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   onNavigate,
   onOpenOpinioni
 }) => {
-  // The representative name opens its verified profile. The outer card
-  // chooses a different representative. Mouse/touch release events bubble
-  // before the name's click handler, so stop card navigation at its source.
+  // The representative name stops click propagation and opens its profile.
+  // Card selection uses only the native click event (also works with touch
+  // and keyboard), never a delayed mouseup/touchend redirect.
   const isDetailsTarget = (target: EventTarget | null) =>
     target instanceof Element && target.closest('[data-representative-details]') !== null;
 
@@ -125,28 +125,25 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
     <button
       type="button"
       className="relative flex w-full h-full min-h-0 items-center justify-center rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      onClick={handleClick}
       onMouseDown={(e) => {
         if (isDetailsTarget(e.target)) return;
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
       onMouseUp={(e) => {
-        if (isDetailsTarget(e.target)) return;
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
-        setTimeout(handleClick, 100);
       }}
       onMouseLeave={(e) => {
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
       }}
       onTouchStart={(e) => {
         if (isDetailsTarget(e.target)) return;
-        e.preventDefault();
+        // Do NOT preventDefault: the native click must reach the inner MEP
+        // details control, which stops propagation before card navigation.
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
       onTouchEnd={(e) => {
-        if (isDetailsTarget(e.target)) return;
-        e.preventDefault();
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
-        setTimeout(handleClick, 100);
       }}
       onContextMenu={e => e.preventDefault()}
     >
