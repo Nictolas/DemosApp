@@ -166,6 +166,15 @@ async function main(){
       sourceType:'camera_ufficiale',verified:true
     });
     assert.equal(staleCamera.changed,false,'old Camera vote cannot regress new Senate office');
+    const sameDayOtherChamber=await upsertVerifiedCurrentVote(pool,{
+      institution:'Camera', representativeKey:'demos:'+rep,
+      ballotId:'vs19_999_999', voteDate:'2026-10-23', ballotOrder:99900999,
+      status:'Favorevole', ballotTitle:'Ambiguous cross-house same-day fixture',
+      sourceUrl:'https://documenti.camera.it/fixture',
+      sourceType:'camera_ufficiale',verified:true
+    });
+    assert.equal(sameDayOtherChamber.changed,false,
+      'different chamber sequence numbers are incomparable on the same date');
     const italianMepMap=new Map([['12345',{id:'12345'}],['12346',{id:'12346'}]]);
     const epBase={voteDate:'2026-10-20',ballotOrder:10,
       ballotTitle:'Official EP fixture',
@@ -190,6 +199,25 @@ async function main(){
     assert.equal(epRows[0].representative_key,'pe:12345');
     assert.equal(epRows[0].vote,'Astenuto');
     assert.equal(epRows[1].vote,'Contrario');
+    // Competing writers run against one stable MEP key; PostgreSQL must
+    // retain only the most recent verified vote irrespective of commit order.
+    const concurrent=(id,date,order,status)=>upsertVerifiedCurrentVote(pool,{
+      institution:'PE', representativeKey:'pe:12347',sourcePersonId:'12347',
+      ballotId:id,voteDate:date,ballotOrder:order,status,
+      ballotTitle:'Concurrent EP source fixture',
+      sourceUrl:'https://data.europarl.europa.eu/api/v2/vote-results/fixture',
+      sourceType:'pe_ufficiale',verified:true
+    });
+    await Promise.all([
+      concurrent('MTG-PL-2026-10-20-ITM-1','2026-10-20',1,'Contrario'),
+      concurrent('MTG-PL-2026-10-22-ITM-2','2026-10-22',2,'Favorevole')
+    ]);
+    const latestEp=(await pool.query(
+      "SELECT ballot_id,vote FROM public.institutional_current_nominal_votes WHERE representative_key='pe:12347'"
+    )).rows;
+    assert.equal(latestEp.length,1,'concurrent writers cannot append duplicate vote');
+    assert.equal(latestEp[0].ballot_id,'MTG-PL-2026-10-22-ITM-2');
+    assert.equal(latestEp[0].vote,'Favorevole');
 
     result=await persistLatestForChamber(pool,second,verified(second),reps);
     assert.equal(result.changed,0,'replay idempotent');
