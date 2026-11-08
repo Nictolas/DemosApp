@@ -9,6 +9,8 @@
 const assert=require('node:assert/strict');
 const path=require('node:path');
 const {Client}=require('pg');
+const {refreshSelectedEuropeanCurrentVote}=
+  require('../services/europeanParliamentSelectedCurrentVoteRefresh');
 const {
   prepareSelectedEuropeanCurrentOnlyPreview
 }=require('../services/europeanParliamentSelectedCurrentOnlyReader');
@@ -91,6 +93,44 @@ async function main() {
     assert.equal(result.rows[0].ballot_id,'MTG-PL-'+day+'-DEC-900041');
     assert.equal(result.rows[0].date,day);
 
+    // Actual production-shaped #635 importer -> #633 writer -> PostgreSQL16
+    // while the surrounding synthetic transaction remains rollback-only.
+    // A SAVEPOINT adapter preserves the CI fixture's outer BEGIN/ROLLBACK.
+    const savepointClient={query:async(sql,params)=>{
+      if(sql==='BEGIN')return db.query('SAVEPOINT ep_refresh_fixture');
+      if(sql==='COMMIT')return db.query('RELEASE SAVEPOINT ep_refresh_fixture');
+      if(sql==='ROLLBACK')return db.query('ROLLBACK TO SAVEPOINT ep_refresh_fixture');
+      return db.query(sql,params);
+    }};
+    const previous=process.env.PARLIAMENT_EP_CURRENT_REFRESH_ENABLED;
+    process.env.PARLIAMENT_EP_CURRENT_REFRESH_ENABLED='true';
+    let integration;
+    try {
+      integration=await refreshSelectedEuropeanCurrentVote(db,{
+        writeClient:savepointClient,
+        upsertVote:writer.upsertVerifiedCurrentVote,
+        previewOptions:{fetchVotes:async({targetMepIds})=>{
+          sourceRequests++;
+          assert.deepEqual(targetMepIds,[personId]);
+          return {
+            selectedOnly:true,latestSitting:day,checkedSittings:[day],
+            covered:1,totalItalianMepIds:1,incomplete:false,
+            current:new Map([[personId,candidate(day,42)]])
+          };
+        }}
+      });
+    } finally {
+      if(previous===undefined)delete process.env.PARLIAMENT_EP_CURRENT_REFRESH_ENABLED;
+      else process.env.PARLIAMENT_EP_CURRENT_REFRESH_ENABLED=previous;
+    }
+    assert.deepEqual(integration,{enabled:true,prepared:1,changed:1,skipped:0});
+    const importerRows=(await db.query(
+      "SELECT representative_key,ballot_id FROM public.institutional_current_nominal_votes WHERE institution='PE'"
+    )).rows;
+    assert.equal(importerRows.length,1,'importer updates one shared row, never history');
+    assert.equal(importerRows[0].representative_key,'demos:'+target);
+    assert.equal(importerRows[0].ballot_id,'MTG-PL-'+day+'-DEC-900042');
+
     await db.query(
       'UPDATE public.institutional_nominal_identity_links '+
       "SET review_state='PENDING',reviewed_by=NULL,reviewed_at=NULL "+
@@ -102,14 +142,15 @@ async function main() {
     });
     assert.equal(missing.prepared,0);
     assert.equal(missing.writesPerformed,0);
-    assert.equal(sourceRequests,1,'no official API HTTP with zero verified selected links');
+    assert.equal(sourceRequests,2,'no additional official API HTTP with zero verified selected links');
 
     console.log('EP_CANONICAL_SELECTED_CURRENT_WRITER_PG16_SYNTHETIC_PASS',
       JSON.stringify({
         approvedSyntheticIdentities:1,canonicalSelected:1,
         firstWrite:true,duplicateIgnored:true,olderIgnored:true,
         sameDayOlderIgnored:true,newerOrderReplaced:true,
-        currentRows:1,identityRevocationStopsPreview:true,
+        currentRows:1,importerThroughRealWriter:true,
+        identityRevocationStopsPreview:true,
         officialApiHttpCalls:0
       }));
   } finally {
