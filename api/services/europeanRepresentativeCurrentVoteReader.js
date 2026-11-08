@@ -35,15 +35,24 @@ function projectVerifiedEuropeanCurrentVote(row, officialRecords) {
 
 async function readVerifiedEuropeanCurrentVote(db, representativeUuid, options={}) {
   if (!UUID.test(String(representativeUuid||''))) return null;
-  // One indexed SELECT for the selected representative. Never match by name.
+  // A vote is not attributable merely because a writable row bears a
+  // DEMOS UUID. Require a separately vetted, unique EU identity link.
+  // The link must connect that exact UUID and that exact official MepId,
+  // never name/surname or a permissive match. No historical joins.
   let rows;
   try {
     ({rows}=await db.query(
-      'SELECT source_person_id, ballot_id, vote_date::text AS vote_date, ' +
-      'ballot_order, vote, source_url, source_type ' +
-      'FROM public.institutional_current_nominal_votes ' +
-      "WHERE institution = 'PE' AND representative_key = $1 LIMIT 1",
-      ['demos:'+representativeUuid.toLowerCase()]
+      'SELECT c.source_person_id, c.ballot_id, c.vote_date::text AS vote_date, ' +
+      'c.ballot_order, c.vote, c.source_url, c.source_type ' +
+      'FROM public.institutional_current_nominal_votes AS c ' +
+      'INNER JOIN public.institutional_nominal_identity_links AS x ' +
+      "ON x.institution = 'PE' AND x.representative_id = $1::uuid " +
+      'AND x.source_person_id = c.source_person_id ' +
+      "WHERE c.institution = 'PE' AND c.representative_key = $2 " +
+      "AND (x.evidence_url LIKE 'https://data.europarl.europa.eu/%' " +
+      "OR x.evidence_url LIKE 'https://www.europarl.europa.eu/%') " +
+      'LIMIT 1',
+      [representativeUuid.toLowerCase(),'demos:'+representativeUuid.toLowerCase()]
     ));
   } catch {
     // Absent migration, database error or permission denied: no guessed vote.
