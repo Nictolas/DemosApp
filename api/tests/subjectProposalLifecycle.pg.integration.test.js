@@ -145,6 +145,17 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     await new Promise(done=>server.listen(0,'127.0.0.1',done));
     const base='http://127.0.0.1:'+server.address().port;
     const req=(uri,who,method,body)=>request(base,uri,who,method,body);
+    const attestSyntheticVideo = async (id, category) => {
+      const payload = {
+        identity_match_confirmed: true,
+        ...(category === 'organizzazioni'
+          ? {representative_role:'presidente',role_evidence_kind:'official_registry'}
+          : {})
+      };
+      const checked=await req('/api/subject-proposals/admin/'+id+'/verify-profile','admin','POST',payload);
+      assert.equal(checked.status,200,JSON.stringify(checked.body));
+      assert.equal(checked.body.verification_recorded,true);
+    };
 
     // The exact submission-Admin notification SQL must serialize with
     // account suspension. No HTTP, real user, or production database is used.
@@ -287,10 +298,30 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const deniedOrg = await req('/api/subject-proposals/admin/'+org.body.proposal.id+'/decision','admin','POST',{decision:'approve'});
     assert.equal(deniedOrg.status,409,'no published organization without verified videocall and legal role');
     assert.equal(deniedOrg.body.error,'VERIFICA_IDENTITA_VIDEO_MANCANTE');
-    await pool.query(
-      "INSERT INTO subject_self_profile_verifications(proposal_id,proposer_user_id,category,identity_match_confirmed,call_verified_at,call_verified_by,representative_role,role_verified_at,role_verified_by,role_evidence_kind) VALUES($1,$2,'organizzazioni',TRUE,now(),$3,'presidente',now(),$3,'official_registry')",
-      [org.body.proposal.id,B,ADMIN]
+    const verificationUri='/api/subject-proposals/admin/'+org.body.proposal.id+'/verify-profile';
+    assert.equal((await req(verificationUri,'b','POST',{
+      identity_match_confirmed:true,representative_role:'presidente',
+      role_evidence_kind:'official_registry'
+    })).status,403,'untrusted applicant cannot self-certify Meet');
+    assert.equal((await req(verificationUri,'admin','POST',{
+      identity_match_confirmed:true,representative_role:'presidente',
+      role_evidence_kind:'official_registry',
+      meet_url:'https://meet.google.com/example'
+    })).status,400,'meeting URL cannot be stored in verification ledger');
+    assert.equal((await req(verificationUri,'admin','POST',{
+      identity_match_confirmed:true
+    })).status,400,'organization requires verified legal role');
+    await attestSyntheticVideo(org.body.proposal.id,'organizzazioni');
+    assert.equal((await req(verificationUri,'admin','POST',{
+      identity_match_confirmed:true,representative_role:'presidente',
+      role_evidence_kind:'official_registry'
+    })).status,409,'duplicated evidence is not overwritten');
+    const evidenceShape=await pool.query(
+      "SELECT category,identity_match_confirmed,representative_role,role_evidence_kind FROM subject_self_profile_verifications WHERE proposal_id=$1",
+      [org.body.proposal.id]
     );
+    assert.equal(evidenceShape.rows.length,1);
+    assert.equal(evidenceShape.rows[0].representative_role,'presidente');
     assert.equal((await req('/api/subject-proposals/admin/'+org.body.proposal.id+'/decision','admin','POST',{decision:'approve'})).status,200);
     const publishedAfter=await req('/api/subject-proposals/approved?category=organizzazioni');
     assert.equal(publishedAfter.body.data.length,1);
@@ -485,6 +516,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const unicode=await req('/api/subject-proposals','b','POST',
       proposal('attivisti','Comunità Caffè'));
     assert.equal(unicode.status,201);
+    await attestSyntheticVideo(unicode.body.proposal.id,'attivisti');
     assert.equal((await req('/api/subject-proposals/admin/'+unicode.body.proposal.id+'/decision',
       'admin','POST',{decision:'approve'})).status,200);
     assert.equal((await req('/api/subject-proposals/admin/'+unicode.body.proposal.id+'/withdraw',
@@ -517,6 +549,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       proposal('organizzazioni','Organizzazione con notifica non disponibile'));
     assert.equal(emergency.status,201,'independent proposer can create a distinct nomination');
     const emergencyId=emergency.body.proposal.id;
+    await attestSyntheticVideo(emergencyId,'organizzazioni');
     assert.equal((await req('/api/subject-proposals/admin/'+emergencyId+'/decision',
       'admin','POST',{decision:'approve'})).status,200);
     await setup.query(
