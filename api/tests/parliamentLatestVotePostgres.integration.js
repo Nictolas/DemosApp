@@ -66,6 +66,8 @@ async function main(){
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_nominal_votes.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_nominal_identity_links.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_nominal_identity_links.sql'),'utf8'));
+    await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_vote_outcome.sql'),'utf8'));
+    await pool.query(fs.readFileSync(path.join(root,'api/database/20261108_institutional_current_vote_outcome.sql'),'utf8'));
     // Regression: 65 new Camera votes must NOT push a less frequent Senate
     // vote out of the bounded source window. Same-day numeric ordering matters.
     await pool.query(
@@ -125,11 +127,12 @@ async function main(){
     result=await persistLatestForChamber(pool,first,verified(first),reps);
     assert.equal(result.changed,0,'out-of-order older vote ignored');
     let current=(await pool.query(
-      "SELECT representative_key,ballot_id,vote_date,ballot_order FROM public.institutional_current_nominal_votes WHERE institution='Camera'"
+      "SELECT representative_key,ballot_id,vote_date,ballot_order,ballot_outcome FROM public.institutional_current_nominal_votes WHERE institution='Camera'"
     )).rows;
     assert.equal(current.length,1,'exactly one nominal current vote per representative');
     assert.equal(current[0].representative_key,'demos:'+rep);
     assert.equal(current[0].ballot_id,second.openpolis_id,'older sync cannot restore old vote');
+    assert.equal(current[0].ballot_outcome,'Approvata','final outcome comes from verified ballot metadata');
     const currentAttempt=await upsertVerifiedCurrentVote(pool,{
       institution:'Camera', representativeKey:'demos:'+rep,
       ballotId:'vs19_731_006', voteDate:'2026-10-22', ballotOrder:73100006,
