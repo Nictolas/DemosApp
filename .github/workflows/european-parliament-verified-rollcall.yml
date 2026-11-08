@@ -56,13 +56,9 @@ jobs:
         run: |
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
           npm run build --prefix client
-      # External source can time out under EP API load. Preserve the real
-      # source gate as an explicit manual pre-release check, while PR runs
-      # deterministically verify identity, absence, ordering and frontend.
-      - name: Recent Italian MEP vote coverage — one-off, read-only, non-gating source diagnostic
-        continue-on-error: true
-        timeout-minutes: 6
-        run: node api/scripts/probeEuropeanParliamentRecentCoverage.js
-      - name: Real latest past plenary and Italian current MEP official source (manual release gate)
+      # One-off 8-sitting read-only source coverage was verified in run
+      # 42511232120 (76/76). Keep external API calls as a MANUAL release gate
+      # rather than a permanent requirement of each Draft PR push.
+      - name: Complete Italian MEP latest verified whole-text ballots (manual release gate)
         if: github.event_name == 'workflow_dispatch'
         run: node api/scripts/verifyEuropeanParliamentLatestSitting.js
