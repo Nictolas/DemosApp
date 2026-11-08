@@ -77,21 +77,15 @@ test('source person cannot be substituted by a different numeric MepId in the of
   assert.throws(()=>writer.assertVerifiedVote({...prepared(),sourcePersonId:'person/256900'}),
     /CURRENT_VOTE_SOURCE_PERSON_INVALID/);
 });
-test('EP writer acceptance of unlinked pe:<MepId> is a remaining release blocker, never used here',{
+
+test('shared PR #633 writer MUST reject unlinked pe:<MepId> before any query',{
   skip:!writer
-},()=>{
-  const unrelated={...prepared(),representativeKey:'pe:'+mep};
-  let accepted=false;
-  try {
-    writer.assertVerifiedVote(unrelated);
-    accepted=true;
-  }catch(err) {
-    assert.match(String(err),/CURRENT_VOTE_STABLE_ID_REQUIRED|CURRENT_VOTE_SOURCE_PERSON_INVALID/);
-  }
-  // Audit-only: only the PR #633 owner can harden the shared writer.
-  // This test passes with a diagnostic instead of allowing cross-PR CI to
-  // silently imply that the integration is production-ready.
-  if(accepted) console.log('EP_SHARED_WRITER_BLOCKER_UNLINKED_PE_KEY_STILL_ACCEPTED');
-  else console.log('EP_SHARED_WRITER_UNLINKED_PE_KEY_REJECTED');
-  assert.equal(prepared().representativeKey,'demos:'+uuid);
+},async()=>{
+  const unlinked={...prepared(),representativeKey:'pe:'+mep};
+  assert.throws(()=>writer.assertVerifiedVote(unlinked),/CURRENT_VOTE_STABLE_ID_REQUIRED/);
+  let queried=false;
+  await assert.rejects(writer.upsertVerifiedCurrentVote({
+    query:async()=>{queried=true;throw Error('SHOULD_NOT_QUERY')}
+  },unlinked),/CURRENT_VOTE_STABLE_ID_REQUIRED/);
+  assert.equal(queried,false);
 });
