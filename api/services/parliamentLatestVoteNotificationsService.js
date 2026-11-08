@@ -76,7 +76,7 @@ function officialCameraIdentityEvidence(rep) {
     officialHosts.has(identity.hostname) && officialHosts.has(evidence.hostname) &&
     !identity.username && !identity.password && !identity.hash &&
     !evidence.username && !evidence.password && !evidence.hash &&
-    /\\/(?:deputat|ocd\\/deputato)/i.test(identity.pathname);
+    /\/(?:deputat|ocd\/deputato)/i.test(identity.pathname);
 }
 
 function matchUniqueMember(rep, members, allReps, context = {}) {
