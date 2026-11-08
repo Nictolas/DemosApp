@@ -26,6 +26,9 @@ def demosDebugQaRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&
 
 
 // Ad-capable RELEASE is strictly opt-in. Default release remains SDK-free.
+// Opt-in isolated upgrade smoke: same package across baseline and test candidate.
+// Never use it for the app shipped on Google Play.
+def demosReleaseQaIsolated = (project.findProperty('demosReleaseQaIsolated') ?: 'false').toString() == 'true'
 def demosReleaseAppOpenAds = (project.findProperty('demosReleaseAppOpenAds') ?: 'false').toString() == 'true'
 def demosReleaseAdsTestOnly = (project.findProperty('demosReleaseAdsTestOnly') ?: 'true').toString() == 'true'
 def demosReleaseAdsApproved = (project.findProperty('demosReleaseAdsApproved') ?: 'false').toString() == 'true'
@@ -33,6 +36,11 @@ def demosReleaseAdMobAppId = (project.findProperty('demosReleaseAdMobAppId') ?: 
 def demosReleaseAdUnitId = (project.findProperty('demosReleaseAdUnitId') ?: '').toString()
 def demosSampleAppId = 'ca-app-pub-3940256099942544~3347511713'
 def demosSampleAppOpenUnitId = 'ca-app-pub-3940256099942544/9257395921'
+// An installable QA variant must not carry production IDs or production signing.
+if (demosReleaseQaIsolated && (!demosReleaseAdsTestOnly || demosReleaseAdsApproved
+    || (demosReleaseAppOpenAds && demosReleaseAdMobAppId != demosSampleAppId))) {
+    throw new GradleException('Isolated QA upgrade APK requires Google SAMPLE ads only, no production approval')
+}
 if (demosReleaseAppOpenAds) {
     if (!(demosReleaseAdMobAppId ==~ /ca-app-pub-\d{16}~\d{10}/)) {
         throw new GradleException('Ad-capable release requires a valid App ID supplied outside source control')
@@ -127,7 +135,12 @@ android {
             if (demosReleaseAppOpenAds) {
                 manifestPlaceholders['demosAdMobAppId'] = demosReleaseAdMobAppId
             }
-            if (keystorePropertiesFile.exists()) {
+            if (demosReleaseQaIsolated) {
+                // Separate test package; debug signing on an otherwise RELEASE
+                // build tests the real BuildConfig.DEBUG=false code path.
+                applicationIdSuffix '.qaadsrc'
+                signingConfig signingConfigs.debug
+            } else if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
             minifyEnabled false
