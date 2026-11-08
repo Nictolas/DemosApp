@@ -49,9 +49,9 @@ async function main(){
   try{
     // Exact legacy table definition from repo, including old CHECK constraints.
     await pool.query([
-      'CREATE TABLE users (id uuid PRIMARY KEY, nome text,cognome text,status varchar(10) NOT NULL);',
+      'CREATE TABLE users (id uuid PRIMARY KEY, nome text,cognome text,data_nascita date,status varchar(10) NOT NULL);',
       'CREATE TABLE political_selections (user_id uuid REFERENCES users(id),selected_user_id uuid REFERENCES users(id),selection_kind text,political_office_id text);',
-      'CREATE TABLE political_mandates (user_id uuid REFERENCES users(id),status text,office_code text,starts_at timestamptz,ends_at timestamptz);',
+      'CREATE TABLE political_mandates (user_id uuid REFERENCES users(id),status text,office_code text,source text,starts_at timestamptz,ends_at timestamptz);',
       'CREATE TABLE notifiche_preferenze (user_id uuid REFERENCES users(id),deputato boolean,senatore boolean);',
       'CREATE TABLE user_devices (user_id uuid REFERENCES users(id),fcm_token text,is_active boolean);',
       'CREATE TABLE reazioni (comunicazione_id varchar(50),utente_id varchar(50));',
@@ -409,6 +409,43 @@ async function main(){
       ['demos:'+unfollowed]
     )).rows[0].n,1,
       'existing last-vote row is not destructively removed on unselect');
+
+    // Issue #396: historic importers duplicated the same person as separate
+    // Camera and Senate user IDs, both marked ACTIVE by a fake backfill.
+    // Even a VERIFIED person link must not authorize a vote while the
+    // selected active mandate still comes only from that legacy backfill.
+    const ghost='00000000-0000-4000-8000-000000000006';
+    await pool.query(
+      "UPDATE users SET data_nascita='1977-04-09' WHERE id=$1",[rep]);
+    await pool.query(
+      "UPDATE political_mandates SET source='LEGACY_BACKFILL' WHERE user_id=$1 AND office_code='C'",
+      [rep]);
+    await pool.query(
+      "INSERT INTO users(id,nome,cognome,data_nascita,status) VALUES($1,'Maria','De Luca','1977-04-09','a')",
+      [ghost]);
+    await pool.query(
+      "INSERT INTO political_mandates(user_id,status,office_code,source,starts_at) " +
+      "VALUES($1,'ACTIVE','S','LEGACY_BACKFILL',NOW()-INTERVAL '7 days')",
+      [ghost]);
+    assert.equal((await selectedRepresentatives(pool,'Camera')).some(p=>p.id===rep),false,
+      'duplicate active C/S legacy identities must quarantine even a reviewed source link');
+    // Independent verified current-office mandate provenance lifts the
+    // duplicate-backfill quarantine for the actual eligible institution.
+    await pool.query(
+      "UPDATE political_mandates SET source='OFFICIAL_VERIFIED' WHERE user_id=$1 AND office_code='C'",
+      [rep]);
+    assert.equal((await selectedRepresentatives(pool,'Camera')).some(p=>p.id===rep),true,
+      'officially reconciled current-office mandate can proceed with vetted identity link');
+    // Same name but different DOB must NOT be treated as proof of a duplicate.
+    await pool.query(
+      "UPDATE political_mandates SET source='LEGACY_BACKFILL' WHERE user_id=$1 AND office_code='C'",
+      [rep]);
+    await pool.query("UPDATE users SET data_nascita='1977-04-10' WHERE id=$1",[ghost]);
+    assert.equal((await selectedRepresentatives(pool,'Camera')).some(p=>p.id===rep),true,
+      'same name alone, without agreeing DOB, is not a duplicate identity');
+    await pool.query("UPDATE users SET data_nascita='1977-04-09' WHERE id=$1",[ghost]);
+    assert.equal((await selectedRepresentatives(pool,'Camera')).some(p=>p.id===rep),false,
+      'reintroduced matching DOB and dual legacy mandates re-enable quarantine');
 
     // Orchestration disabled means no DB writes even when this table exists.
     delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
