@@ -5,6 +5,7 @@ const { getPool } = require('../config/database');
 const { loadFromDb: loadOpenpolisUltimiDdl, fetchUltimiDdlApprovati, saveToDb: saveOpenpolisDdlToDb } = require('../services/openpolisCosaSuccedeService');
 const { loadFromDb: loadOpenpolisVotazioniFinali } = require('../services/openpolisVotazioniFinaliService');
 const { getVerifiedFinalBallots } = require('../services/parliamentVerifiedFinalBallotsService');
+const { getCurrentVote } = require('../services/institutionalCurrentNominalVotesService');
 const axios = require('axios');
 
 const router = express.Router();
@@ -1325,6 +1326,24 @@ router.get('/ultime', verifyToken, async (req, res) => {
       error: 'Errore nel recupero dei dati',
       message: error.message || 'Errore interno del server'
     });
+  }
+});
+
+// PROD-041: only current verified nominal status, never an individual history.
+// Does not modify the European user interface.
+router.get('/rappresentanti/:id/ultimo-voto', verifyToken, async (req, res) => {
+  const chamber = req.query.camera;
+  const representativeId = String(req.params.id || '');
+  if (!['Camera', 'Senato'].includes(chamber) ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(representativeId)) {
+    return res.status(400).json({ success: false, error: 'Identificativo o istituzione non valido' });
+  }
+  try {
+    const record = await getCurrentVote(pool, chamber, 'demos:' + representativeId);
+    return res.json({ success: true, data: record || null });
+  } catch {
+    // Schema not released, unavailable data, or database failure: never guess a vote.
+    return res.status(503).json({ success: false, data: null, error: 'Ultimo voto verificato non disponibile' });
   }
 });
 
