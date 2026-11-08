@@ -77,3 +77,41 @@ Richieste al proprietario della persistenza:
   raggiungibile durante questa sessione; una build CI non equivale al QA Chrome.
 - Verifica delle politiche di retention, approvazione rilascio, AAB
   firmato e test Android da canale Play. **Produzione/Play invariati.**
+
+
+## Evidenza LIVE su API istituzionale v2 (2026-11-08)
+La prova HTTP effettiva in GitHub Actions (sola lettura e senza dati utente) ha ottenuto
+200 OK su `https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-22/decisions`
+(**205** record) e `/vote-results` (**43**), nonché 2026-07-09 (**105**
+decisioni e **36** risultati di voto). Fra i record:
+- `decision_method = def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL`;
+- `had_voter_favor/against/abstention` contengono `person/<ID numerico>`;
+- `decision_outcome` identifica ufficialmente `ADOPTED`/`REJECTED`;
+- `activity_order` è stringa numerica come `22.0`, non integer;
+- `vote-results[].consists_of` elenca gli ID esatti delle decisioni associate
+  al titolo complessivo in italiano, una possibile fonte per il campo «oggetto».
+
+Il modulo aggiuntivo `europeanParliamentOfficialDecisionReader.js` verifica
+ID stabili, posizione nominale, outcome istituzionale e non inventa assenze;
+conserva dati **solo in memoria fino a 6 ore**. Il file XML `doceo` è
+stato respinto (HTTP 403/400 lato GitHub Actions), quindi è solo diagnostico,
+non una fonte E2E confermata.
+
+**ATTENZIONE: finalità non verificata.** I primi test su **67** roll-call
+con votanti il 9/7 e **76** il 22/10 non hanno trovato espliciti
+`final vote/votazione finale` nei campi disponibili. I record di emendamento
+possono essere `ADOPTED` e contenere votanti: l'esito non prova che
+il testo complessivo sia stato votato in via definitiva. Nessun voto dovrà
+essere pubblicato finché il classificatore finale per API (ad es. voto sul
+testo nel suo insieme, con riferimento esatto ufficiale) non è provato e
+testato realmente. Il gate live *deve* rimanere rosso in assenza di prove,
+non va bypassato per rendere verde la CI.
+
+I campi `headingLabel` possono contenere sigle di gruppi politici: per
+rispettare PROD-041, il reader **non li conserva** come oggetto. La UI
+accetta esclusivamente link ufficiali `www.europarl.europa.eu/doceo/`
+o `data.europarl.europa.eu/api/v2/meetings/.../decisions`.
+
+Il modulo continua **senza collegamento alla persistenza**, al writer
+canonico, né a Google Play. Il proprietario dello schema gestisce il
+crosswalk DEMOS UUID ↔ EP MepId e l'UPSERT monotono per persona.
