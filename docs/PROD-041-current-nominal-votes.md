@@ -452,3 +452,66 @@ pair is not automatically classified as one person. The entire
 change remains Draft and has **not** been executed in production.
 A user-profile merge and remediation of selected slots belongs to
 issue #396 and requires an independent DPO/operations GO.
+
+## Official selected-person birthdate and office source audit — 8 November 2026
+
+The selected-only official-registration cross-check materially narrowed the
+identity backlog. A **read-only query against the production selected
+representative slots** was compared with institutional biographies
+and the verified Camera proclaimed-members registry. In the initial
+seven selected people:
+
+- **2 office mismatches:** Claudio Borghi is a XIX Senatore despite
+  selection of a Camera legacy duplicate; Benedetto Della Vedova
+  is a XIX Deputato despite selection of a Senato legacy duplicate.
+- **3 date-of-birth mismatches:** Marco Grimaldi has
+  `1980-10-22` in DEMOS but the Camera's official XIX proclaimed-members
+  roster reports `1980-11-08`; Carlo Calenda has `1973-09-04` in
+  DEMOS vs. `1973-04-09` on the official Senate profile; Matteo
+  Salvini has `1973-09-03` in DEMOS vs. `1973-03-09` on his
+  official Senate profile. These are **biographical inconsistencies
+  requiring controlled correction, not a license to merge accounts**.
+- **2 public biographies agree on current office and DOB:** Nicola
+  Fratoianni (Camera) and Peppe De Cristofaro (Senato). They are
+  **not yet source-person-ID-VERIFIED** and must NOT be used to attribute
+  a current nominal vote until the stable crosswalk is reviewed.
+  The Senate institutional name is *Peppe De Cristofaro*, whereas
+  Openpolis renders the same known profile as *Giuseppe De Cristofaro*.
+  The optional preflight now reuses the notifier's source-confirmed
+  **Peppe/Giuseppe alias**; it does not enable any fuzzy or arbitrary
+  nicknames.
+
+**Evidence repository:** `api/database/20261108_selected_official_registry_audit_readonly.sql`
+contains only seven publicly documented institutional biographies,
+reference URLs, birth dates, and current chambers, with snapshot date.
+When executed against real active DEMOS selections it returned
+`OFFICE_MISMATCH_REVIEW=2`, `DOB_MISMATCH_REVIEW=3`,
+`PUBLIC_BIO_MATCH_NOT_ID_VERIFIED=2` and
+`NEEDS_NEW_OFFICIAL_REGISTRY_REVIEW=0`; no user/follower IDs
+or private voting history was included in any report. It is an
+**operator-only, SELECT-only snapshot**, not an automated
+registration/approval process. A future newly selected person
+unrecognized by this snapshot receives
+`NEEDS_NEW_OFFICIAL_REGISTRY_REVIEW`, not a false match.
+
+**Public first-party source evidence:**
+- The **XIX** Camera official proclamation register
+  `https://www.camera.it/deputati/elezioni/eletti` for
+  Marco Grimaldi's birth date.
+- XIX personal page Nicola Fratoianni:
+  `https://www.camera.it/deputati/elenco/19-305880`
+- XIX personal page Benedetto Della Vedova:
+  `https://www.camera.it/deputati/elenco/19-301577`
+- XIX Senate biographies (each canonical):
+  `https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=00033070` (Borghi),
+  `...?did=00030110` (Calenda),
+  `...?did=00022918` (De Cristofaro),
+  `...?did=00025407` (Salvini).
+
+**Default-off automated screening:** the optional
+`PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED` now reports
+`birthDateMismatches` separately from `officeMismatches`,
+without logging names/UUIDs or approving any link. Synthetic
+unit tests assert date mistakes do not grant `VERIFIED`.
+No DOB or selection was rewritten in production, no merge was
+performed and the deployment remains NO-GO.
