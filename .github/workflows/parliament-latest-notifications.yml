@@ -21,6 +21,7 @@ on:
       - 'api/tests/parliamentFinalBallotPush.test.js'
       - 'api/tests/parliamentLatestVotePostgres.integration.js'
       - 'api/tests/prod041SyntheticBackupRestore.sh'
+      - 'docs/PROD-041-current-nominal-votes.md'
       - 'api/create-notifiche-voti-parlamento-table.sql'
       - 'client/src/hooks/useNativePush.ts'
       - 'client/public/firebase-messaging-sw.js'
