@@ -136,14 +136,15 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
       const sql = 'INSERT INTO notifiche_voti_parlamento ' +
         '(id_utente, politico, camera, titolo, testo, voto, data, votazione_hash, openpolis_id, vote_order) ' +
         'VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10) ' +
-        'ON CONFLICT (id_utente, camera) DO UPDATE SET ' +
-        'politico=EXCLUDED.politico, titolo=EXCLUDED.titolo, testo=EXCLUDED.testo, ' +
+        'ON CONFLICT (id_utente) DO UPDATE SET ' +
+        'politico=EXCLUDED.politico, camera=EXCLUDED.camera, titolo=EXCLUDED.titolo, testo=EXCLUDED.testo, ' +
         'voto=EXCLUDED.voto, data=EXCLUDED.data, votazione_hash=EXCLUDED.votazione_hash, ' +
         'openpolis_id=EXCLUDED.openpolis_id, vote_order=EXCLUDED.vote_order, ' +
         'data_creazione=CURRENT_TIMESTAMP, likes=0, dislikes=0 ' +
         'WHERE notifiche_voti_parlamento.data IS NULL ' +
         'OR notifiche_voti_parlamento.data < EXCLUDED.data ' +
         'OR (notifiche_voti_parlamento.data = EXCLUDED.data ' +
+        'AND notifiche_voti_parlamento.camera = EXCLUDED.camera ' +
         'AND COALESCE(notifiche_voti_parlamento.vote_order, -1) < EXCLUDED.vote_order) ' +
         'RETURNING id';
       const result = await client.query(sql,
