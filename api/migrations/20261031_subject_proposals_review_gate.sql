@@ -160,3 +160,34 @@ CREATE UNIQUE INDEX IF NOT EXISTS capo_stato_soggetti_approvati_name
  ON public.capo_stato_soggetti_approvati(lower(btrim(nome)));
 ALTER TABLE public.capo_stato_soggetti_approvati ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.capo_stato_soggetti_approvati FROM PUBLIC, anon, authenticated;
+
+
+-- DEMOS12: per-proposal CIE + videocall verification evidence (private, draft only).
+-- This is NOT a meeting booking store: do not save video/audio, Meet URLs, attendee
+-- emails, scanned identity documents or private meeting chat here. Verification
+-- evidence must later be recorded by a separate authorized Admin-only workflow.
+-- No application endpoint to write evidence is enabled in this draft.
+CREATE TABLE IF NOT EXISTS public.subject_self_profile_verifications (
+  proposal_id uuid PRIMARY KEY REFERENCES public.subject_proposals(id) ON DELETE CASCADE,
+  proposer_user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  category text NOT NULL CHECK (category IN ('attivisti','organizzazioni')),
+  identity_match_confirmed boolean NOT NULL DEFAULT false,
+  call_verified_at timestamptz NOT NULL,
+  call_verified_by uuid NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+  -- For organizations the legal representative's role must also be confirmed
+  -- against an authoritative source. No URL or copy of that source is stored.
+  representative_role text CHECK (representative_role IN ('presidente','rappresentante_legale')),
+  role_verified_at timestamptz,
+  role_verified_by uuid REFERENCES public.users(id) ON DELETE RESTRICT,
+  role_evidence_kind text CHECK (role_evidence_kind IN ('official_registry','official_document')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT self_profile_org_role_completeness CHECK (
+    category='attivisti'
+    OR (representative_role IS NOT NULL AND role_verified_at IS NOT NULL
+      AND role_verified_by IS NOT NULL AND role_evidence_kind IS NOT NULL)
+  )
+);
+ALTER TABLE public.subject_self_profile_verifications ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.subject_self_profile_verifications FROM PUBLIC, anon, authenticated;
+-- Neither public GETs nor applicants can read this proof ledger through the
+-- database Data API; the service queries it privately only during moderation.
