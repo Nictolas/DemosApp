@@ -1899,8 +1899,11 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
         
         console.log(`✅ Recuperati ${votiNominali.favorevoli.length} favorevoli, ${votiNominali.contrari.length} contrari, ${votiNominali.astenuti.length} astenuti`);
         
-        // Salva i voti nominali nella tabella cache
-        await saveVotiNominaliToCache(decodedUri, votazione.camera, votiNominali, bindingsFav, bindingsContr, bindingsAst);
+        // Latest-only policy PROD-041: this legacy detail lookup is read-only.
+        // Do not append snapshots to parlamento_voti_nominali or create
+        // retroactive notifications when an authenticated user opens a detail.
+        // The separately gated #576 pipeline checks the final ballot source
+        // and replaces the latest entry for the selected representative.
         
       } catch (error) {
         console.warn(`⚠️ Errore nel recupero voti nominali: ${error.message}`);
