@@ -153,6 +153,51 @@ test('one-row UPSERT resets reactions only when new vote really replaced the old
   assert.equal(queries.filter(q=>q.sql.startsWith('DELETE FROM reazioni')).length,1);
 });
 
+test('fresh selection and review are required inside transaction, not stale has_followers snapshot', async () => {
+  const vote=finalVote('Camera','vs19_742_005');
+  const verified={voteId:vote.openpolis_id,chamber:'Camera',date:today,
+    source:{type:'official',url:'https://documenti.camera.it/verified'},members};
+  const seen=[];
+  const client={
+    query:async sql=>{
+      seen.push(sql);
+      if(sql.includes('SELECT p.id'))return {rows:[]};
+      if(sql.includes('INSERT INTO'))throw Error('stale selected snapshot must not write');
+      return {rows:[]};
+    },
+    release:()=>{}
+  };
+  const result=await persistLatestForChamber({connect:async()=>client},vote,verified,[rep]);
+  assert.deepEqual(result,{changed:0,matched:1,updated:[]});
+  assert.equal(seen[0],'BEGIN');
+  assert.equal(seen.at(-1),'COMMIT');
+  assert.ok(seen.some(sql=>sql.includes("link.review_state = 'VERIFIED'")));
+});
+
+test('newly followed same-name Camera representative makes name-only vote attribution ambiguous', async () => {
+  const canonical={...rep,evidence_url:'https://www.camera.it/deputati/elenco/19-12345'};
+  const newRep={...canonical,id:'00000000-0000-4000-8000-000000000095',
+    source_person_id:'https://www.camera.it/deputati/elenco/19-54321'};
+  const noIds=members.map(({sourcePersonId,...row})=>row);
+  const vote=finalVote('Camera','vs19_742_006');
+  const verified={voteId:vote.openpolis_id,chamber:'Camera',date:today,
+    source:{type:'official',url:'https://documenti.camera.it/verified'},members:noIds};
+  let touchedWriter=false;
+  const client={
+    query:async sql=>{
+      if(sql.includes('SELECT p.id'))return {rows:[canonical,newRep]};
+      if(sql.includes('FOR SHARE OF ps,follower,p,m,l'))throw Error('ambiguous must not lock for write');
+      if(sql.includes('INSERT INTO'))touchedWriter=true;
+      return {rows:[]};
+    },
+    release:()=>{}
+  };
+  const output=await persistLatestForChamber({connect:async()=>client},vote,verified,[canonical]);
+  assert.equal(output.changed,0);
+  assert.equal(output.matched,1,'old roster was unambiguous before follower changed');
+  assert.equal(touchedWriter,false,'the current selected set must be re-matched before writing');
+});
+
 test('unselected verified MP cannot be written even if the caller passes it explicitly', async () => {
   let poolConnected=false;
   const vote=finalVote('Camera','vs19_731_098');
