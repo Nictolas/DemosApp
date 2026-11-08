@@ -211,3 +211,29 @@ or an authorized restoration test of actual personal data.** Production
 cleanup remains forbidden until an access-controlled, encrypted
 production dump, actual verified restore test, DPO retention decision
 and explicit deletion authorization are recorded.
+
+
+## Italian representative UI and verified outcome — 8 November 2026
+
+The Draft added `ballot_outcome` to the **current row**, with
+a checked optional short source-backed value (never inferred).
+The Camera/Senato writer passes the exact already-verified
+`openpolis_votazioni_finali_decisive.esito` value; the independent
+EP adapter only passes an explicitly verified `ballotOutcome`
+when present. No extra nominal history or database read is needed
+to display outcome. `20261108_institutional_current_vote_outcome.sql`
+was applied to the existing unified Supabase staging project.
+
+The Italian **Profilo → Rappresentanti Camera/Senato** now contains
+a lazy "Mostra ultimo voto verificato" control in
+`LatestItalianNominalVote.tsx` called by `ProfileRepresentatives.tsx`.
+It does **not issue a query until opened**, uses the authenticated
+`GET /api/voti-politici/rappresentanti/:id/ultimo-voto` endpoint,
+and shows exactly one current ballot title, date, individual status,
+verified outcome if supplied and provenance link. If the source ID
+or vote cannot be verified, it displays an unavailable/no-vote message;
+it never guesses. Italian source attribution remains explicit:
+Openpolis Senate is *not* falsely labelled as the institutional Senato.
+No political groups or party names, no historical list, and **no
+European interface modification**. This UI remains Draft until
+authenticated Chrome and Android end-to-end QA succeeds.
