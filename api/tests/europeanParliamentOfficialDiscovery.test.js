@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const {
   parsePastPlenarySittings,parseItalianCurrentMepIds,exactPersonId,
   fetchCurrentItalianMepIds,fetchPastPlenarySittingDates,fetchRecentPlenarySittings,
-  collectRecentVerifiedItalianVotes
+  collectRecentVerifiedItalianVotes,validateSelectedMepIds
 }=require('../services/europeanParliamentOfficialDiscovery');
 const ISO='2026-08-10T12:00:00Z';
 function roster(){
@@ -289,4 +289,77 @@ test('official final vote reported under wrong sitting date cannot be accepted',
      ballots:new Map([['100001','Favorevole']])
    }]
  }),/EP_OFFICIAL_CHRONOLOGY_UNVERIFIABLE/);
+});
+
+
+test('no approved selected European representative makes ZERO institutional requests',async()=>{
+ let http=0;
+ const client={get:async()=>{http++;throw Error('NO_SELECTED_MEP_SOURCE_FETCH');}};
+ const out=await collectRecentVerifiedItalianVotes({
+   targetMepIds:[],client,fetchDecisions:async()=>{throw Error('NO_VOTE_FETCH');}
+ });
+ assert.deepEqual({selectedOnly:out.selectedOnly,checked:out.checkedSittings,
+   covered:out.covered,total:out.totalItalianMepIds,incomplete:out.incomplete,
+   size:out.current.size},
+ {selectedOnly:true,checked:[],covered:0,total:0,incomplete:false,size:0});
+ assert.equal(http,0);
+});
+
+test('selection-bound EP source collects only approved MepIds with shared sitting endpoints',async()=>{
+ const data=roster();
+ let getCalls=0,decisionCalls=0;
+ const client={get:async url=>{
+   getCalls++;
+   if(url.includes('/meetings?'))return {status:200,data:meetings};
+   if(url.includes('/meps/show-current?')){
+     const from=Number(new URL(url).searchParams.get('offset'));
+     return {status:200,data:{data:data.slice(from,from+500)}};
+   }
+   throw Error('No individual MEP lookups allowed');
+ }};
+ const out=await collectRecentVerifiedItalianVotes({
+   now:ISO,client,maxSittings:2,targetMepIds:['100001','100060'],
+   fetchDecisions:async date=>{
+     decisionCalls++;
+     assert.equal(date,'2026-08-09');
+     return [{
+       date,final:true,verified:true,officialOrder:42,
+       voteId:'MTG-PL-'+date+'-DEC-123456',
+       subject:'Official whole-text decision',
+       outcome:'Approvato',
+       sourceUrl:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-'+date+'/decisions',
+       ballots:new Map(data.slice(0,60).map(x=>[x.id.slice(7),'Favorevole']))
+     }];
+   }
+ });
+ assert.equal(out.selectedOnly,true);
+ assert.equal(out.totalItalianMepIds,2);
+ assert.equal(out.covered,2);
+ assert.equal(out.current.size,2);
+ assert.equal(out.current.has('100001'),true);
+ assert.equal(out.current.has('100060'),true);
+ assert.equal(out.current.has('100059'),false);
+ assert.equal(getCalls,3,'Two roster pages and one shared meetings request');
+ assert.equal(decisionCalls,1,'One shared sitting, no per-MEP history search');
+});
+
+test('selected-only reader rejects names, duplicate IDs and non-Italian MEPs',async()=>{
+ for(const input of [
+   ['Mario Rossi'],['person/100001'],['100001','100001'],
+   ['000100001'],[100001],null,'100001'
+ ]) assert.throws(()=>validateSelectedMepIds(input),/EP_SELECTED_/);
+ assert.equal(validateSelectedMepIds(undefined),null);
+ assert.deepEqual([...validateSelectedMepIds(['100001','100060'])],['100001','100060']);
+ const client={get:async url=>{
+   if(url.includes('/meetings?'))return {status:200,data:meetings};
+   if(url.includes('/meps/show-current?')){
+     const from=Number(new URL(url).searchParams.get('offset'));
+     return {status:200,data:{data:roster().slice(from,from+500)}};
+   }
+   throw Error('unexpected query');
+ }};
+ await assert.rejects(collectRecentVerifiedItalianVotes({
+   now:ISO,client,maxSittings:2,targetMepIds:['100061'],
+   fetchDecisions:async()=>{throw Error('NEVER_REQUEST_UNAPPROVED_MEP');}
+ }),/EP_SELECTED_MEP_NOT_IN_OFFICIAL_CURRENT_ITALIAN_ROSTER/);
 });
