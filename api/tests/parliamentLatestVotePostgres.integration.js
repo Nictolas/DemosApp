@@ -403,7 +403,27 @@ async function main(){
 
     // A newer Senate ballot for the same DEMOS representative must replace
     // (not append) the Camera notification, even with a new institution.
-    const senateRep={...reps[0],source_person_id:'https://parlamento19.openpolis.it/persone/fixture-maria'};
+    const senateRep={...reps[0],
+      source_person_id:'https://parlamento19.openpolis.it/persone/fixture-maria',
+      evidence_url:'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=12345'};
+    // With commit-time authorization, a cross-house transition must update
+    // the actual mandate, follow slot and verified institutional identity
+    // before the new current vote. Merely changing a caller-supplied
+    // source_person_id is intentionally no longer sufficient.
+    await pool.query(
+      "UPDATE political_mandates SET status='INACTIVE', ends_at=now() "+
+      "WHERE user_id=$1 AND office_code='C'",[rep]);
+    await pool.query(
+      "INSERT INTO political_mandates(user_id,status,office_code,source,starts_at) "+
+      "VALUES($1,'ACTIVE','S','OFFICIAL_VERIFIED',now()-INTERVAL '1 day')",[rep]);
+    await pool.query(
+      "INSERT INTO political_selections(user_id,selected_user_id,selection_kind,political_office_id) "+
+      "VALUES($1,$2,'representative','it.senato')",[follower,rep]);
+    await pool.query(
+      "INSERT INTO public.institutional_nominal_identity_links "+
+      "(institution,representative_id,source_person_id,evidence_url,review_state,reviewed_by,reviewed_at) "+
+      "VALUES('Senato',$1,$2,$3,'VERIFIED',$4,now())",
+      [rep,senateRep.source_person_id,senateRep.evidence_url,other]);
     const senateBallot=finalVote('19-470-4','2026-10-24','Senato');
     const senateRoster=members.map(m=>m.name==='DE LUCA MARIA'
       ? {...m,sourcePersonId:senateRep.source_person_id,vote:'Contrario'} : m);
