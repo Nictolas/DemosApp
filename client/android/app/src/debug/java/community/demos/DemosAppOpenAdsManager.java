@@ -100,15 +100,18 @@ final class DemosAppOpenAdsManager {
             .apply();
 
         // Test-only synthetic adult, explicitly enabled in Gradle.
-        if (BuildConfig.DEMOS_QA_FORCE_ADULT) setAdultEligible(true);
+        if (BuildConfig.DEMOS_QA_FORCE_ADULT) setAdultEligible(true, true);
     }
 
-    void setAdultEligible(boolean confirmedAdult) {
+    // The web bridge never passes account IDs. A revalidated adult session
+    // explicitly refreshes native consent even when the previous account was
+    // also an adult. Otherwise adult-A -> adult-B would reuse adult-A's gate.
+    void setAdultEligible(boolean confirmedAdult, boolean revalidateSession) {
         if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
         // QA-only synthetic adult must not be undone by the anonymous DEMOS
         // authentication state on the test emulator. Flag is impossible in release.
         if (BuildConfig.DEMOS_QA_FORCE_ADULT && !confirmedAdult) return;
-        if (adultEligible == confirmedAdult) return;
+        if (adultEligible == confirmedAdult && !revalidateSession) return;
         adultEligible = confirmedAdult;
         invalidateConsentGeneration();
         consentVerifiedForAdultSession = false;
@@ -116,8 +119,12 @@ final class DemosAppOpenAdsManager {
             readyAd.destroy();
             readyAd = null;
         }
+        if (!confirmedAdult || revalidateSession) {
+            // Drop any previous session's UMP authorization, including
+            // adult-to-adult switches that do not visibly log out.
+            umpRequested = false;
+        }
         if (!confirmedAdult) {
-            umpRequested = false; // A new adult session must refresh UMP.
             if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "adult-gate-closed");
             return;
         }
