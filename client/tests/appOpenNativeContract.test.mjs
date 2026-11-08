@@ -23,8 +23,10 @@ const authProvider = read('../src/hooks/use-auth.tsx');
 const authBackend = read('../../api/routes/auth/profile.js');
 const adultEligibility = read('../../api/utils/adsAdultEligibility.js');
 
-test('release App Open is permanently OFF and only debug contains sample App ID', () => {
-  assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_APP_OPEN_ADS_ENABLED', 'false'/);
+test('normal release remains SDK-free; explicit opt-in is required for ad-capable candidates', () => {
+  assert.match(gradle, /demosReleaseAppOpenAds = \(project\.findProperty\('demosReleaseAppOpenAds'\) \?: 'false'\)/);
+  assert.match(gradle, /DEMOS_APP_OPEN_ADS_ENABLED', demosReleaseAppOpenAds\.toString\(\)/);
+  assert.match(gradle, /java\.setSrcDirs\(\[demosReleaseAppOpenAds \? 'src\/debug\/java' : 'src\/release\/java'\]\)/);
   assert.match(gradle, /demosDebugAppOpenAds/);
   assert.match(manifest, /android:value="\$\{demosAdMobAppId\}"/);
   assert.match(gradle, /ca-app-pub-3940256099942544~3347511713/);
@@ -33,6 +35,8 @@ test('release App Open is permanently OFF and only debug contains sample App ID'
   assert.doesNotMatch(mainManifest, /ca-app-pub-/);
   assert.match(gradle, /debugImplementation 'com\.google\.android\.libraries\.ads\.mobile\.sdk:ads-mobile-sdk/);
   assert.match(gradle, /debugImplementation 'com\.google\.android\.ump:user-messaging-platform/);
+  assert.match(gradle, /if \(demosReleaseAppOpenAds\) \{\s*releaseImplementation 'com\.google\.android\.libraries\.ads\.mobile\.sdk:ads-mobile-sdk/);
+  assert.match(gradle, /releaseImplementation 'com\.google\.android\.ump:user-messaging-platform/);
   assert.doesNotMatch(gradle, /\n\s+implementation 'com\.google\.android\.libraries\.ads\.mobile\.sdk/);
   assert.doesNotMatch(releaseStub, /MobileAds|UserMessagingPlatform|AppOpenAd\.load/);
   assert.match(mainActivity, /if \(BuildConfig\.DEMOS_APP_OPEN_ADS_ENABLED\)/);
@@ -248,7 +252,8 @@ test('minor/unknown-age users do not invoke UMP, initialize SDK or request App O
   assert.match(manager, /if \(!umpRequested\) \{[\s\S]*?requestAdultConsent\(\)/);
   assert.match(manager, /if \(!adultEligible \|\| activity\.isFinishing\(\) \|\| activity\.isDestroyed\(\)\) return/);
   assert.match(manager, /\|\| !adultEligible \|\| !consentVerifiedForAdultSession \|\| !hasExplicitTcfConsent\(\)/);
-  assert.match(manager, /!BuildConfig\.DEBUG \|\| !BuildConfig\.DEMOS_APP_OPEN_ADS_ENABLED\s*\|\| !adultEligible/);
+  assert.match(manager, /if \(!BuildConfig\.DEMOS_APP_OPEN_ADS_ENABLED\s*\|\| !adultEligible/);
+  assert.doesNotMatch(manager, /!BuildConfig\.DEBUG/);
   assert.match(gradle, /demosDebugQaForceAdult = demosDebugUmpEea &&/);
   assert.match(gradle, /DEMOS_QA_FORCE_ADULT', 'false'/);
   assert.doesNotMatch(nativePrivacy, /data_nascita|birthYear|userId|politicalOpinions/);
@@ -285,4 +290,17 @@ test('anonymous users retain a working privacy-revocation entry point without en
   assert.doesNotMatch(method, /optionsGeneration != consentGeneration\s*\|\| !adultEligible/);
   assert.match(method, /onSuccess\.run\(\)/);
   assert.match(method, /consentVerifiedForAdultSession = false/);
+});
+
+test('ad-capable release is test-only by default and requires explicit approval for real ads', () => {
+  assert.match(gradle, /demosReleaseAdsTestOnly = \(project\.findProperty\('demosReleaseAdsTestOnly'\) \?: 'true'\)/);
+  assert.match(gradle, /demosReleaseAdsApproved = \(project\.findProperty\('demosReleaseAdsApproved'\) \?: 'false'\)/);
+  assert.match(gradle, /demosReleaseAdUnitId != demosSampleAppOpenUnitId/);
+  assert.match(gradle, /if \(!demosReleaseAdsApproved\)/);
+  assert.match(gradle, /manifest\.srcFile 'src\/debug\/AndroidManifest.xml'/);
+  assert.match(gradle, /DEMOS_UMP_DEBUG_EEA', 'false'/);
+  assert.match(gradle, /DEMOS_QA_FORCE_ADULT', 'false'/);
+  assert.match(manager, /AppOpenFrequencyPolicy\.mayRequest\(/);
+  assert.match(manager, /AppOpenTcfConsentPolicy\.allowsGoogleNonPersonalizedAdRequest\(/);
+  assert.doesNotMatch(manager, /!BuildConfig\.DEBUG/);
 });
