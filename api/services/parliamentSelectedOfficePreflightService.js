@@ -34,14 +34,22 @@ function isTrustedProfile(url){
   }catch{return false;}
 }
 function profileCandidates(rep){
+  // Use an EXISTING unique secondary-source profile URL when available.
+  // A stale profile slug may have a wrong DOB even when DEMOS is correct:
+  // never treat the URL slug as institutional biographical evidence.
+  const unique = new Set();
+  if(isTrustedProfile(rep?.secondary_profile_url)) unique.add(rep.secondary_profile_url);
   const name=slug(rep.nome+' '+rep.cognome);
   const dob=birthIso(rep.data_nascita);
-  if(!name||!dob)return [];
-  const urls=[
-    'https://parlamento19.openpolis.it/persone/'+name+'-'+dob,
-    'https://parlamento19.openpolis.it/persone/'+name+'-none'
-  ];
-  return urls.filter(isTrustedProfile);
+  if(name&&dob){
+    const urls=[
+      'https://parlamento19.openpolis.it/persone/'+name+'-'+dob,
+      'https://parlamento19.openpolis.it/persone/'+name+'-none'
+    ];
+    for(const url of urls) if(isTrustedProfile(url)) unique.add(url);
+  }
+  // Never exceed the established two source HTTP requests per candidate.
+  return [...unique].slice(0,2);
 }
 function profileEvidence(html,rep,expectedOffice,url){
   if(!isTrustedProfile(url)||!['it.camera','it.senato'].includes(expectedOffice)||
@@ -98,13 +106,68 @@ async function fetchPageDefault(url){
 }
 const SELECTED_UNREVIEWED_SQL=[
   'SELECT DISTINCT p.id, p.nome, p.cognome, p.data_nascita,',
-  'ps.political_office_id AS expected_office',
+  'ps.political_office_id AS expected_office,',
+  'source_profile.secondary_profile_url',
   'FROM public.political_selections ps',
   'JOIN public.users follower ON follower.id=ps.user_id AND lower(follower.status)=\'a\'',
   'JOIN public.users p ON p.id=ps.selected_user_id',
   'LEFT JOIN public.institutional_nominal_identity_links link',
   'ON link.representative_id=p.id AND link.institution=CASE',
   "WHEN ps.political_office_id='it.camera' THEN 'Camera' ELSE 'Senato' END",
+  // A small pre-existing legacy roster (about 1.5k rows) is used solely
+  // for ONE unique person-profile URL, never for historic ballots or votes.
+  // No new tables or source scans. A duplicate/malicious URL gives NULL.
+  'LEFT JOIN LATERAL (SELECT CASE',
+  'WHEN COUNT(DISTINCT v.url_openpolis)=1 THEN MIN(v.url_openpolis)',
+  'ELSE NULL END AS secondary_profile_url',
+  'FROM public.voti_camera v',
+  "WHERE lower(trim(v.politico_nome))=lower(trim(concat_ws(' ',p.nome,p.cognome)))",
+  "AND v.url_openpolis ~ '^https://parlamento19[.]openpolis[.]it/persone/[a-z0-9-]{4,120}/?
+  "AND ps.political_office_id IN ('it.camera','it.senato')",
+  "AND (link.review_state IS DISTINCT FROM 'VERIFIED' OR link.reviewed_by IS NULL)",
+  'AND EXISTS(SELECT 1 FROM public.political_mandates m',
+  'WHERE m.user_id=p.id AND m.status=\'ACTIVE\'',
+  "AND m.office_code=CASE WHEN ps.political_office_id='it.camera' THEN 'C' ELSE 'S' END",
+  'AND m.starts_at<=now() AND (m.ends_at IS NULL OR m.ends_at>now()))',
+  'ORDER BY p.id, ps.political_office_id',
+  'LIMIT '+MAX_SELECTED+' OFFSET $1'
+].join(' ');
+
+async function preflightSelectedParliamentaryOffices(pool,options={}){
+  // Feature flag defaults off; never used to mutate production or grant VERIFIED.
+  if(process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED!=='true')
+    return {enabled:false,checked:0,officeMismatches:0,secondarySourceDobConflicts:0,candidates:0,unresolved:0};
+  let {rows}=await pool.query(SELECTED_UNREVIEWED_SQL,[scanOffset]);
+  if(!rows.length&&scanOffset){
+    scanOffset=0;
+    ({rows}=await pool.query(SELECTED_UNREVIEWED_SQL,[0]));
+  }
+  scanOffset=rows.length===MAX_SELECTED?scanOffset+rows.length:0;
+  const result={enabled:true,checked:0,officeMismatches:0,secondarySourceDobConflicts:0,candidates:0,unresolved:0};
+  for(const rep of rows){
+    let decision={state:'UNAVAILABLE'};
+    const urls=profileCandidates(rep);
+    for(const url of urls){
+      try{
+        const html=await getProfile(url,options.fetchPage||fetchPageDefault);
+        const outcome=profileEvidence(html,rep,rep.expected_office,url);
+        if(outcome.state==='NAME_MISMATCH'||outcome.state==='UNAVAILABLE')continue;
+        decision=outcome;
+        break;
+      }catch{/* A missing/broken external page is NOT a validated identity. */}
+    }
+    result.checked++;
+    if(decision.state==='OFFICE_MISMATCH')result.officeMismatches++;
+    else if(decision.state==='SECONDARY_SOURCE_DOB_CONFLICT')result.secondarySourceDobConflicts++;
+    else if(decision.state==='CANDIDATE_ONLY')result.candidates++;
+    else result.unresolved++;
+  }
+  // No names, individual DOBs or IDs in logs or persisted reports.
+  return result;
+}
+module.exports={norm,profileCandidates,profileEvidence,preflightSelectedParliamentaryOffices,SELECTED_UNREVIEWED_SQL};
+",
+  ') source_profile ON TRUE',
   'WHERE ps.selection_kind=\'representative\'',
   "AND ps.political_office_id IN ('it.camera','it.senato')",
   "AND (link.review_state IS DISTINCT FROM 'VERIFIED' OR link.reviewed_by IS NULL)",
