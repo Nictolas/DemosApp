@@ -319,6 +319,25 @@ verified source safeguards, newest-date anti-replay rule, one row
 per representative, and no names/parties/groups/history remain unchanged.
 This decision is recorded in the four canonical DEMOS Google Sheets.
 
+**Read-only selection census on production (8 November 2026):**
+3 active selections identify **3 distinct current Camera representatives**;
+6 active selections identify **4 distinct current Senate representatives**.
+The selected-first source refresh therefore currently needs to consider
+just **7** distinct Italian representatives, not all 1,485 active mandates.
+All 7 selected representative mandates have source `LEGACY_BACKFILL`
+and lack official profile identity URLs in their inspected
+`legacy_context` fields, so the official person-ID bridge must still
+be independently reviewed before attributing any vote. Of the 4
+followed Senators, **zero** have a mutual-unique name-and-birthdate
+candidate in the earlier 171-person *unselected* provisional audit.
+The general 171-person reconciliation is therefore **not a launch
+prerequisite** for this selected-only feature; focus evidence work on
+these 7 selected MPs, with no automatic seeding. The read-only
+`api/database/20261108_selected_mp_identity_review_readonly.sql`
+is the scoped review queue; it returns no follower identities,
+nominal history or private birth dates. Counts must be refreshed
+before GO because user selections can change.
+
 **Explicit reviewer constraint:** a newly created
 `institutional_nominal_identity_links` entry is **PENDING**, not
 implicitly approved by insertion. Migration
