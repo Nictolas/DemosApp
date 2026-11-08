@@ -115,3 +115,24 @@ o `data.europarl.europa.eu/api/v2/meetings/.../decisions`.
 Il modulo continua **senza collegamento alla persistenza**, al writer
 canonico, né a Google Play. Il proprietario dello schema gestisce il
 crosswalk DEMOS UUID ↔ EP MepId e l'UPSERT monotono per persona.
+
+
+## Aggiornamento RCV definitivo 2026 (solo fonti ufficiali)
+L'audit dei **67** RCV del 09/07 e **76** del 22/10 ha confermato
+la formulazione ufficiale, assente nel primo filtro:
+- 09/07/2026 `...DEC-195749`, `...DEC-195769`: «Motion for a
+  resolution (as a whole)» / «Proposta di risoluzione (insieme del testo)»;
+- 22/10/2026 `...DEC-199517`: stessa formulazione ufficiale.
+
+Il parser adesso classifica questi come voti sul testo complessivo,
+separandoli dagli emendamenti e leggendo `activity_order` (in forma
+stringa, es. `35.0`) come ordinamento solo se strettamente numerico.
+Ha test di regressione con etichette realmente osservate. L'oggetto si
+arricchisce via join **esatto** fra `vote-results[].consists_of` e
+`decisions[].activity_id`, privilegiando la descrizione italiana;
+nessun match per sottostringhe o per nome.
+
+Il test finale deve confermare i nuovi risultati sul commit più recente:
+non usare il successo di un commit precedente come prova di questa HEAD.
+La prova è su date campione 2026 e **non certifica l'individuazione
+automatica dell'ultima seduta effettiva** del Parlamento europeo.
