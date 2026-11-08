@@ -3,7 +3,9 @@
 /**
  * Read-only selection boundary for the shared PR #633 writer.
  * Query only verified identities of representatives followed by active
- * users; no names, parties, guessing, DML, notifications or logging.
+ * users via canonical political_selections (eu.parliament.it). Legacy
+ * user_representatives text fields never authorize vote attribution.
+ * No names, parties, guessing, DML, notifications or logging.
  */
 const {
   officialMepEvidenceMatches,
@@ -34,12 +36,15 @@ const SELECT_VERIFIED_SELECTED_MEP_LINKS=[
   '    SELECT 1 FROM public.political_mandates AS m',
   '    WHERE m.user_id = l.representative_id',
   "      AND m.office_code = 'E' AND m.status = 'ACTIVE'",
+  '      AND m.starts_at <= now() AND (m.ends_at IS NULL OR m.ends_at > now())',
   '  )',
   '  AND EXISTS (',
-  '    SELECT 1 FROM public.user_representatives AS r',
+  '    SELECT 1 FROM public.political_selections AS ps',
   '    INNER JOIN public.users AS follower',
-  "      ON follower.id = r.user_id AND follower.status = 'a'",
-  "    WHERE lower(trim(to_jsonb(r)->>'rappresentante_europeo')) = l.representative_id::text",
+  "      ON follower.id = ps.user_id AND follower.status = 'a'",
+  "    WHERE ps.selection_kind = 'representative'",
+  "      AND ps.political_office_id = 'eu.parliament.it'",
+  '      AND ps.selected_user_id = l.representative_id',
   '  )',
   'ORDER BY l.source_person_id',
   'LIMIT 101'
