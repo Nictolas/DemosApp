@@ -820,7 +820,9 @@ router.get('/votazioni-finali-decisive/:openpolisId/voti-nominali', verifyToken,
       date: data.date,
       source: data.source,
       total: data.members.length,
-      members: data.members
+      // PROD-041: groups are used solely to verify source roster integrity.
+
+      members: data.members.map(({ name, vote }) => ({ name, vote }))
     });
   } catch (error) {
     console.warn('[voti-finali-nominali] Fonte nominale non verificabile', error?.message);
