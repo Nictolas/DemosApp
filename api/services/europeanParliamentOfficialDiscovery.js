@@ -166,7 +166,21 @@ async function collectRecentVerifiedItalianVotes(options={}) {
     const records=await reader(date,client); // fail closed if no verified official data
     scanned.push(date);
     const missing=[...ids].filter(id=>!current.has(id));
+    // If an official whole-text roll-call names a missing Italian MEP but
+    // its order is unknown or conflicts with another vote in this sitting,
+    // an older ballot must NEVER be presented as that person's "latest".
+    const finalRecords=records.filter(r=>r?.verified===true&&r?.final===true);
+    const expectedSource='https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-'+date+'/decisions';
+    for (const r of finalRecords) {
+      if(r.date!==date || r.sourceUrl!==expectedSource || !(r.ballots instanceof Map))
+        throw Error('EP_OFFICIAL_CHRONOLOGY_UNVERIFIABLE');
+      if((!Number.isSafeInteger(r.officialOrder)||r.officialOrder<0) &&
+         missing.some(id=>r.ballots.has(id)))
+        throw Error('EP_OFFICIAL_CHRONOLOGY_UNVERIFIABLE');
+    }
     const found=selectLatestFinalRollCall([records],missing.map(id=>'person/'+id));
+    if(missing.some(id=>!found.has(id)&&finalRecords.some(r=>r.ballots.has(id))))
+      throw Error('EP_OFFICIAL_CHRONOLOGY_UNVERIFIABLE');
     for (const [id,vote] of found) {
       if (!current.has(id)) current.set(id,vote);
     }
