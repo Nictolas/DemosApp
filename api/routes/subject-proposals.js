@@ -419,6 +419,9 @@ router.post('/admin/:id/verify-profile', verifyToken, requireAdmin, async (req, 
       (source !== undefined && !['official_registry','official_document'].includes(source))) {
     return res.status(400).json({ success:false, error:'ATTESTAZIONE_NON_VALIDA' });
   }
+  // The private verification workflow remains unavailable while the
+  // general nominations feature is legally disabled.
+  if (!isNominationWriteEnabled()) return rejectUnavailableNomination(res);
   let client;
   try {
     client = await pool.connect();
@@ -519,12 +522,15 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
            AND cie.provider='CIE' AND cie.status='verified'
          JOIN users reviewer ON reviewer.id=v.call_verified_by
            AND reviewer.status='a' AND (reviewer.is_admin=TRUE OR reviewer.ruolo IN ('AD','Admin'))
+         JOIN users applicant ON applicant.id=v.proposer_user_id AND applicant.status='a'
          WHERE v.proposal_id=$1 AND v.proposer_user_id=$2 AND v.category=$3
            AND v.identity_match_confirmed=TRUE
-           AND cie.verified_at IS NOT NULL AND v.call_verified_at >= cie.verified_at
+           AND cie.verified_at IS NOT NULL
+           AND v.call_verified_at >= cie.verified_at AND v.call_verified_at <= now()
            AND (v.category='attivisti' OR (
              v.representative_role IN ('presidente','rappresentante_legale')
-             AND v.role_verified_at IS NOT NULL AND v.role_verified_by IS NOT NULL
+             AND v.role_verified_at IS NOT NULL AND v.role_verified_by = v.call_verified_by
+             AND v.role_verified_at <= now()
              AND v.role_evidence_kind IN ('official_registry','official_document')
            ))
          FOR SHARE OF v`,
