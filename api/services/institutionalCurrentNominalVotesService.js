@@ -47,7 +47,8 @@ const UPSERT_CURRENT_VOTE_SQL = `
     (institution, representative_key, source_person_id, ballot_id,
      vote_date, ballot_order, vote, ballot_title, source_url, source_type)
   VALUES ($1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10)
-  ON CONFLICT (institution, representative_key) DO UPDATE SET
+  ON CONFLICT (representative_key) DO UPDATE SET
+    institution = EXCLUDED.institution,
     source_person_id = EXCLUDED.source_person_id,
     ballot_id = EXCLUDED.ballot_id,
     vote_date = EXCLUDED.vote_date,
@@ -59,6 +60,7 @@ const UPSERT_CURRENT_VOTE_SQL = `
     verified_at = now()
   WHERE institutional_current_nominal_votes.vote_date < EXCLUDED.vote_date
      OR (institutional_current_nominal_votes.vote_date = EXCLUDED.vote_date
+         AND institutional_current_nominal_votes.institution = EXCLUDED.institution
          AND institutional_current_nominal_votes.ballot_order < EXCLUDED.ballot_order)
   RETURNING institution, representative_key, ballot_id, vote_date, vote
 `;
