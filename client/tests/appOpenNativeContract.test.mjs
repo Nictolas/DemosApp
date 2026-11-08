@@ -304,3 +304,19 @@ test('ad-capable release is test-only by default and requires explicit approval 
   assert.match(manager, /AppOpenTcfConsentPolicy\.allowsGoogleNonPersonalizedAdRequest\(/);
   assert.doesNotMatch(manager, /!BuildConfig\.DEBUG/);
 });
+
+test('isolated test release upgrade is signed for QA only and cannot use real ad IDs', () => {
+  assert.match(gradle, /demosReleaseQaIsolated = \(project\.findProperty\('demosReleaseQaIsolated'\) \?: 'false'\)/);
+  assert.match(gradle, /if \(demosReleaseQaIsolated && \(!demosReleaseAdsTestOnly \|\| demosReleaseAdsApproved/);
+  assert.match(gradle, /demosReleaseAdMobAppId != demosSampleAppId/);
+  assert.match(gradle, /applicationIdSuffix '\.qaadsrc'/);
+  assert.match(gradle, /signingConfig signingConfigs\.debug/);
+  assert.match(gradle, /else if \(keystorePropertiesFile\.exists\(\)\) \{\s*signingConfig signingConfigs\.release/);
+  assert.match(gradle, /DEMOS_QA_FORCE_ADULT', 'false'/);
+  assert.match(gradle, /DEMOS_UMP_DEBUG_EEA', 'false'/);
+  const workflow = read('../../.github/workflows/advertising-policy-validation.yml');
+  assert.match(workflow, /Build isolated Ads-free to TEST-ads release upgrade pair/);
+  assert.match(workflow, /adb install -r "\$candidate"/);
+  assert.match(workflow, /adb uninstall community\.demos\.qaadsrc/);
+  assert.match(workflow, /Offline anonymous emulator smoke for real-age QA/);
+});
