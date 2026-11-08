@@ -229,7 +229,7 @@ test('Play Internal App Sharing offers a real-age QA variant without bypassing i
     workflow.indexOf('- name: Confirm release runtime does not include AdMob or UMP')
   );
   assert.ok(emulatorStage.includes('client/android/qa-real-age-apks/DEMOS-REAL-AGE-QA-TEST-ONLY.apk'));
-  assert.doesNotMatch(emulatorStage, /client\\/android\\/app\\/build\\/outputs\\/apk\\/debug\\/real-age-qa/);
+  assert.ok(!emulatorStage.includes('client/android/app/build/outputs/apk/debug/real-age-qa/'));
 });
 
 test('UMP configuration errors fail closed instead of using cached consent or initializing ads', () => {
