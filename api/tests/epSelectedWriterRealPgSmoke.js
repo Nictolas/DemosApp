@@ -42,6 +42,40 @@ async function main() {
   await db.connect();
   try {
     await db.query('BEGIN');
+    // The release must work safely with ZERO real manually reviewed MEPs.
+    // A valid representative card remains visible but the nominal vote is
+    // unknown; no fake identity, official HTTP, current-vote DML or history.
+    await db.query('SAVEPOINT ep_no_review_release');
+    try {
+      await db.query(
+        "DELETE FROM public.institutional_nominal_identity_links WHERE institution='PE'"
+      );
+      let unreviewedHttp=0;
+      const blank=await readVerifiedEuropeanCurrentVote(db,target,{
+        fetchDecisions:async()=>{unreviewedHttp++;throw Error('NO_REVIEW_NO_HTTP');}
+      });
+      assert.equal(blank,null,'unverified MEP must have no attributed vote');
+      const previousNoReviewFlag=process.env.PARLIAMENT_EP_CURRENT_REFRESH_ENABLED;
+      process.env.PARLIAMENT_EP_CURRENT_REFRESH_ENABLED='true';
+      try {
+        const inactive=await refreshSelectedEuropeanCurrentVote(db,{
+          previewOptions:{
+            client:{get:async()=>{unreviewedHttp++;throw Error('NO_REVIEW_NO_HTTP');}}
+          },
+          upsertVote:async()=>{throw Error('NO_REVIEW_NO_WRITE');}
+        });
+        assert.deepEqual(inactive,{enabled:true,prepared:0,changed:0,skipped:0});
+      } finally {
+        if(previousNoReviewFlag===undefined)
+          delete process.env.PARLIAMENT_EP_CURRENT_REFRESH_ENABLED;
+        else process.env.PARLIAMENT_EP_CURRENT_REFRESH_ENABLED=previousNoReviewFlag;
+      }
+      assert.equal(unreviewedHttp,0,
+        'no reviewed crosswalk must not trigger an official data request');
+    } finally {
+      await db.query('ROLLBACK TO SAVEPOINT ep_no_review_release');
+      await db.query('RELEASE SAVEPOINT ep_no_review_release');
+    }
     const preview=await prepareSelectedEuropeanCurrentOnlyPreview(db,{
       fetchVotes:async options=>{
         sourceRequests++;
@@ -238,6 +272,8 @@ async function main() {
 
     console.log('EP_CANONICAL_SELECTED_CURRENT_WRITER_PG16_SYNTHETIC_PASS',
       JSON.stringify({
+        noApprovedRealIdentityIsSafe:true,
+        noReviewZeroHttpAndDml:true,
         approvedSyntheticIdentities:1,canonicalSelected:1,
         firstWrite:true,duplicateIgnored:true,olderIgnored:true,
         sameDayOlderIgnored:true,newerOrderReplaced:true,
