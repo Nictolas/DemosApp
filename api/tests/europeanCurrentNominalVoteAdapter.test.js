@@ -6,9 +6,13 @@ const {
   stableMepId, extractExplicitItalianVotes, persistExplicitItalianEuropeanVotes
 } = require('../services/europeanCurrentNominalVoteAdapter');
 
+const vetted = (id, representativeId) => ({id,representativeId,
+  review_state:'VERIFIED',reviewed_by:'00000000-0000-4000-8000-000000000099',
+  reviewed_at:'2026-11-08T19:00:00Z',
+  evidence_url:'https://data.europarl.europa.eu/person/'+id});
 const official = new Map([
-  ['https://data.europarl.europa.eu/person/12345', { id:'12345', nome_completo:'Fixture One' }],
-  ['https://data.europarl.europa.eu/person/12346', { id:'12346', nome_completo:'Fixture Two' }]
+  ['https://data.europarl.europa.eu/person/12345', vetted('12345','00000000-0000-4000-8000-000000000005')],
+  ['https://data.europarl.europa.eu/person/12346', vetted('12346','00000000-0000-4000-8000-000000000006')]
 ]);
 const meta = {
   ballotId:'MTG-PL-2026-11-08-ITM-222',
@@ -35,7 +39,7 @@ test('explicit status only: missing list member is not inferred absent', () => {
     votedAbstained:[]
   },official,meta);
   assert.equal(votes.length,1);
-  assert.equal(votes[0].representativeKey,'pe:12345');
+  assert.equal(votes[0].representativeKey,'demos:00000000-0000-4000-8000-000000000005');
   assert.equal(votes[0].status,'Favorevole');
   assert.equal(votes[0].sourcePersonId,'12345');
   assert.ok(votes.every(v => !('gruppo_politico' in v) && v.status!=='Assente'));
@@ -74,7 +78,23 @@ test('EP adapter commits atomically and preserves official IDs', async () => {
   assert.deepEqual(result,{considered:2,changed:2});
   assert.equal(statements[0].sql,'BEGIN');
   assert.equal(statements.at(-2).sql,'COMMIT');
-  assert.equal(statements[1].values[1],'pe:12345');
-  assert.equal(statements[2].values[1],'pe:12346');
+  assert.equal(statements[1].values[1],'demos:00000000-0000-4000-8000-000000000005');
+  assert.equal(statements[2].values[1],'demos:00000000-0000-4000-8000-000000000006');
   assert.ok(statements.every(row=> !row.values || !row.values.includes('Political group')));
+});
+
+test('unreviewed/UUID-less EP identities fail before a DB connection', async () => {
+  for (const link of [
+    {id:'12345'},
+    {...vetted('12345','00000000-0000-4000-8000-000000000005'),review_state:'PENDING'},
+    {...vetted('12345','00000000-0000-4000-8000-000000000005'),evidence_url:'https://evil.test/person/12345'}
+  ]) {
+    let connections=0;
+    await assert.rejects(
+      persistExplicitItalianEuropeanVotes({connect:async()=>{connections++;throw Error('UNEXPECTED_DB')}},
+        {votedFor:['12345']},new Map([['12345',link]]),meta),
+      /EP_CURRENT_VERIFIED_DEMOS_LINK_REQUIRED/
+    );
+    assert.equal(connections,0);
+  }
 });
