@@ -29,6 +29,8 @@ on:
       - 'api/tests/demos12DsarS4.synthetic.test.js'
       - 'api/routes/user/gdpr-requests.js'
       - 'api/tests/d12GdprRequestsFailClosed.synthetic.test.js'
+      - 'api/routes/user/gdpr-rights.js'
+      - 'api/tests/d12LegacyAccountErasureFailClosed.synthetic.test.js'
       - 'api/tests/graziaModerationHttp.synthetic.test.js'
       - 'api/tests/graziaPostgresConcurrency.integration.test.js'
       - 'api/tests/capoApprovedCatalogue.pg.integration.test.js'
@@ -93,6 +95,7 @@ jobs:
           node --check api/routes/capo-stato.js
           node --check api/routes/subject-proposals.js
           node --check api/routes/user/gdpr-requests.js
+          node --check api/routes/user/gdpr-rights.js
           node --check api/middleware/auth.js
           node --check api/routes/attivisti.js
           node --check api/routes/organizzazioni.js
@@ -127,6 +130,8 @@ jobs:
         run: node --test api/tests/demos12DsarS4.synthetic.test.js
       - name: DEMOS12 legacy GDPR request no false success (synthetic)
         run: node --test api/tests/d12GdprRequestsFailClosed.synthetic.test.js
+      - name: DEMOS12 legacy account erasure fail-closed (synthetic)
+        run: node --test api/tests/d12LegacyAccountErasureFailClosed.synthetic.test.js
       - name: Generic nomination queue and hidden-title regressions (synthetic)
         run: node --test api/tests/subjectProposalSingleQueue.synthetic.test.js
       - name: Synthetic Grazia moderation HTTP checks
