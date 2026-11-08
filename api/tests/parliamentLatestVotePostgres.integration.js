@@ -122,7 +122,7 @@ async function main(){
     assert.equal(current[0].ballot_id,second.openpolis_id,'older sync cannot restore old vote');
     const currentAttempt=await upsertVerifiedCurrentVote(pool,{
       institution:'Camera', representativeKey:'demos:'+rep,
-      ballotId:'vs19_731_003', voteDate:'2026-10-22', ballotOrder:73100003,
+      ballotId:'vs19_731_006', voteDate:'2026-10-22', ballotOrder:73100006,
       status:'Contrario',ballotTitle:'Even later synthetic final',
       sourceUrl:'https://documenti.camera.it/fixture',sourceType:'camera_ufficiale',verified:true
     });
@@ -131,7 +131,7 @@ async function main(){
       "SELECT ballot_id FROM public.institutional_current_nominal_votes WHERE institution='Camera'"
     )).rows;
     assert.equal(current.length,1);
-    assert.equal(current[0].ballot_id,'vs19_731_003');
+    assert.equal(current[0].ballot_id,'vs19_731_006');
     const replay=await upsertVerifiedCurrentVote(pool,{
       institution:'Camera', representativeKey:'demos:'+rep,
       ballotId:first.openpolis_id, voteDate:baseDate, ballotOrder:73000097,
