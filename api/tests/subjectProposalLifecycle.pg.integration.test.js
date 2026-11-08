@@ -53,7 +53,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     await setup.query('CREATE SCHEMA ' + SCHEMA);
     await setup.query("CREATE TABLE " + SCHEMA + ".users (id uuid PRIMARY KEY, is_admin boolean NOT NULL DEFAULT false, ruolo text NOT NULL DEFAULT 'U', status text NOT NULL DEFAULT 'a')");
     // CIE status is synthetic; no real identity, document or external provider.
-    await setup.query("CREATE TABLE " + SCHEMA + ".identity_verifications (user_id uuid PRIMARY KEY REFERENCES " + SCHEMA + ".users(id), provider text, status text, verified_at timestamptz)");
+    await setup.query("CREATE TABLE " + SCHEMA + ".identity_verifications (user_id uuid PRIMARY KEY REFERENCES " + SCHEMA + ".users(id) ON DELETE CASCADE, provider text, status text, verified_at timestamptz)");
     await setup.query("CREATE TABLE " + SCHEMA + ".notifiche_demos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), id_utente uuid, titolo text, testo text NOT NULL)");
     await setup.query("CREATE TABLE " + SCHEMA + ".amnistia (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), legge text, articolo text, descrizione text, fonte_url text, attiva boolean)");
     await setup.query("CREATE TABLE " + SCHEMA + ".voti_capo_stato (id serial PRIMARY KEY, nome text NOT NULL)");
@@ -654,6 +654,21 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const rejectedDirectory=await req('/api/subject-proposals/approved?category=attivisti');
     assert.equal(rejectedDirectory.body.data.length,0);
 
+    // A real route-level synthetic activist self-application requires BOTH
+    // verified CIE and a manually recorded first-approval videocall.
+    const firstActivist=await req('/api/subject-proposals','a','POST',
+      proposal('attivisti','Attivista sintetica con verifica privata'));
+    assert.equal(firstActivist.status,201);
+    const activistId=firstActivist.body.proposal.id;
+    assert.equal((await req('/api/subject-proposals/admin/'+activistId+
+      '/decision','admin','POST',{decision:'approve'})).status,409);
+    await attestSyntheticVideo(activistId,'attivisti');
+    assert.equal((await req('/api/subject-proposals/admin/'+activistId+
+      '/decision','admin','POST',{decision:'approve'})).status,200);
+    const activistVisible=await req('/api/subject-proposals/approved?category=attivisti');
+    assert.ok(activistVisible.body.data.some(p=>p.id===activistId));
+    // This is an Admin ATTESTATION in isolated PostgreSQL, not a real Meet call.
+
     // The CHECK prevents Grazia even if the API is bypassed.
     await assert.rejects(pool.query(
       "INSERT INTO subject_proposals(proposer_user_id,category,title,source_url) VALUES($1,'grazia','Persona sintetica','https://example.org')",[B]
@@ -666,6 +681,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       proposal('organizzazioni','Organizzazione sintetica dopo cancellazione'));
     assert.equal(postErasure.status,201);
     const ownerlessId=postErasure.body.proposal.id;
+    await attestSyntheticVideo(ownerlessId,'organizzazioni');
     const ownerlessApproval=await req('/api/subject-proposals/admin/'+ownerlessId+
       '/decision','admin','POST',{decision:'approve'});
     assert.equal(ownerlessApproval.status,200);
