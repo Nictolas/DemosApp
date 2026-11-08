@@ -230,3 +230,18 @@ test('bounded identity-office screening rotates to later selected MPs rather tha
     else process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED=before;
   }
 });
+
+
+test('selected source URL lookup uses a complete bounded read-only SQL lateral join',()=>{
+  const sql=SELECTED_UNREVIEWED_SQL;
+  assert.ok(sql.includes("AND v.url_openpolis ~ '^https://parlamento19[.]openpolis[.]it/persone/[a-z0-9-]{4,120}/?$'"),
+    'the Openpolis URL regex must be quoted and terminated');
+  assert.ok(sql.includes(') source_profile ON TRUE WHERE ps.selection_kind='),
+    'the lateral SELECT must close before the main selection WHERE');
+  assert.ok(sql.includes("ps.selection_kind='representative'"));
+  assert.ok(sql.includes("ps.political_office_id IN ('it.camera','it.senato')"));
+  assert.ok(sql.includes('COUNT(DISTINCT v.url_openpolis)=1'),
+    'ambiguous legacy URL must not be used as person proof');
+  assert.ok(sql.includes('LIMIT 12 OFFSET $1'));
+  assert.doesNotMatch(sql,/\b(INSERT|UPDATE|DELETE|TRUNCATE|MERGE|DROP|ALTER)\b/i);
+});
