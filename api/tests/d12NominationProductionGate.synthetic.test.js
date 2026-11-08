@@ -42,6 +42,8 @@ function harness(which,enabled=false,graziaEnabled=enabled) {
     '../middleware/validation':{validateInput:()=>pass},
     '../utils/recognitionEvidence':{validateEvidenceUrl:()=> 'https://example.org/fonte'},
     '../services/publicApprovedSubjectPage':{readApprovedPage:async()=>({data:[],next_cursor:null})},
+    // Keep the offline mock in sync with the Grazia router imports.
+    '../services/politicalConsentService':{getPoliticalConsentState:async()=>({exists:true,granted:true})},
     '../services/preferenceCooldownService':{
       getPreferenceCooldown:async()=>({isBlocked:false}),
       assertPreferenceChangeAllowed:async()=>{},
