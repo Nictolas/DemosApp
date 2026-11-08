@@ -107,7 +107,18 @@ test('Chrome 320/390: real European representative card, one verified vote and f
           if(screen.width===320) await rep.tap();
           else await rep.click();
           const card=page.locator('[aria-label="Ultimo voto del Parlamento europeo"]');
-          await card.waitFor({timeout:15000});
+          try{
+            await card.waitFor({timeout:15000});
+          }catch(error){
+            // Only synthetic navigation state, no account identifiers or
+            // real API data, is logged to diagnose occasional mobile races.
+            console.log('EP_CHROME_SYNTHETIC_NAV_DIAG',JSON.stringify({
+              width:screen.width,hasVote:full,route:new URL(page.url()).pathname,
+              selectedNameControls:await page.locator('[data-representative-details]').count(),
+              visibleDialogSections:await card.count(),authenticatedRequests:authenticated
+            }));
+            throw error;
+          }
           assert.ok(await card.isVisible(),'Current EU vote section must be visible');
           // The outer representative tile used to schedule a navigation on
           // mouseup/touchend BEFORE the inner name's click could stop it.
