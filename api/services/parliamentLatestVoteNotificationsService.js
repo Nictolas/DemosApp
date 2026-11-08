@@ -116,6 +116,8 @@ async function selectedRepresentatives(pool, chamber) {
   // least one ACTIVE citizen. One politician row regardless of follower count.
   // Keep explicit approval and active mandate gates, and use EXISTS to avoid
   // multiplying rows for people followed by many citizens.
+  // Also quarantine issue #396 cross-chamber duplicated legacy identities
+  // until the currently selected mandate has independent official provenance.
   const sql =
     "SELECT p.id, p.nome, p.cognome, link.source_person_id, link.evidence_url, " +
     "TRUE AS has_followers " +
@@ -131,7 +133,26 @@ async function selectedRepresentatives(pool, chamber) {
     "AND ps.political_office_id = $1) " +
     "AND EXISTS (SELECT 1 FROM political_mandates m WHERE m.user_id = p.id " +
     "AND m.status = 'ACTIVE' AND m.office_code = $2 " +
-    "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()))";
+    "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW())) " +
+    // Issue #396: two different DEMOS accounts can describe one politician
+    // with the same full name and DOB, with fictitious C/S ACTIVE mandates
+    // created by legacy imports. A reviewed identity link ALONE must not
+    // reactivate the wrong historic office. Require migration of the chosen
+    // mandate to an officially verified source before it is eligible.
+    "AND NOT EXISTS (SELECT 1 FROM public.users alt " +
+    "JOIN public.political_mandates alt_m ON alt_m.user_id = alt.id " +
+    "WHERE alt.id <> p.id AND p.data_nascita IS NOT NULL " +
+    "AND alt.data_nascita = p.data_nascita " +
+    "AND lower(trim(alt.nome)) = lower(trim(p.nome)) " +
+    "AND lower(trim(alt.cognome)) = lower(trim(p.cognome)) " +
+    "AND alt_m.office_code = CASE WHEN $2 = 'C' THEN 'S' ELSE 'C' END " +
+    "AND alt_m.source = 'LEGACY_BACKFILL' AND alt_m.status = 'ACTIVE' " +
+    "AND alt_m.starts_at <= NOW() AND (alt_m.ends_at IS NULL OR alt_m.ends_at > NOW()) " +
+    "AND EXISTS (SELECT 1 FROM public.political_mandates legacy " +
+    "WHERE legacy.user_id = p.id AND legacy.office_code = $2 " +
+    "AND legacy.source = 'LEGACY_BACKFILL' AND legacy.status = 'ACTIVE' " +
+    "AND legacy.starts_at <= NOW() " +
+    "AND (legacy.ends_at IS NULL OR legacy.ends_at > NOW())))";
   const { rows } = await pool.query(sql, [office, mandateOffice, chamber]);
   return rows;
 }
