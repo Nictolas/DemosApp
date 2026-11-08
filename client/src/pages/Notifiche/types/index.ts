@@ -10,13 +10,14 @@ export interface Notifica {
   data_lettura?: string;
   priorita?: string;
   // Nuove proprietà per comunicazioni
-  tipo_notifica?: 'notifica' | 'comunicazione' | 'voto_comune' | 'demos' | 'comunale' | 'segnalazione_problema' | 'avvistamento';
+  tipo_notifica?: 'notifica' | 'comunicazione' | 'voto_comune' | 'voto_parlamento' | 'demos' | 'comunale' | 'segnalazione_problema' | 'avvistamento' | 'cambio_opinione';
   autore?: {
     nome: string;
     cognome: string;
     ruolo: string;
   };
   voto?: string;
+  camera?: string;
   data?: string;
   comune_residenza?: string;
   politico?: string;
@@ -37,6 +38,9 @@ export interface Notifica {
   browser?: string;
   dispositivo?: string;
   uri_votazione?: string; // URI per aprire il dialog con i dettagli della votazione (solo per voto_parlamento)
+  openpolis_id?: string | null; // Solo votazioni finali verificate
+  votazione_titolo?: string | null;
+  votazione_esito?: string | null;
 }
 
 export interface NotificheData {

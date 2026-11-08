@@ -1,0 +1,164 @@
+'use strict';
+
+// PROD-041: backend-only verified current state, never append nominal history.
+// The UNIQUE primary key and conditional UPSERT make old/out-of-order syncs safe.
+const VALID_VOTES = new Set([
+  'Favorevole', 'Contrario', 'Astensione', 'Astenuto', 'Astenuto R',
+  'Assente', 'In missione', 'In congedo', 'Non ha partecipato',
+  'Presente non votante', 'Presidente di turno'
+]);
+const SOURCES = {
+  Camera: { type: 'camera_ufficiale', host: 'documenti.camera.it' },
+  Senato: { type: 'senato_openpolis', host: 'parlamento19.openpolis.it' },
+  PE: { type: 'pe_ufficiale', host: 'data.europarl.europa.eu' }
+};
+
+function assertVerifiedVote(vote) {
+  if (!vote || !Object.hasOwn(SOURCES, vote.institution)) throw new Error('CURRENT_VOTE_INVALID_INSTITUTION');
+  const key = String(vote.representativeKey || '');
+  const isDemosUuid = /^demos:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+  const isItalianLegacyKey = /^(?:demos:[0-9a-f]{8}-[0-9a-f-]{27,40}|official:[a-z0-9:/._-]+)$/i.test(key);
+  // PE never accepts the unlinked pe:<MepId> key.
+  if ((vote.institution === 'PE' ? !isDemosUuid : !isItalianLegacyKey) ||
+      key.length > 180) throw new Error('CURRENT_VOTE_STABLE_ID_REQUIRED');
+  if (!/^[a-zA-Z0-9._:/-]{3,200}$/.test(String(vote.ballotId || '')))
+    throw new Error('CURRENT_VOTE_BALLOT_ID_REQUIRED');
+  const date = String(vote.voteDate || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !Number.isFinite(Date.parse(date + 'T00:00:00Z')) ||
+      new Date(date + 'T00:00:00Z').toISOString().slice(0, 10) !== date)
+    throw new Error('CURRENT_VOTE_DATE_INVALID');
+  if (!Number.isSafeInteger(vote.ballotOrder) || vote.ballotOrder < 0)
+    throw new Error('CURRENT_VOTE_SEQUENCE_REQUIRED');
+  if (!VALID_VOTES.has(vote.status) ||
+      (vote.institution === 'PE' && !['Favorevole','Contrario','Astenuto'].includes(vote.status)))
+    throw new Error('CURRENT_VOTE_STATUS_UNVERIFIED');
+  if (typeof vote.ballotTitle !== 'string' || !vote.ballotTitle.trim() || vote.ballotTitle.length > 2000)
+    throw new Error('CURRENT_VOTE_TITLE_REQUIRED');
+  if (vote.ballotOutcome != null && (typeof vote.ballotOutcome !== 'string' ||
+      !vote.ballotOutcome.trim() || vote.ballotOutcome.length > 100))
+    throw new Error('CURRENT_VOTE_OUTCOME_INVALID');
+  if (vote.verified !== true || vote.sourceType !== SOURCES[vote.institution].type)
+    throw new Error('CURRENT_VOTE_VERIFICATION_REQUIRED');
+  let url;
+  try { url = new URL(vote.sourceUrl); } catch { throw new Error('CURRENT_VOTE_SOURCE_INVALID'); }
+  if (url.protocol !== 'https:' || url.hostname !== SOURCES[vote.institution].host ||
+      url.username || url.password) throw new Error('CURRENT_VOTE_SOURCE_INVALID');
+  // A DEMOS UUID alone proves the storage key, NOT the identity of the
+  // person named in a roll call. The source person ID is mandatory for writes.
+  const sourcePersonId = vote.sourcePersonId;
+  if (typeof sourcePersonId !== 'string' || !sourcePersonId.trim() ||
+      sourcePersonId.length > 250) throw new Error('CURRENT_VOTE_SOURCE_PERSON_REQUIRED');
+  if (vote.institution === 'PE') {
+    if (!/^[1-9]\d{0,8}$/.test(sourcePersonId))
+      throw new Error('CURRENT_VOTE_SOURCE_PERSON_INVALID');
+  } else {
+    let personUrl;
+    try { personUrl = new URL(sourcePersonId); } catch {
+      throw new Error('CURRENT_VOTE_SOURCE_PERSON_INVALID');
+    }
+    const allowed = vote.institution === 'Camera'
+      ? ['camera.it','www.camera.it','documenti.camera.it','dati.camera.it']
+      : ['parlamento19.openpolis.it','senato.it','www.senato.it','dati.senato.it'];
+    if (!['http:', 'https:'].includes(personUrl.protocol) ||
+        !allowed.includes(personUrl.hostname.toLowerCase()) ||
+        personUrl.username || personUrl.password || personUrl.hash ||
+        !/\/(?:deputat|senat|person|ocd\/deputato)/i.test(personUrl.pathname))
+      throw new Error('CURRENT_VOTE_SOURCE_PERSON_INVALID');
+  }
+  return { ...vote, representativeKey:key, voteDate:date, sourceUrl:url.toString() };
+}
+
+const UPSERT_CURRENT_VOTE_SQL = `
+  INSERT INTO public.institutional_current_nominal_votes
+    (institution, representative_key, source_person_id, ballot_id,
+     vote_date, ballot_order, vote, ballot_title, ballot_outcome, source_url, source_type)
+  VALUES ($1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11)
+  ON CONFLICT (representative_key) DO UPDATE SET
+    institution = EXCLUDED.institution,
+    source_person_id = EXCLUDED.source_person_id,
+    ballot_id = EXCLUDED.ballot_id,
+    vote_date = EXCLUDED.vote_date,
+    ballot_order = EXCLUDED.ballot_order,
+    vote = EXCLUDED.vote,
+    ballot_title = EXCLUDED.ballot_title,
+    ballot_outcome = EXCLUDED.ballot_outcome,
+    source_url = EXCLUDED.source_url,
+    source_type = EXCLUDED.source_type,
+    verified_at = now()
+  WHERE institutional_current_nominal_votes.vote_date < EXCLUDED.vote_date
+     OR (institutional_current_nominal_votes.vote_date = EXCLUDED.vote_date
+         AND institutional_current_nominal_votes.institution = EXCLUDED.institution
+         AND institutional_current_nominal_votes.ballot_order < EXCLUDED.ballot_order)
+  RETURNING institution, representative_key, ballot_id, vote_date, vote
+`;
+
+
+/* One atomic SQL statement locks and rechecks the manually VERIFIED PE identity,
+ * exact official MepId/UUID, active mandate and active canonical follower.
+ * This prevents direct calls bypassing the European preview. */
+const PE_AUTHORIZED_SQL = [
+  'WITH authorized_pe AS MATERIALIZED (',
+  ' SELECT l.representative_id FROM public.institutional_nominal_identity_links AS l',
+  " WHERE l.institution = 'PE'",
+  " AND l.representative_id = split_part($2, ':', 2)::uuid",
+  ' AND l.source_person_id = $3',
+  " AND l.review_state = 'VERIFIED'",
+  ' AND l.reviewed_by IS NOT NULL AND l.reviewed_at IS NOT NULL',
+  ' AND (',
+  "  l.evidence_url = 'https://data.europarl.europa.eu/person/' || $3",
+  "  OR l.evidence_url = 'https://data.europarl.europa.eu/person/' || $3 || '/'",
+  "  OR l.evidence_url ~ ('^https://www[.]europarl[.]europa[.]eu/meps/[a-z]{2}/' || $3 || '(/[^?#]*)?$')",
+  ' )',
+  ' AND EXISTS (',
+  '  SELECT 1 FROM public.political_mandates AS m',
+  '  WHERE m.user_id = l.representative_id',
+  "    AND m.office_code = 'E' AND m.status = 'ACTIVE'",
+  '    AND m.starts_at <= now() AND (m.ends_at IS NULL OR m.ends_at > now())',
+  '  FOR SHARE OF m',
+  ' )',
+  ' AND EXISTS (',
+  '  SELECT 1 FROM public.political_selections AS ps',
+  '  JOIN public.users AS follower ON follower.id = ps.user_id',
+  "   AND follower.status = 'a'",
+  '  WHERE ps.selected_user_id = l.representative_id',
+  "    AND ps.selection_kind = 'representative'",
+  "    AND ps.political_office_id = 'eu.parliament.it'",
+  '  FOR SHARE OF ps, follower',
+  ' )',
+  ' FOR SHARE OF l',
+  ')'
+].join('\n');
+const UPSERT_SELECTED_PE_CURRENT_VOTE_SQL = UPSERT_CURRENT_VOTE_SQL
+  // Callback replacement avoids interpreting the SQL regexp's $' as a
+  // JavaScript replacement token (which would splice the trailing SQL here).
+  .replace('  INSERT INTO', () => PE_AUTHORIZED_SQL + '\n  INSERT INTO')
+  .replace('  VALUES ($1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11)',
+    () => '  SELECT $1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11 FROM authorized_pe WHERE true');
+
+async function upsertVerifiedCurrentVote(db, raw) {
+  const vote = assertVerifiedVote(raw); // fail closed before any DB access
+  const values = [vote.institution, vote.representativeKey, vote.sourcePersonId,
+    vote.ballotId, vote.voteDate, vote.ballotOrder, vote.status,
+    vote.ballotTitle.trim(), vote.ballotOutcome?.trim() || null, vote.sourceUrl, vote.sourceType];
+  const sql = vote.institution === 'PE' ? UPSERT_SELECTED_PE_CURRENT_VOTE_SQL : UPSERT_CURRENT_VOTE_SQL;
+  const { rows } = await db.query(sql, values);
+  return { changed: rows.length === 1, current: rows[0] || null };
+}
+
+async function getCurrentVote(db, institution, representativeKey) {
+  if (!Object.hasOwn(SOURCES, institution) || typeof representativeKey !== 'string' ||
+      representativeKey.length > 180 ||
+      (institution === 'PE' && !/^demos:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(representativeKey)))
+    throw new Error('CURRENT_VOTE_INVALID_LOOKUP');
+  const { rows } = await db.query(
+    `SELECT institution, representative_key, ballot_id, vote_date, ballot_order,
+            vote, ballot_title, ballot_outcome, source_url, source_type
+       FROM public.institutional_current_nominal_votes
+      WHERE institution = $1 AND representative_key = $2 LIMIT 1`,
+    [institution, representativeKey]);
+  return rows[0] || null;
+}
+
+module.exports = { assertVerifiedVote, UPSERT_CURRENT_VOTE_SQL,
+  UPSERT_SELECTED_PE_CURRENT_VOTE_SQL, upsertVerifiedCurrentVote, getCurrentVote };

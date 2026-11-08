@@ -7,6 +7,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import { NotificaItemProps } from "../types";
+import { FinalParliamentBallotDialog } from "./FinalParliamentBallotDialog";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { 
   getNotificaBackground,
@@ -228,6 +229,14 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   const [dettagliVotazione, setDettagliVotazione] = useState<any>(null);
   const [loadingDettagli, setLoadingDettagli] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [finalBallotOpen, setFinalBallotOpen] = useState(false);
+  // A trusted push deep-link can open only the ballot already present in this user's notification feed.
+  useEffect(() => {
+    if (!notifica.openpolis_id || typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('final_vote') === notifica.openpolis_id) {
+      setFinalBallotOpen(true);
+    }
+  }, [notifica.openpolis_id]);
 
   // Funzione helper per formattare il titolo in modo compatto
   const formattaTitoloCompatto = (titolo: string): string => {
@@ -388,6 +397,10 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
 
   // Handler per aprire il dialog con i dettagli della votazione
   const handleNotificaClick = async () => {
+    if (tipoNotifica === 'voto_parlamento' && notifica.openpolis_id) {
+      setFinalBallotOpen(true);
+      return;
+    }
     if (tipoNotifica === 'voto_parlamento' && notifica.uri_votazione) {
       setDialogOpen(true);
       setLoadingDettagli(true);
@@ -479,8 +492,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   return (
     <>
     <div
-      className={`rounded-2xl border border-l-4 border-slate-200 ${style.cardAccent} bg-white p-3.5 text-slate-900 shadow-sm transition-shadow hover:shadow-md sm:p-4 ${tipoNotifica === 'voto_parlamento' && notifica.uri_votazione ? 'cursor-pointer' : ''}`}
-      onClick={tipoNotifica === 'voto_parlamento' && notifica.uri_votazione ? handleNotificaClick : undefined}
+      className={`rounded-2xl border border-l-4 border-slate-200 ${style.cardAccent} bg-white p-3.5 text-slate-900 shadow-sm transition-shadow hover:shadow-md sm:p-4 ${tipoNotifica === 'voto_parlamento' && (notifica.openpolis_id || notifica.uri_votazione) ? 'cursor-pointer' : ''}`}
+      onClick={tipoNotifica === 'voto_parlamento' && (notifica.openpolis_id || notifica.uri_votazione) ? handleNotificaClick : undefined}
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
@@ -803,7 +816,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
     </div>
 
     {/* Dialog Dettagli Votazione - Solo per notifiche voto_parlamento */}
-    {tipoNotifica === 'voto_parlamento' && (
+    {tipoNotifica === 'voto_parlamento' && !notifica.openpolis_id && (
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] !m-0 !rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 overflow-hidden flex flex-col p-6">
           <DialogHeader>
@@ -1099,6 +1112,9 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+    )}
+    {tipoNotifica === 'voto_parlamento' && !!notifica.openpolis_id && (
+      <FinalParliamentBallotDialog open={finalBallotOpen} onOpenChange={setFinalBallotOpen} notifica={notifica} />
     )}
     </>
   );

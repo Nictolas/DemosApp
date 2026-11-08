@@ -144,6 +144,41 @@ async function fetchVotazioniFinaliDecisive(maxItems = 30) {
 }
 
 /**
+ * Import independent bounded snapshots for Camera and Senato. A busy chamber
+ * must not displace the quieter one from the source. Still limited to ten
+ * source pages (500 cards maximum) per six-hour cycle, no extra infrastructure.
+ * fetchPage injection is only for deterministic CI; normal calls use Openpolis.
+ */
+async function fetchVotazioniFinaliPerCamera(maxPerCamera = 50, options = {}) {
+  const perChamber = Math.min(50, Math.max(1, Math.floor(Number(maxPerCamera) || 50)));
+  const getPage = options.fetchPage || fetchListaVotazioniFinali;
+  const results = [];
+  const seen = new Set();
+  const counts = { Camera: 0, Senato: 0 };
+  for (let page = 1; page <= 10 &&
+      (counts.Camera < perChamber || counts.Senato < perChamber); page++) {
+    const html = await getPage(page);
+    const items = parseListaVotazioniFinali(html);
+    if (page === 1 && items.length === 0) {
+      throw new Error('OPENPOLIS_FINAL_VOTES_PARSE_EMPTY');
+    }
+    if (items.length === 0) break;
+    let newIds = 0;
+    for (const item of items) {
+      if (seen.has(item.openpolis_id)) continue;
+      seen.add(item.openpolis_id);
+      newIds++;
+      if (!(item.camera in counts) || counts[item.camera] >= perChamber) continue;
+      counts[item.camera]++;
+      results.push(item);
+    }
+    // Exit if upstream ignores pagination, even when a chamber is not full.
+    if (newIds === 0) break;
+  }
+  return results;
+}
+
+/**
  * Salva in DB (tabella openpolis_votazioni_finali_decisive). Upsert per openpolis_id.
  */
 async function saveToDb(items, pool) {
@@ -207,6 +242,7 @@ module.exports = {
   fetchListaVotazioniFinali,
   parseListaVotazioniFinali,
   fetchVotazioniFinaliDecisive,
+  fetchVotazioniFinaliPerCamera,
   saveToDb,
   loadFromDb,
   OPENPOLIS_BASE,
