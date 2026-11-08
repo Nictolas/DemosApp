@@ -7,6 +7,8 @@ on:
       - 'api/services/parliamentLatestVoteNotificationsService.js'
       - 'api/routes/voti-politici.js'
       - 'api/services/institutionalCurrentNominalVotesService.js'
+      - 'api/services/europeanCurrentNominalVoteAdapter.js'
+      - 'api/tests/europeanCurrentNominalVoteAdapter.test.js'
       - 'api/database/20261108_institutional_current_nominal_votes.sql'
       - 'api/tests/institutionalCurrentNominalVotes.test.js'
       - 'api/services/parliamentFinalBallotPushService.js'
@@ -71,6 +73,8 @@ jobs:
           node --test api/tests/parliamentLatestVoteNotifications.test.js api/tests/parliamentFinalBallotPush.test.js api/tests/parliamentVerifiedFinalBallots.test.js
           node --check api/services/institutionalCurrentNominalVotesService.js
           node --test api/tests/institutionalCurrentNominalVotes.test.js
+          node --check api/services/europeanCurrentNominalVoteAdapter.js
+          node --test api/tests/europeanCurrentNominalVoteAdapter.test.js
           node --check api/services/parlamentoEuropeoService.js
           node --check api/services/parltrackService.js
           node --test api/tests/europeanVoteLatestOnlyContract.test.js
