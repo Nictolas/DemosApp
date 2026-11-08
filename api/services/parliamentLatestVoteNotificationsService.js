@@ -63,16 +63,17 @@ function memberNameVariants(rep) {
 }
 
 function matchUniqueMember(rep, members, allReps) {
+  // A verified identity bridge is mandatory. Names may cross-check a source
+  // link, but names (even exact/unique names or aliases) never establish it.
+  const sourcePersonId = rep?.source_person_id;
+  if (typeof sourcePersonId !== 'string' || !sourcePersonId ||
+      !Array.isArray(members) || !Array.isArray(allReps)) return null;
+  if (allReps.filter(other => other.source_person_id === sourcePersonId).length !== 1)
+    return null;
+  const rows = members.filter(row => row.sourcePersonId === sourcePersonId);
+  if (rows.length !== 1 || !ALLOWED.has(rows[0].vote)) return null;
   const variants = memberNameVariants(rep);
-  if ([...variants].some(name => !name)) return null;
-  // Reject two selected politicians who could map to the same official
-  // roll-call name, including aliases.
-  const ambiguous = allReps.filter(other =>
-    [...memberNameVariants(other)].some(name => variants.has(name))
-  ).length !== 1;
-  if (ambiguous) return null;
-  const rows = members.filter(row => variants.has(normalizeName(row.name)));
-  return rows.length === 1 && ALLOWED.has(rows[0].vote) ? rows[0] : null;
+  return variants.has(normalizeName(rows[0].name)) ? rows[0] : null;
 }
 
 async function selectedRepresentatives(pool, chamber) {
@@ -83,19 +84,21 @@ async function selectedRepresentatives(pool, chamber) {
   // Authoritative current choices: do not read stale legacy TEXT projections
   // or create one copy per follower. Active follower + active politician mandate.
   const sql =
-    "SELECT DISTINCT p.id, p.nome, p.cognome " +
-    "FROM users p JOIN political_selections ps ON ps.selected_user_id = p.id " +
+    "SELECT DISTINCT p.id, p.nome, p.cognome, link.source_person_id " +
+    "FROM users p JOIN public.institutional_nominal_identity_links link ON link.representative_id = p.id AND link.institution = $3 JOIN political_selections ps ON ps.selected_user_id = p.id " +
     "JOIN users follower ON follower.id = ps.user_id AND lower(follower.status) = 'a' " +
     "WHERE ps.selection_kind = 'representative' AND ps.political_office_id = $1 " +
     "AND p.nome IS NOT NULL AND p.cognome IS NOT NULL " +
     "AND EXISTS (SELECT 1 FROM political_mandates m WHERE m.user_id = p.id " +
     "AND m.status = 'ACTIVE' AND m.office_code = $2 " +
     "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()))";
-  const { rows } = await pool.query(sql, [office, mandateOffice]);
+  const { rows } = await pool.query(sql, [office, mandateOffice, chamber]);
   return rows;
 }
 async function persistLatestForChamber(pool, vote, verified, reps) {
-  if (verified.voteId !== vote.openpolis_id || verified.chamber !== vote.camera ||
+  const expectedSourceType = vote.camera === 'Camera' ? 'official' : 'openpolis';
+  if (verified?.source?.type !== expectedSourceType ||
+      verified.voteId !== vote.openpolis_id || verified.chamber !== vote.camera ||
       verified.date !== dateIso(vote.data_votazione) ||
       !verified.source?.url || !Array.isArray(verified.members) || verified.members.length < 120) {
     throw new Error('LATEST_VOTE_SOURCE_MISMATCH');
@@ -113,7 +116,7 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
       // A single stable DEMOS representative UUID; verified source attribution
       // must already have passed the unique-member fail-closed guard above.
       // Both current state and in-app notification commit in this transaction.
-      await upsertVerifiedCurrentVote(client, {
+      const currentResult = await upsertVerifiedCurrentVote(client, {
         institution: vote.camera,
         representativeKey: 'demos:' + String(rep.id),
         sourcePersonId: ballot.sourcePersonId || null,
@@ -126,6 +129,9 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
         sourceType: vote.camera === 'Camera' ? 'camera_ufficiale' : 'senato_openpolis',
         verified: true
       });
+      // An old cross-chamber retry must not create a second current event
+      // in the notification feed if the canonical latest vote was unchanged.
+      if (!currentResult.changed) continue;
       const hash = crypto.createHash('sha256').update(String(rep.id) + ':' + vote.openpolis_id).digest('hex');
       const sql = 'INSERT INTO notifiche_voti_parlamento ' +
         '(id_utente, politico, camera, titolo, testo, voto, data, votazione_hash, openpolis_id, vote_order) ' +
