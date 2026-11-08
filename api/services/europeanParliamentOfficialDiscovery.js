@@ -112,6 +112,40 @@ async function fetchPastPlenarySittingDates(now=new Date(),client=axios) {
 }
 
 /**
+ * A fresh year can have no elapsed sittings yet, or too few for current
+ * Italian MEPs whose last verified roll-call was in December. Consult the
+ * preceding year only if the current year's sittings are insufficient.
+ * Never substitute the older year after a transport or malformed-data error.
+ */
+async function fetchRecentPlenarySittings(now=new Date(),client=axios,minimum=20){
+  if(!Number.isSafeInteger(minimum)||minimum<1||minimum>20)
+    throw Error('EP_DISCOVERY_WINDOW_INVALID');
+  const cutoff=dateOnly(now);
+  const year=Number(cutoff.slice(0,4));
+  let dates=[];
+  try {
+    dates=await fetchPastPlenarySittingDates(now,client);
+  } catch(error){
+    if(error?.message!=='EP_DISCOVERY_NO_PAST_SITTINGS') throw error;
+  }
+  if(dates.length>=minimum)return dates;
+  // The last 2024-2029 legislature was elected in July 2024. Do not scan
+  // beyond the term boundary or treat votes in a previous term as current.
+  const prior=year-1;
+  if(prior<2024)return dates;
+  const previousEnd=new Date(Date.UTC(prior,11,31,23,59,59));
+  let previous=[];
+  try {
+    previous=await fetchPastPlenarySittingDates(previousEnd,client);
+  } catch(error){
+    if(error?.message!=='EP_DISCOVERY_NO_PAST_SITTINGS') throw error;
+  }
+  const combined=[...new Set([...dates,...previous])].sort().reverse();
+  if(!combined.length)throw Error('EP_DISCOVERY_NO_PAST_SITTINGS');
+  return combined;
+}
+
+/**
  * A bounded, non-persistent collection of verified current explicit votes.
  * Missing voters remain unknown. If a source fails, fail the whole batch
  * instead of silently asserting older votes are the newest.
@@ -121,7 +155,7 @@ async function collectRecentVerifiedItalianVotes(options={}) {
   const client=options.client||axios;
   const maxSittings=Math.min(Math.max(options.maxSittings||10,1),20);
   const [sittings,ids]=await Promise.all([
-    fetchPastPlenarySittingDates(now,client),
+    fetchRecentPlenarySittings(now,client,maxSittings),
     fetchCurrentItalianMepIds(client)
   ]);
   const current=new Map(), scanned=[];
@@ -147,5 +181,6 @@ async function collectRecentVerifiedItalianVotes(options={}) {
 
 module.exports={
   exactPersonId,parsePastPlenarySittings,parseItalianCurrentMepIds,
-  fetchCurrentItalianMepIds,fetchPastPlenarySittingDates,collectRecentVerifiedItalianVotes
+  fetchCurrentItalianMepIds,fetchPastPlenarySittingDates,fetchRecentPlenarySittings,
+  collectRecentVerifiedItalianVotes
 };
