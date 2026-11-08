@@ -127,3 +127,7 @@ merge/deploy GO separate from cleanup GO.
 
 The Transparency Podium is suspended, with no dependency on vote history.
 No new paid services, production deploy, deletion, or push activation.
+
+## Read-only production re-audit (8 November 2026, after Draft modifications)
+
+A targeted SELECT confirmed that \`voti_camera\` has 1,474 distinct\n\`politico_nome\` values but **0** filled vote fields, **0** vote dates,\nand **0** ballot IDs. By contrast, every one of the 720\n\`parlamento_voti_nominali\` records belongs to \`camera = 'Senato'\`,\nwith 191 distinct nonblank source-person URIs and five ballot URIs.\nThis correction avoids the incorrect interpretation that \`voti_camera\`\nis itself a 1,474-vote permanent history. Do not drop\n\`voti_camera\` as part of the Senate history cleanup.\n
