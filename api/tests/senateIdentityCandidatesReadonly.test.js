@@ -65,3 +65,21 @@ test('official seven-person selected snapshot is reviewer-only, read-only and do
   assert.doesNotMatch(body,/SELECT\s+[^;]*ps\.user_id\s+AS\s+follower/i);
   assert.match(body,/SELECT selected_office,nome,cognome,representative_id,audit_status/);
 });
+
+
+test('selected-only existing senate official-ID candidate audit stays read-only and cannot approve links',()=>{
+  const sql=fs.readFileSync(path.join(__dirname,
+    '../database/20261108_selected_senate_official_id_candidates_readonly.sql'),'utf8');
+  const body=sql.replace(/--[^\n]*/g,'').replace(/\/\*[\s\S]*?\*\//g,'');
+  assert.doesNotMatch(body,/\b(?:INSERT|UPDATE|DELETE|MERGE|TRUNCATE|DROP|ALTER|CREATE|GRANT|REVOKE|COPY|CALL|DO|EXECUTE)\b/i);
+  assert.match(body,/ps\.political_office_id = 'it.senato'/);
+  assert.match(body,/lower\(follower\.status\) = 'a'/);
+  assert.match(body,/m\.office_code = 'S'/);
+  assert.match(body,/v\.camera = 'Senato'/);
+  assert.match(body,/COUNT\(DISTINCT official_senator_id\)/);
+  assert.match(body,/AMBIGUOUS_SOURCE_PERSON_IDENTITIES/);
+  assert.match(body,/UNVERIFIED_OFFICIAL_ID_CANDIDATE_REVIEW_NAME_DOB_AND_OFFICE/);
+  assert.match(body,/NO_OFFICIAL_PERSON_ID_IN_EXISTING_CACHE/);
+  assert.doesNotMatch(body,/institutional_nominal_identity_links|ON CONFLICT|pg_catalog/i);
+  assert.doesNotMatch(body,/SELECT\s+[^;]*ps\.user_id\s+AS\s+follower/i);
+});
