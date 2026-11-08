@@ -125,3 +125,14 @@ Rimangono obbligatorie QA con dispositivi Android fisici e upgrade dal pacchetto
 4. Solo dopo AdMob pronto, DPO/consenso/Play Data Safety aggiornati e collaudi su veri dispositivi, preparare una **successiva** release AdMob opt-in con IDs reali, firma e controlli Play. Mai considerare l'AAB CI Google TEST pronta per produzione.
 
 **Decisione ancora del titolare:** autorizzazione pubblicazione dopo tutti i gate; non anticipare né approvare implicitamente release o annunci reali. Il calendario di disponibilità pubblica non è determinato da questa indagine.
+
+## Evidenza account AdMob da schermata del titolare — 08/11/2026
+
+Il titolare ha fornito in chat una schermata della **Home Google AdMob autenticata**, con URL `admob.google.com/v2/home`. Dati effettivamente leggibili nella schermata:
+- Percorso iniziale **3/4**; nel riquadro **App → Collegati allo store** è richiesto di collegare l'app a uno store per richiederne la revisione; Google precisa che le app devono essere approvate prima di poter pubblicare annunci.
+- **Pagamenti: «Il tuo profilo pagamenti è completo»** (check verde), indicato come pronto per essere esaminato e approvato. Questo **non** attesta avvenuta revisione fiscale/identità né possibilità di ricevere incassi.
+- **Unità pubblicitarie: «La tua prima unità pubblicitaria è configurata»** (check verde). Questo **non** attesta annunci reali attivi nella AAB né l'approvazione dell'app.
+- Utili stimati visibili 0,00 €. La schermata Home **non mostra** lo stato della verifica crawler `app-ads.txt`, l'eventuale `Ready`/limiti app, il dettaglio della quarta attività né i parametri GDPR/Play Data Safety.
+- È stato constatato da DeskMCP che la scheda Chrome dell'utente è autenticata su AdMob, **ma la UI Automation del contenuto web non fornisce un albero affidabile** e la cattura desktop del browser è nera: dunque non si dichiarano ulteriori controlli interni autonomi. Il browser isolato DeskMCP richiede ancora login indipendente; non prelevare cookie/token della sessione personale.
+
+**Conseguenza:** il dato Home corrobora il blocco **store linking / app readiness**. Le istruzioni ufficiali Google [Set up an app](https://support.google.com/admob/answer/9989980) e [About app readiness](https://support.google.com/admob/answer/10564477?hl=en) escludono il collegamento di app private Google Play: occorre una pagina pubblica e accessibile in uno store supportato. Una volta approvata la release cumulativa **Ads-free** per la pubblicazione dal titolare, eseguire store linking, verifica crawler `app-ads.txt` e revisione AdMob. **Non** pubblicare ora, non dichiarare AdMob `Ready` e non attivare traffico reale.
