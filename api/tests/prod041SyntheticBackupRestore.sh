@@ -56,6 +56,8 @@ actual_hash="$(sha256sum "$scratch/restored.dump" | cut -d' ' -f1)"
 docker exec -i "$cid" pg_restore -l < "$scratch/restored.dump" >/dev/null
 docker exec "$cid" psql -v ON_ERROR_STOP=1 -U demos_test -d postgres \
   -c "CREATE DATABASE prod041_restore_fixture OWNER demos_test" >/dev/null
+docker exec "$cid" psql -v ON_ERROR_STOP=1 -U demos_test -d prod041_restore_fixture \
+  -c "CREATE SCHEMA prod041_rehearsal" >/dev/null
 docker exec -i "$cid" pg_restore -U demos_test -d prod041_restore_fixture \
   --no-owner --no-privileges < "$scratch/restored.dump"
 restored="$(docker exec "$cid" psql -U demos_test -d prod041_restore_fixture -Atc \
