@@ -396,21 +396,22 @@ jobs:
 
             # Test a release-mode upgrade and a fresh install in the SAME isolated
             # package. It cannot touch community.demos or the Play tester build.
-            baseline=client/android/qa-isolated-apks/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk
-            candidate=client/android/qa-isolated-apks/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk
-            test -s "$baseline" && test -s "$candidate"
-            adb install "$baseline"
+            # Emulator runner executes commands in independent shells: no
+            # multi-line shell variables may be relied on in this script.
+            test -s client/android/qa-isolated-apks/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk
+            test -s client/android/qa-isolated-apks/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk
+            adb install client/android/qa-isolated-apks/DEMOS-ADS-FREE-BASELINE-ISOLATED.apk
             adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
             sleep 4
             test -n "$(adb shell pidof community.demos.qaadsrc | tr -d '\r')"
             # The app's data is NOT cleared: this exercises APK replacement.
-            adb install -r "$candidate"
+            adb install -r client/android/qa-isolated-apks/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk
             adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
             sleep 5
             test -n "$(adb shell pidof community.demos.qaadsrc | tr -d '\r')"
             echo 'PASS: isolated Ads-free to TEST-ads RELEASE APK replacement survived'
             adb uninstall community.demos.qaadsrc
-            adb install "$candidate"
+            adb install client/android/qa-isolated-apks/DEMOS-APP-OPEN-TEST-CANDIDATE-ISOLATED.apk
             adb shell am start -W -n community.demos.qaadsrc/community.demos.MainActivity
             sleep 5
             test -n "$(adb shell pidof community.demos.qaadsrc | tr -d '\r')"
