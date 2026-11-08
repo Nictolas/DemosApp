@@ -26,6 +26,8 @@ test('EP workflow correctly watches each relevant test file and runs all identit
     assert.ok(testBlock.includes('api/tests/'+name),'Missing real run for '+name);
   }
   assert.doesNotMatch(paths, /\.test\.js \w+\/\w+\.test\.js/, 'Two source paths improperly combined');
+  assert.ok(paths.includes("'client/src/pages/Rappresentanti/components/CategoriaPrincipale.tsx'"),
+    'EU primary representative tile must trigger Chrome QA');
   assert.match(workflow,/api\/services\/europeanParliamentCurrentOnlyCandidateBridge\.js/);
   assert.match(workflow,/node --check api\/services\/europeanParliamentCurrentOnlyCandidateBridge\.js/);
 });
