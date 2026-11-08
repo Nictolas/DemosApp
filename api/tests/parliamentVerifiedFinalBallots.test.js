@@ -83,6 +83,7 @@ test('only explicit final ballots are eligible in route; existing old nominal ca
   assert.match(route,/votazioni-finali-decisive\/:openpolisId\/voti-nominali/);
   assert.match(route,/WHERE openpolis_id = \$1 AND data_votazione >= CURRENT_DATE/);
   assert.match(route,/res\.status\(503\)/);
+  assert.match(route, /members: data\.members\.map\(/, 'public nominal API must strip political-group metadata');
   assert.match(page,/Vedi voti/);
   assert.match(page,/non il sito istituzionale del Senato/);
   assert.match(page,/Nessun voto viene attribuito/);
