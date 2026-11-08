@@ -7,8 +7,8 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
- * Non-sensitive Capacitor bridge. The production/release manager is a no-op;
- * there is no AdMob SDK, consent collection or ad request in the release APK.
+ * Non-sensitive Capacitor bridge. Standard release is a no-op; only an opted-in
+ * ad-capable candidate has UMP and App Open, guarded by adult/consent checks.
  */
 @CapacitorPlugin(name = "NativeAppOpenPrivacy")
 public class NativeAppOpenPrivacyPlugin extends Plugin {
