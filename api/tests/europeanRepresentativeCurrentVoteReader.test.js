@@ -9,6 +9,7 @@ const row={
   source_person_id:'256900',ballot_id:'MTG-PL-2026-10-22-DEC-199517',
   vote_date:DAY,ballot_order:35,vote:'Favorevole',
   source_url:decisionUrl(DAY),source_type:'pe_ufficiale',
+  identity_evidence_url:'https://data.europarl.europa.eu/person/256900',
   gruppo_politico:'NEVER_EXPOSE'
 };
 const candidate={
@@ -83,4 +84,24 @@ test('unvetted EU identity link rejects current row before external API call',as
     fetchDecisions:async()=>{throw Error('external API must not be called without identity link');}
   }),null);
   assert.equal(requests,1);
+});
+
+
+test('official EU homepage or different profile ID is NOT proof of this person’s identity',async()=>{
+  const wrong=['https://www.europarl.europa.eu/',
+    'https://data.europarl.europa.eu/person/2569000',
+    'https://www.europarl.europa.eu/meps/en/256901/OTHER/home',
+    'https://data.europarl.europa.eu/person/256900?spoof=1',
+    null];
+  for(const evidence of wrong){
+    let network=0;
+    const db={query:async()=>({rows:[{
+      ...row,identity_evidence_url:evidence
+    }]})};
+    const got=await readVerifiedEuropeanCurrentVote(db,UUID,{
+      fetchDecisions:async()=>{network++;return [candidate];}
+    });
+    assert.equal(got,null);
+    assert.equal(network,0,'No outbound API after a failed source-ID identity proof');
+  }
 });
