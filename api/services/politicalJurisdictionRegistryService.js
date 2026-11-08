@@ -196,6 +196,13 @@ function getOpinionGradeForOffice(value, context = {}) {
   return resolvePoliticalOffice(value, context)?.opinionGrade || null;
 }
 
+// The provincial councils reuse published C-grade IDs for matching, without
+// creating a universally selectable provincial opinion scope or new answers.
+function getMatchingOpinionGradeForOffice(value, context = {}) {
+  const office = resolvePoliticalOffice(value, context);
+  return office?.matchingOpinionGrade || office?.opinionGrade || null;
+}
+
 function getPodiumLevels({ adapterId = LEGACY_DEFAULT_ADAPTER_ID } = {}) {
   return [...new Set(adapterOffices(adapterId).map((office) => office.podiumLevel).filter(Boolean))];
 }
@@ -239,6 +246,25 @@ function validatePoliticalRegistry() {
     if (!JURISDICTIONS[office.jurisdictionId]) errors.push(`OFFICE_JURISDICTION_UNKNOWN:${office.id}:${office.jurisdictionId}`);
     if (office.opinionGrade && !resolveOpinionScope(office.opinionGrade, { adapterId: office.adapterId })) {
       errors.push(`OFFICE_OPINION_SCOPE_UNKNOWN:${office.id}:${office.opinionGrade}`);
+    }
+    // Canonical provincial offices must never become selectable without a
+    // bounded residence allowlist and an existing opinion matching catalogue.
+    if (office.id.startsWith('it.provincial.')) {
+      if (office.residenceScope !== TERRITORY_SCOPES.PROVINCE ||
+          !Array.isArray(office.eligibleProvinceCodes) ||
+          office.eligibleProvinceCodes.length === 0 ||
+          office.eligibleProvinceCodes.some((code) => typeof code !== 'string' || !code.trim())) {
+        errors.push(`PROVINCIAL_ELIGIBILITY_INCOMPLETE:${office.id}`);
+      }
+      if (office.legacyRepresentativeField || office.legacyCandidateField) {
+        errors.push(`PROVINCIAL_LEGACY_FIELD_FORBIDDEN:${office.id}`);
+      }
+      if (office.opinionGrade || office.matchingOpinionGrade !== 'C') {
+        errors.push(`PROVINCIAL_MATCHING_GRADE_INVALID:${office.id}`);
+      }
+      if (office.derivedRegionalOfficeId !== 'it.regional') {
+        errors.push(`PROVINCIAL_REGIONAL_DERIVATION_INVALID:${office.id}`);
+      }
     }
     for (const field of [office.legacyRepresentativeField, office.legacyCandidateField]) {
       if (!field) continue;
@@ -298,6 +324,7 @@ module.exports = {
   getSelectionFieldContract,
   getLegacySelectionFieldsForElectionType,
   getOpinionGradeForOffice,
+  getMatchingOpinionGradeForOffice,
   getPodiumLevels,
   getPodiumLevelByScope,
   buildOfficePodiumCaseSql,

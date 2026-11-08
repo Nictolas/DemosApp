@@ -22,7 +22,10 @@ test('canonical political selections retain the configurable civic identity gate
   assert.match(read('api/routes/opinioni/user-answers.js'), /router\.post\('\/salva',\s*verifyToken/);
   assert.match(read('api/routes/candidati.js'), /router\.put\('\/seleziona-candidato',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
   assert.match(read('api/routes/users/profile.js'), /router\.put\('\/:userId\/seleziona-rappresentante',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
-  assert.match(read('api/routes/users/profile.js'), /router\.put\('\/:userId\/political-selection',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
+  // An early no-store middleware is allowed, but the auth and civic identity
+  // checks must still run on the same political-selection endpoint.
+  assert.match(read('api/routes/users/profile.js'), /router\.put\('\/:userId\/political-selection',[\s\S]{0,600}verifyToken,\s*requireVerifiedCivicIdentity/);
+  assert.match(read('api/routes/users/profile.js'), /router\.put\('\/:userId\/political-selection',[\s\S]{0,600}Cache-Control/);
   assert.match(read('api/routes/rappresentanti.js'), /router\.post\('\/',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
 });
 

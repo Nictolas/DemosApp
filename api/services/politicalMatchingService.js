@@ -17,11 +17,21 @@ async function getOpinionMapsByUserId(pool, userIds, opinionIds) {
     return maps;
   }
 
-  // Niente cast sulla colonna: PostgreSQL può usare l'indice di user_id.
+  // Keep the user_id index usable; match candidates and the requester in
+  // one SQL snapshot. Missing/revoked consent must not resurrect old answers.
+  // Project only the grade's public catalog IDs; never transfer unrelated
+  // political answers or service fields to the matching process.
+  const columns = opinionIds.map((id) => {
+    if (!/^[a-z0-9_]+$/.test(id)) throw new Error('Invalid opinion catalog ID');
+    return `r."${id}"`;
+  }).join(', ');
   const result = await pool.query(
-    `SELECT *
-     FROM opinioni_risposte
-     WHERE user_id = ANY($1)`,
+    `SELECT r.user_id, ${columns}
+     FROM opinioni_risposte r
+     JOIN users u ON u.id = r.user_id
+     LEFT JOIN user_consents uc ON uc.user_id = u.id
+     WHERE r.user_id = ANY($1)
+       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`,
     [ids]
   );
 

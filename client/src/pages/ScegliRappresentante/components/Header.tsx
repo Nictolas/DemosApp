@@ -13,6 +13,8 @@ export const Header: React.FC<HeaderProps> = ({ categoria }) => {
       case "senato": return "Senato";
       case "regione": return "Regione";
       case "comune": return "Comune";
+      case "provinciale-trento": return "Provinciale di Trento";
+      case "provinciale-bolzano": return "Provinciale di Bolzano";
       default: return "";
     }
   };

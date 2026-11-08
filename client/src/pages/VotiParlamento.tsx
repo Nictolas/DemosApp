@@ -8,6 +8,7 @@ import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import { PageContainer } from "@/components/PageContainer";
+import VotazioniFinaliOpenpolis from "@/components/VotazioniFinaliOpenpolis";
 import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles, Users, CheckCircle2, XCircle, MinusCircle, User, Info, Eye, TrendingUp, TrendingDown, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -284,8 +285,10 @@ export default function VotiParlamento() {
 
   const votazioniCamera: VotazioneParlamento[] = data?.camera || [];
   const votazioniSenato: VotazioneParlamento[] = data?.senato || [];
-  const combinedCamera: VotazioneParlamento[] = data?.combined?.camera || [];
-  const combinedSenato: VotazioneParlamento[] = data?.combined?.senato || [];
+  // Never present matches based only on the same date and chamber as the same vote.
+  // The existing combined endpoint does not verify an identical vote identifier.
+  const combinedCamera: VotazioneParlamento[] = [];
+  const combinedSenato: VotazioneParlamento[] = [];
 
   // Per le due sotto-colonne: più recente da SPARQL e più recente da Openpolis
   const senatoSparql = votazioniSenato.find((v) => (v as { source?: string }).source !== "openpolis");
@@ -439,6 +442,8 @@ export default function VotiParlamento() {
           </Button>
         </div>
 
+        <VotazioniFinaliOpenpolis />
+
         {/* Error Alert */}
         {error && (
           <Alert variant="destructive" className="mb-6">
@@ -571,7 +576,7 @@ export default function VotiParlamento() {
                       ) : (
                         <Card className="border-amber-200 border-dashed">
                           <CardContent className="py-6 text-center text-sm text-muted-foreground">
-                            Non siamo riusciti a combinare i dati per il Senato (nessun abbinamento per data e camera tra SPARQL e Openpolis).
+                            Abbinamento SPARQL + Openpolis disattivato finché non è verificata l’identità della votazione.
                           </CardContent>
                         </Card>
                       )}
@@ -674,7 +679,7 @@ export default function VotiParlamento() {
                       ) : (
                         <Card className="border-amber-200 border-dashed">
                           <CardContent className="py-6 text-center text-sm text-muted-foreground">
-                            Non siamo riusciti a combinare i dati per la Camera (nessun abbinamento per data e camera tra SPARQL e Openpolis).
+                            Abbinamento SPARQL + Openpolis disattivato finché non è verificata l’identità della votazione.
                           </CardContent>
                         </Card>
                       )}

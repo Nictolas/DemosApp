@@ -4,9 +4,10 @@ const { pool } = require('../middleware/auth');
 const { listElectionEvents, listRelevantElectionEvents } = require('../services/electionEventService');
 const { listEligibleCandidates } = require('../services/politicalEligibilityService');
 const { buildPoliticalMatches } = require('../services/politicalMatchingService');
+const { isPoliticalOfficeVisible } = require('../services/politicalSelectionService');
 const {
   resolvePoliticalOffice,
-  getOpinionGradeForOffice,
+  getMatchingOpinionGradeForOffice,
   getLegacySelectionDescriptors,
 } = require('../services/politicalJurisdictionRegistryService');
 
@@ -65,8 +66,12 @@ router.get(['/disponibili', '/elezioni-utente/disponibili'], verifyToken, async 
       });
     }
 
+    if (!isPoliticalOfficeVisible(office)) {
+      return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
+    }
+
     const eligibility = await listEligibleCandidates(pool, req.userId, candidateGrade);
-    const opinionGrade = getOpinionGradeForOffice(candidateGrade) || candidateGrade;
+    const opinionGrade = getMatchingOpinionGradeForOffice(candidateGrade) || candidateGrade;
     const matching = await buildPoliticalMatches({
       pool,
       userId: req.userId,

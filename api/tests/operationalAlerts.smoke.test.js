@@ -11,6 +11,12 @@ const logger = read('api/services/centralizedLogger.js');
 const notifications = read('api/services/notificationService.js');
 const app = read('api/app.js');
 
+test('notification title must not bypass recipient-level ownership', () => {
+  const feed = read('api/routes/notifiche.js');
+  assert.doesNotMatch(feed, /WHERE \(titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = \$1::uuid\)/,
+    'titles cannot bypass recipient-level ownership');
+});
+
 test('operational alerts target Admin capability with legacy fallback only', () => {
   assert.match(service, /columnExists\('users', 'is_admin'\)/);
   assert.match(service, /COALESCE\(is_admin, FALSE\) = TRUE/);
