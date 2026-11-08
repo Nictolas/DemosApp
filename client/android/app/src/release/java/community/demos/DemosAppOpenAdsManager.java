@@ -7,7 +7,7 @@ package community.demos;
 final class DemosAppOpenAdsManager {
     DemosAppOpenAdsManager(MainActivity activity) {}
     void onCreate() {}
-    void setAdultEligible(boolean confirmedAdult) {} // No SDK or ads in release.
+    void setAdultEligible(boolean confirmedAdult, boolean revalidateSession) {} // No SDK or ads in release.
     boolean arePrivacyOptionsRequired() { return false; }
     void showPrivacyOptions(Runnable onSuccess, Runnable onError) { onError.run(); }
     void onResume() {}
