@@ -316,6 +316,31 @@ async function main(){
     assert.equal((await read()).rows.length,1);
     assert.equal((await read()).rows[0].camera,'Senato');
 
+    // Genuine Camera official source roster contains 397 names but no person
+    // links. Only a separately vetted official-ID bridge may attribute a
+    // name-only row, and the current vote must still be keyed by stable UUID.
+    const unlinkedCamera=finalVote('vs19_739_14','2026-11-05','Camera');
+    const unlinkedVerified={...verified(unlinkedCamera),
+      members: members.map(m=>({...m,sourcePersonId:null}))};
+    const vettedReps=reps.map(r=>({...r,
+      evidence_url:'https://www.camera.it/deputati/scheda-verificata'}));
+    const noLinkResult=await persistLatestForChamber(pool,unlinkedCamera,
+      unlinkedVerified,vettedReps);
+    assert.equal(noLinkResult.changed,1,'vetted official identity can support Camera name-only official roster');
+    const cameraVetted=(await pool.query(
+      "SELECT institution,source_person_id,ballot_id FROM public.institutional_current_nominal_votes WHERE representative_key=$1",
+      ['demos:'+rep]
+    )).rows;
+    assert.equal(cameraVetted.length,1,'no second row after returning to Camera');
+    assert.equal(cameraVetted[0].source_person_id,'https://documenti.camera.it/deputato/fixture-maria');
+    assert.equal(cameraVetted[0].ballot_id,unlinkedCamera.openpolis_id);
+    const spoofed=await persistLatestForChamber(pool,finalVote('vs19_739_15','2026-11-06'),
+      {...unlinkedVerified,voteId:'vs19_739_15',date:'2026-11-06'},
+      vettedReps.map(r=>({...r,evidence_url:'https://unverified.example/deputati/123'})));
+    assert.equal(spoofed.changed,0,'untrusted evidence cannot link a name-only Camera vote');
+    assert.equal((await pool.query("SELECT count(*)::int n FROM public.institutional_current_nominal_votes WHERE representative_key=$1",
+      ['demos:'+rep])).rows[0].n,1);
+
     // Orchestration disabled means no DB writes even when this table exists.
     delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
     assert.equal((await refreshLatestParliamentVoteNotifications(pool)).enabled,false);
