@@ -47,6 +47,26 @@ WITH selected AS (
    )
 )
 SELECT s.political_office_id, s.representative_id, u.nome, u.cognome,
-       'PENDING_INDEPENDENT_OFFICIAL_ID_REVIEW'::text AS review_status
+       CASE WHEN EXISTS (
+         -- Existing issue #396: same name+DOB in two legacy C/S user IDs.
+         -- A migration-created ACTIVE mandate is not office verification.
+         SELECT 1 FROM public.users other_user
+         JOIN public.political_mandates other_m ON other_m.user_id=other_user.id
+         WHERE other_user.id<>u.id AND u.data_nascita IS NOT NULL
+           AND other_user.data_nascita=u.data_nascita
+           AND lower(trim(other_user.nome))=lower(trim(u.nome))
+           AND lower(trim(other_user.cognome))=lower(trim(u.cognome))
+           AND other_m.office_code=CASE WHEN s.political_office_id='it.camera' THEN 'S' ELSE 'C' END
+           AND other_m.status='ACTIVE' AND other_m.source='LEGACY_BACKFILL'
+           AND other_m.starts_at<=now() AND (other_m.ends_at IS NULL OR other_m.ends_at>now())
+           AND EXISTS (
+             SELECT 1 FROM public.political_mandates own_m
+             WHERE own_m.user_id=u.id AND own_m.status='ACTIVE'
+               AND own_m.source='LEGACY_BACKFILL'
+               AND own_m.office_code=CASE WHEN s.political_office_id='it.camera' THEN 'C' ELSE 'S' END
+               AND own_m.starts_at<=now() AND (own_m.ends_at IS NULL OR own_m.ends_at>now())
+           )
+       ) THEN 'QUARANTINED_CROSS_CHAMBER_LEGACY_DUPLICATE'
+       ELSE 'PENDING_INDEPENDENT_OFFICIAL_ID_REVIEW' END AS review_status
 FROM selected s JOIN public.users u ON u.id=s.representative_id
 ORDER BY s.political_office_id, u.cognome, u.nome;
