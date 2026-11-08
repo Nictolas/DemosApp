@@ -11,6 +11,7 @@ on:
       - 'api/tests/europeanCurrentNominalVoteAdapter.test.js'
       - 'api/database/20261108_institutional_current_nominal_votes.sql'
       - 'api/database/20261108_institutional_nominal_identity_links.sql'
+      - 'api/database/20261108_latest_parliament_notifications_one_per_rep.sql'
       - 'api/tests/institutionalCurrentNominalVotes.test.js'
       - 'api/services/parliamentFinalBallotPushService.js'
       - 'api/tests/parliamentFinalBallotPush.test.js'
