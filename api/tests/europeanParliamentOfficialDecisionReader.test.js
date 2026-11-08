@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  decisionUrl,parseOfficialDecisionBallots,selectLatestFinalRollCall,
+  decisionUrl,parseOfficialDecisionBallots,selectLatestFinalRollCall,joinOfficialAgendaSubjects,
   fetchOfficialDecisionBallots
 } = require('../services/europeanParliamentOfficialDecisionReader');
 
@@ -91,11 +91,31 @@ test('real EP final-vote labels from 2026 qualify, while amendments do not',()=>
   assert.doesNotMatch(result.find(x=>x.voteId.endsWith('199517')).subject,/Gruppi parlamentari/);
 });
 
+test('exact official agenda join adds a readable subject, never matches similar decision IDs',()=>{
+  const decision = parseOfficialDecisionBallots(body(rec()),DAY);
+  const joined = joinOfficialAgendaSubjects(decision,body({
+    activity_label:{it:'Oggetto reale della risoluzione'},
+    consists_of:['eli/dl/event/MTG-PL-2026-10-22-DEC-199569',
+                 'eli/dl/event/MTG-PL-2026-10-22-DEC-1995699']
+  }));
+  assert.match(joined[0].subject,/Oggetto reale della risoluzione/);
+  assert.equal(joinOfficialAgendaSubjects(decision,body({
+    activity_label:{it:'Altra risoluzione'},
+    consists_of:['eli/dl/event/MTG-PL-2026-10-22-DEC-1995699']
+  }))[0].subject,decision[0].subject);
+});
+
 test('cache and concurrent deduplication are in-memory only',async()=>{
   let calls=0;
-  const client={get:async()=>{calls++;return {status:200,data:body(rec())}}};
+  const client={get:async url=>{
+    calls++;
+    return {status:200,data:url.endsWith('/decisions') ? body(rec()) :
+      body({activity_label:{it:'Oggetto testato'},
+        consists_of:['eli/dl/event/MTG-PL-2026-10-22-DEC-199569']})};
+  }};
   const [a,b]=await Promise.all([fetchOfficialDecisionBallots(DAY,client),fetchOfficialDecisionBallots(DAY,client)]);
-  assert.equal(calls,1);
+  assert.equal(calls,2);
+  assert.match(a[0].subject,/Oggetto testato/);
   assert.equal(a.length,1);
   assert.equal(b.length,1);
 });
