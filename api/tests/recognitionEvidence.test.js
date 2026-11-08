@@ -15,6 +15,10 @@ test('rejects non-HTTPS, local, private-IP, credentials, and malformed URLs', ()
     'https://localhost/x', 'https://server.local/x',
     'https://127.0.0.1/path', 'https://192.168.1.1/path',
     'https://[::1]/', 'https://alice:password@www.comune.pisa.it/',
+    'https://127.1/path', 'https://[::ffff:127.0.0.1]/private',
+    'https://192.168.1.1/', 'https://10.0.0.5/', 'https://172.16.0.2/',
+    'https://server.internal/', 'https://intranet.lan/',
+    'https://server.test/', 'https://server.invalid/', 'https://server.example/',
     'not an URL', 'https://localhost.evil.local/'
   ]) {
     assert.equal(validateEvidenceUrl(url), null, url);

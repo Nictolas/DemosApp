@@ -23,14 +23,28 @@ const isIneligibleCandidate = (name) => INELIGIBLE_CANDIDATE_NAMES.has(normalize
 // GET /api/capo-stato - Lista candidati capo di stato con classifica voti
 router.get('/', async (req, res) => {
   try {
-    // Query per ottenere la classifica dei candidati basata sui voti ricevuti
+    // Una sola lettura aggregata: conserva i candidati legacy e rende visibili
+    // i soggetti approvati dall'Admin anche prima del primo voto.
+    // Richiede la migrazione DRAFT capo_stato_soggetti_approvati prima del deploy.
     const classificaQuery = `
-      SELECT
-        nome,
-        COUNT(*) as voti
-      FROM voti_capo_stato
-      GROUP BY nome
-      ORDER BY voti DESC, nome ASC
+      WITH conteggi AS (
+        SELECT nome, COUNT(*) AS voti FROM voti_capo_stato GROUP BY nome
+      ), catalogo AS (
+        SELECT nome FROM conteggi
+        UNION
+        SELECT nome FROM capo_stato_soggetti_approvati WHERE active = true
+      )
+      SELECT catalogo.nome, COALESCE(conteggi.voti, 0) AS voti
+      FROM catalogo LEFT JOIN conteggi ON conteggi.nome = catalogo.nome
+      -- Historical votes are retained, but a withdrawn nomination must
+      -- never reappear via the legacy vote-derived candidate list.
+      WHERE NOT EXISTS (
+        SELECT 1 FROM subject_proposals p
+        WHERE p.category = 'capo_stato' AND p.status = 'withdrawn'
+          AND lower(btrim(regexp_replace(normalize(p.title, NFC), '[[:space:]]+', ' ', 'g')))
+            = lower(btrim(regexp_replace(normalize(catalogo.nome, NFC), '[[:space:]]+', ' ', 'g')))
+      )
+      ORDER BY voti DESC, catalogo.nome ASC
     `;
 
     const classificaResult = await pool.query(classificaQuery);
@@ -185,6 +199,37 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
         success: false,
         error: 'Puoi selezionare al massimo 1 candidato per Capo di Stato'
       });
+    }
+
+    // Il voto non può creare nomi nuovi: ammette solo candidati legacy o
+    // nuove voci già approvate dall'Admin nel catalogo dedicato.
+    if (voti.length === 1) {
+      if (typeof voti[0] !== 'string' || !voti[0].trim() || voti[0].length > 160) {
+        return res.status(400).json({ success: false, error: 'Nome candidato non valido' });
+      }
+      const allowed = await pool.query(
+        `SELECT 1 WHERE (
+          EXISTS (SELECT 1 FROM voti_capo_stato WHERE nome = $1)
+          OR EXISTS (SELECT 1 FROM capo_stato_soggetti_approvati
+                     WHERE active = true AND nome = $1)
+        )
+        -- Legacy votes alone must never authorize a re-vote of a withdrawn
+        -- subject. Match the same Unicode/space canonicalization as the
+        -- protected proposal title index.
+        AND NOT EXISTS (
+          SELECT 1 FROM subject_proposals p
+          WHERE p.category = 'capo_stato' AND p.status = 'withdrawn'
+            AND lower(btrim(regexp_replace(normalize(p.title, NFC), '[[:space:]]+', ' ', 'g')))
+              = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g')))
+        )`,
+        [voti[0]]
+      );
+      if (!allowed.rows.length) {
+        return res.status(422).json({
+          success: false,
+          error: 'Candidato non presente nel catalogo attuale. Le nuove proposte richiedono approvazione.',
+        });
+      }
     }
 
     const isAdmin = Boolean(req.user?.isAdmin);

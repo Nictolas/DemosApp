@@ -1,56 +1,183 @@
 const express = require('express');
+const { randomUUID } = require('crypto');
+const { validateEvidenceUrl } = require('../utils/recognitionEvidence');
+const { isGraziaNominationWriteEnabled, rejectUnavailableNomination } = require('../utils/thirdPartyNominationGate');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 
 const router = express.Router();
+// Apply the same display-safety rule to nomination labels and private vote input.
+const unsafeNameControls = /[\u0000-\u001f\u007f-\u009f\u00ad\u034f\u061c\u180e\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
 
-// POST /api/grazia - Crea richiesta di grazia
-router.post('/', verifyToken, validateInput(['nome_carcerato', 'motivo']), async (req, res) => {
+// Cache only a validated pair of schema column names, never user data.
+// One metadata lookup per worker/schema version instead of once per viewer.
+// A rejected lookup is not cached; an undefined-column query triggers re-probe.
+let voteColumnsPromise = null;
+function getGraziaVoteColumns() {
+  if (!voteColumnsPromise) {
+    voteColumnsPromise = pool.query(
+      "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='voti_grazia'"
+    ).then(result => {
+      const columns = new Map(result.rows.map(row => [row.column_name, row.data_type]));
+      const user = columns.has('userid') ? 'userid' : columns.has('user_id') ? 'user_id' : null;
+      const date = ['timestamp', 'data_voto', 'created_at'].find(name => columns.has(name));
+      // In production, a missing ID column or unrecognized type must not
+      // cause a personal vote to be written using a guessed schema.
+      const idType = columns.get('id');
+      // Reading existing preferences does not need an ID column at all.
+      // Validate its type only when a personal vote will be written.
+      if (!user || !date) throw new Error('GRAZIA_VOTE_SCHEMA_UNRECOGNIZED');
+      return { user, date, idType };
+    }).catch(error => {
+      voteColumnsPromise = null;
+      throw error;
+    });
+  }
+  return voteColumnsPromise;
+}
+
+// Prevent browser/CDN caching of political selections and third-party proposals.
+const personalNoStore = (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+};
+
+// POST /api/grazia - Registra una proposta privata, mai direttamente nel catalogo
+router.post('/', personalNoStore, verifyToken, async (req, res) => {
+  // Store the same NFC / collapsed-whitespace identity that duplicate checks compare.
+  // This prevents distinct-looking Admin entries and multiline name artifacts.
+  const nome = typeof req.body?.nome === 'string'
+    ? req.body.nome.normalize('NFC').trim().replace(/\s+/gu, ' ')
+    : '';
+  const urlProva = typeof req.body?.urlProva === 'string' ? req.body.urlProva.trim() : '';
+  // Reject invisible control and bidirectional-override characters before SQL.
+  // They can make a nominated person's visible name differ from the stored key,
+  // defeating human moderation without changing the displayed characters.
+
+  if (nome.length < 3 || nome.length > 160 || unsafeNameControls.test(nome)) {
+    return res.status(400).json({ success: false, error: 'Nome non valido (3-160 caratteri)' });
+  }
+  // Accettiamo solo link a fonti HTTPS pubbliche; mai copia di sentenze o allegati.
+  // No fetch is performed. Reject private/loopback URLs before persistence
+  // so moderators only receive plausible publicly accessible sources.
+  if (urlProva.length > 2000 || !validateEvidenceUrl(urlProva)) {
+    return res.status(400).json({ success: false, error: 'Inserisci un collegamento HTTPS pubblico valido' });
+  }
+  if (!isGraziaNominationWriteEnabled()) return rejectUnavailableNomination(res);
+  const userId = req.user.id;
+  let client;
   try {
-    const { nome_carcerato, motivo } = req.body;
-    const userId = req.userId;
-
-    const query = `
-      INSERT INTO richieste_grazia (utente_id, nome_carcerato, motivo, stato, created_at)
-      VALUES ($1, $2, $3, 'in_attesa', NOW())
-      RETURNING *
-    `;
-
-    const result = await pool.query(query, [userId, nome_carcerato, motivo]);
-
-    res.json({
-      success: true,
-      richiesta: result.rows[0]
+    client = await pool.connect();
+    await client.query('BEGIN');
+    // Serializza gli invii concorrenti dello stesso account: max una pendente.
+    // The JWT/auth cache may outlive account suspension. Re-check active
+    // status under the existing user-row lock before persisting a nomination.
+    const owner = await client.query(
+      "SELECT id FROM users WHERE id = $1 AND status = 'a' FOR UPDATE", [userId]
+    );
+    if (!owner.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(401).json({ success: false, error: 'Utente non trovato' });
+    }
+    const pending = await client.query(
+      "SELECT id FROM richieste_grazia WHERE utente_id = $1 AND status = 'pending' LIMIT 1",
+      [userId]
+    );
+    if (pending.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'Hai già una proposta di Grazia in attesa' });
+    }
+    // Requests from distinct users need the same per-name transaction lock.
+    // The per-user row lock above protects only that user's pending slot.
+    // A stable, canonical name key serializes parallel submissions without
+    // exposing a third-party name in logs or adding a second queue.
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtextextended(lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))), 12004))",
+      [nome]
+    );
+    const alreadyProposed = await client.query(
+      "SELECT id FROM richieste_grazia WHERE status IN ('pending','approved') AND withdrawn_at IS NULL AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) LIMIT 1",
+      [nome]
+    );
+    if (alreadyProposed.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({success:false,error:'Questo soggetto è già stato proposto'});
+    }
+    // A withdrawn person cannot be re-proposed automatically by another user.
+    // Keep the original Grazia request as the only audit record.
+    const retired = await client.query(
+      "SELECT 1 FROM richieste_grazia WHERE withdrawn_at IS NOT NULL AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) LIMIT 1",
+      [nome]
+    );
+    if (retired.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({success:false,error:'Soggetto non riproponibile'});
+    }
+    const duplicate = await client.query(
+      "SELECT id FROM grazia_carcerati WHERE lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) LIMIT 1", [nome]
+    );
+    if (duplicate.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'Questo soggetto è già presente' });
+    }
+    const id = randomUUID();
+    await client.query(
+      "INSERT INTO richieste_grazia (id, utente_id, nome, url_prova, status, data_creazione) VALUES ($1,$2,$3,$4,'pending',NOW())",
+      [id, userId, nome, urlProva]
+    );
+    // Commit the proposal before any best-effort notification. A push/inbox
+    // outage must not erase an already validated and accepted request.
+    await client.query('COMMIT');
+    // Release before acquiring another pool connection for the best-effort
+    // notice. In a pool with max=1, retaining it could block the HTTP reply.
+    client.release();
+    client = null;
+    // Lock the active Admin recipient rows against a simultaneous suspension.
+    // A plain SELECT could insert an inbox notice during an uncommitted status UPDATE.
+    let notificationSent = false;
+    try {
+      const notice = await pool.query(
+        "INSERT INTO notifiche_demos (id, id_utente, titolo, testo, data_creazione, data) SELECT gen_random_uuid(), id, 'DEMOS — Nuova proposta', 'Una proposta Grazia è in attesa di revisione.', NOW(), CURRENT_DATE FROM users WHERE is_admin = true AND status = 'a' FOR SHARE"
+      );
+      // INSERT ... SELECT can succeed with zero rows when no Admin is active.
+      // Do not report a notification that was never inserted.
+      notificationSent = (notice.rowCount || 0) > 0;
+    } catch {
+      console.error('Grazia admin notification unavailable after commit');
+    }
+    return res.status(202).json({
+      success: true, richiesta: { id, status: 'pending' }, notification_sent: notificationSent
     });
   } catch (error) {
-    console.error('❌ Errore nella creazione richiesta grazia:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nella creazione richiesta grazia'
-    });
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    return res.status(500).json({ success: false, error: 'Impossibile registrare la proposta' });
+  } finally {
+    if (client) client.release();
   }
 });
 
 // GET /api/grazia - Ottieni richieste di grazia
-router.get('/', async (req, res) => {
+router.get('/', personalNoStore, async (req, res) => {
   try {
-    console.log('🔍 DEBUG: Chiamata endpoint /api/grazia');
 
     // Recupera userId se autenticato (opzionale)
     let userId = null;
-    if (req.headers.authorization) {
+    // Public ranking stays anonymous. Only a validated access token may
+    // unlock private votes. OAuth-pending tokens share the access secret,
+    // whereas refresh tokens have a separate secret; neither is a session.
+    const authHeader = req.headers.authorization;
+    if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
       try {
-        const jwt = require('jsonwebtoken');
-        const token = req.headers.authorization.replace('Bearer ', '');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        userId = decoded.userId;
-        console.log(`🔍 DEBUG: Utente autenticato: ${userId}`);
-      } catch (authError) {
-        console.log('⚠️ Token non valido o assente, continuando senza autenticazione');
+        const { verifyAccessToken } = require('../utils/jwt');
+        const decoded = verifyAccessToken(authHeader.slice(7));
+        userId = decoded.userId || decoded.sub || decoded.id || null;
+      } catch {
+        // Invalid/non-access token: retain only the anonymous public feed.
       }
     }
 
@@ -59,94 +186,57 @@ router.get('/', async (req, res) => {
 
     // La classifica include anche i carcerati inseriti dagli amministratori,
     // senza attribuire loro voti fittizi. Il catalogo è separato dalle preferenze.
-    const classificaQuery = `
-      WITH voti_per_nome AS (
-        SELECT BTRIM(nome) AS nome, COUNT(*)::bigint AS richieste
-        FROM voti_grazia
-        WHERE nome IS NOT NULL AND LENGTH(BTRIM(nome)) > 0
-        GROUP BY BTRIM(nome)
-      ), classificati AS (
-        SELECT v.nome, v.richieste
-        FROM voti_per_nome v
-        WHERE NOT EXISTS (
-          SELECT 1 FROM grazia_carcerati c
-          WHERE LOWER(BTRIM(c.nome)) = LOWER(v.nome) AND c.attivo = false
-        )
-        UNION ALL
-        SELECT nome, 0::bigint AS richieste
-        FROM grazia_carcerati
-        WHERE attivo = true
-      )
-      SELECT nome, SUM(richieste)::integer AS richieste
-      FROM classificati
-      GROUP BY nome
-      ORDER BY richieste DESC, nome ASC
-    `;
-
+    // Solo i soggetti esplicitamente approvati sono visibili; i voti legacy
+    // restano conservati per riconciliazione, ma non pubblicano nuove persone.
+    const classificaQuery =
+      'SELECT c.nome, COUNT(v.id)::integer AS richieste FROM grazia_carcerati c ' +
+      "LEFT JOIN voti_grazia v ON lower(btrim(regexp_replace(normalize(v.nome, NFC), '[[:space:]]+', ' ', 'g'))) = " +
+      "lower(btrim(regexp_replace(normalize(c.nome, NFC), '[[:space:]]+', ' ', 'g'))) " +
+      'WHERE c.attivo = true GROUP BY c.id, c.nome ORDER BY richieste DESC, c.nome ASC';
     const classificaResult = await pool.query(classificaQuery);
-    console.log(`✅ Classifica creata con ${classificaResult.rows.length} carcerati`);
 
     // Recupera i voti dell'utente se autenticato
     let mieiVoti = [];
     let blocco = { isBlocked: false, unlockDate: null };
     if (userId) {
       try {
-        // Rileva la struttura della tabella per capire quale colonna usare
-        let userIdColumn = 'user_id';
-        let timestampColumn = 'timestamp';
-
-        try {
-          const tableInfoQuery = `
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns
-            WHERE LOWER(table_name) = 'voti_grazia'
-            ORDER BY ordinal_position
-          `;
-          const tableInfo = await pool.query(tableInfoQuery);
-
-          const columns = tableInfo.rows.map(r => r.column_name);
-          const hasUserId = columns.includes('user_id');
-          const hasUserid = columns.includes('userid');
-          userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'user_id' : 'user_id');
-
-          // Rileva quale colonna timestamp usare
-          if (columns.includes('timestamp')) {
-            timestampColumn = 'timestamp';
-          } else if (columns.includes('data_voto')) {
-            timestampColumn = 'data_voto';
-          } else if (columns.includes('created_at')) {
-            timestampColumn = 'created_at';
-          }
-
-          console.log(`🔍 DEBUG GET - Colonna userId usata: ${userIdColumn}, timestamp: ${timestampColumn}`);
-        } catch (tableInfoError) {
-          console.log('⚠️ DEBUG GET - Impossibile rilevare struttura tabella, uso default:', tableInfoError.message);
-        }
-
+        const { user: userIdColumn, date: timestampColumn } = await getGraziaVoteColumns();
+        // Check both active-account status and political consent in the SAME vote query.
+        // Signed tokens can outlive account suspension, deletion or consent revocation; those users
+        // must not receive old personal choices or cooldown even if cleanup is delayed.
+        // LEFT JOIN preserves the valid empty-vote case (and its cooldown).
         const mieiVotiQuery = `
-          SELECT nome
-          FROM voti_grazia
-          WHERE ${userIdColumn} = $1
-          ORDER BY ${timestampColumn} DESC
+          SELECT owner.active, vote.nome,
+                 MAX(vote.${timestampColumn}) OVER () AS last_changed_at
+          FROM (SELECT EXISTS(
+            SELECT 1 FROM users u
+            LEFT JOIN user_consents uc ON uc.user_id = u.id
+            WHERE u.id::text = $2 AND u.status = 'a'
+              AND COALESCE(uc.political_opinions_consent,
+                           u.political_opinions_consent, false) = TRUE
+          ) AS active) owner
+          LEFT JOIN LATERAL (
+            SELECT nome, ${timestampColumn}
+            FROM voti_grazia
+            WHERE ${userIdColumn} = $1
+          ) vote ON owner.active
+          ORDER BY vote.${timestampColumn} DESC NULLS LAST
         `;
-        const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
-        mieiVoti = mieiVotiResult.rows.map(row => row.nome);
-        console.log(`✅ Recuperati ${mieiVoti.length} voti per utente ${userId} usando colonna ${userIdColumn}`);
-
-        const lastChangeResult = await pool.query(
-          `SELECT MAX(${timestampColumn}) AS last_changed_at FROM voti_grazia WHERE ${userIdColumn} = $1`,
-          [userId]
-        );
-        const cooldown = await getPreferenceCooldown(pool, {
-          userId,
-          scope: 'grazia:preferenza',
-          fallbackChangedAt: lastChangeResult.rows[0]?.last_changed_at || null
-        });
-        blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
+        const mieiVotiResult = await pool.query(mieiVotiQuery, [userId, String(userId)]);
+        if (mieiVotiResult.rows[0]?.active === true) {
+          mieiVoti = mieiVotiResult.rows
+            .map(row => row.nome).filter(nome => typeof nome === 'string');
+          const cooldown = await getPreferenceCooldown(pool, {
+            userId,
+            scope: 'grazia:preferenza',
+            fallbackChangedAt: mieiVotiResult.rows[0]?.last_changed_at || null
+          });
+          blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
+        }
       } catch (error) {
-        console.error('⚠️ Errore nel recuperare voti utente:', error);
-        console.error('⚠️ Stack trace:', error.stack);
-        // Continua senza voti utente
+        // A schema migration may have renamed a previously cached column.
+        // Do not cache a failed mapping or log tokens, user IDs or votes.
+        if (error?.code === '42703') voteColumnsPromise = null;
       }
     }
 
@@ -158,33 +248,6 @@ router.get('/', async (req, res) => {
       blocco
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare richieste grazia:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare richieste grazia',
-      details: error.message
-    });
-  }
-});
-
-// GET /api/grazia/richieste - Ottieni richieste per gestione
-router.get('/richieste', verifyToken, requireAdmin, async (req, res) => {
-  try {
-    // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
-    const query = `
-      SELECT *
-      FROM voti_grazia
-      ORDER BY created_at DESC
-    `;
-
-    const result = await pool.query(query);
-
-    res.json({
-      success: true,
-      richieste: result.rows
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recuperare richieste grazia:', error);
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare richieste grazia'
@@ -192,17 +255,66 @@ router.get('/richieste', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/grazia/richieste - Solo Admin: coda privata reale
+router.get('/richieste', personalNoStore, verifyToken, requireAdmin, async (req, res) => {
+  // Keep the existing array response for older clients. The new Admin panel
+  // requests ?paged=1 and uses opaque cursors to reach all pending proposals.
+  // Reject malformed pagination modes rather than silently falling back to
+  // the legacy Admin listing. Omitted/0/1 remain backward-compatible.
+  const pageMode = req.query.paged;
+  if (pageMode !== undefined && pageMode !== '0' && pageMode !== '1') {
+    return res.status(400).json({success:false,error:'Modalità paginazione non valida'});
+  }
+  const paged = pageMode === '1';
+  const cursor = paged ? parseGraziaAdminCursor(req.query.cursor) : null;
+  if (cursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
+  try {
+    if (!paged) {
+      const result = await pool.query(
+        "SELECT id, nome, url_prova AS \"urlProva\", data_creazione AS \"createdAt\" FROM richieste_grazia WHERE status = 'pending' ORDER BY data_creazione ASC LIMIT 100"
+      );
+      return res.json(result.rows);
+    }
+    const result = await pool.query(
+      `SELECT id, nome, url_prova AS "urlProva", data_creazione AS "createdAt",
+              EXTRACT(EPOCH FROM data_creazione)::text AS cursor_epoch
+       FROM richieste_grazia
+       WHERE status='pending'
+         AND ($1::numeric IS NULL OR (data_creazione,id::text) > (to_timestamp($1::numeric),$2::text))
+       ORDER BY data_creazione ASC, id ASC LIMIT 101`,
+      [cursor?.[0] ?? null, cursor?.[1] ?? null]
+    );
+    return res.json({success:true,...graziaAdminPage(result.rows,'richieste')});
+  } catch (_) {
+    return res.status(500).json({ success: false, error: 'Coda richieste non disponibile' });
+  }
+});
+
+// GET /api/grazia/mia-proposta - Stato della propria proposta, mai dati di altri
+router.get('/mia-proposta', personalNoStore, verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      // A cached authenticated session can outlive account suspension. Keep
+      // the current DB-account check in this very same private SELECT (no extra
+      // query), and return the existing neutral null shape for inactive owners.
+      "SELECT id, CASE WHEN withdrawn_at IS NOT NULL THEN 'withdrawn' ELSE status END AS status, data_creazione FROM richieste_grazia WHERE utente_id = $1 AND EXISTS (SELECT 1 FROM users WHERE id::text = $1::text AND status = 'a') ORDER BY data_creazione DESC, id DESC LIMIT 1",
+      [req.user.id]
+    );
+    return res.json({ success: true, richiesta: result.rows[0] || null });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Stato proposta non disponibile' });
+  }
+});
+
 // POST /api/grazia/vota - Salva voti grazia
-router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
-  console.log('🚨🚨🚨 POST /api/grazia/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
+router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
 
   try {
-    const { voti } = req.body;
+    const voti = req.body?.voti;
     // Usa req.userId con fallback a req.user.id per sicurezza
     const userId = req.userId || req.user?.id;
 
     if (!userId) {
-      console.log('❌ DEBUG - User ID non trovato');
       return res.status(401).json({
         success: false,
         error: 'Utente non autenticato'
@@ -210,7 +322,6 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
     }
 
     if (!Array.isArray(voti)) {
-      console.log('❌ DEBUG - Voti non è un array:', typeof voti);
       return res.status(400).json({
         success: false,
         error: 'I voti devono essere un array'
@@ -219,95 +330,131 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
 
     // Limita a massimo 1 voto come da limite configurato
     if (voti.length > 1) {
-      console.log('❌ DEBUG - Troppi voti:', voti.length);
       return res.status(400).json({
         success: false,
         error: 'Puoi selezionare al massimo 1 carcerato per Grazia'
       });
     }
 
-    // Rileva la struttura della tabella per capire quale colonna usare
-    let userIdColumn = 'user_id';
-    let idType = 'uuid'; // Default a UUID
-    let timestampColumn = 'timestamp'; // Default a timestamp
-
-    try {
-      const tableInfoQuery = `
-        SELECT column_name, data_type, is_nullable
-        FROM information_schema.columns
-        WHERE LOWER(table_name) = 'voti_grazia'
-        ORDER BY ordinal_position
-      `;
-      const tableInfo = await pool.query(tableInfoQuery);
-      console.log('🔍 DEBUG - Colonne tabella:', tableInfo.rows.map(r => `${r.column_name} (${r.data_type}, nullable: ${r.is_nullable})`));
-
-      const columns = tableInfo.rows.map(r => r.column_name);
-      const hasUserId = columns.includes('user_id');
-      const hasUserid = columns.includes('userid');
-      userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'user_id' : 'user_id');
-
-      // Rileva il tipo della colonna id
-      const idColumn = tableInfo.rows.find(r => r.column_name === 'id');
-      if (idColumn) {
-        idType = idColumn.data_type;
-        console.log('🔍 DEBUG - Tipo id rilevato:', idType);
-      }
-
-      // Rileva quale colonna timestamp usare
-      if (columns.includes('timestamp')) {
-        timestampColumn = 'timestamp';
-      } else if (columns.includes('data_voto')) {
-        timestampColumn = 'data_voto';
-      } else if (columns.includes('created_at')) {
-        timestampColumn = 'created_at';
-      }
-    } catch (tableInfoError) {
-      console.log('⚠️ DEBUG - Impossibile rilevare struttura tabella, uso default:', tableInfoError.message);
+    // [] is the only explicit request to clear a vote. Normalize a one-item
+    // preference before validating, and reject hidden/BIDI controls before SQL.
+    // Malformed input must never silently become [] and erase a saved vote.
+    const requestedVoteName = voti.length === 1 && typeof voti[0] === 'string'
+      ? voti[0].normalize('NFC').trim().replace(/\s+/gu, ' ')
+      : null;
+    if (voti.length === 1 &&
+        (!requestedVoteName || requestedVoteName.length > 160 ||
+         unsafeNameControls.test(requestedVoteName))) {
+      return res.status(400).json({
+        success: false,
+        error: 'Preferenza Grazia non valida'
+      });
     }
 
-    console.log('🔍 DEBUG - Colonna userId usata:', userIdColumn);
-    console.log('🔍 DEBUG - Tipo id usato:', idType);
-    console.log('🔍 DEBUG - Colonna timestamp usata:', timestampColumn);
+    // Shared, cached metadata: one information_schema lookup per worker,
+    // rather than one per private POST. Unknown schemas fail closed.
+    const {user:userIdColumn, date:timestampColumn, idType} = await getGraziaVoteColumns();
+    if (!['uuid','character varying','text'].includes(idType))
+      throw new Error('GRAZIA_VOTE_SCHEMA_UNRECOGNIZED');
 
-    const requestedVotes = voti.slice(0, 1).map((nome) => String(nome).trim()).filter(Boolean);
-    const existingResult = await pool.query(
-      `SELECT nome, ${timestampColumn} AS changed_at
-       FROM voti_grazia
-       WHERE ${userIdColumn} = $1
-       ORDER BY ${timestampColumn} DESC`,
-      [userId]
-    );
-    const currentVotes = existingResult.rows.map((row) => String(row.nome || '').trim()).filter(Boolean).slice(0, 1);
+    const requestedVotes = requestedVoteName ? [requestedVoteName] : [];
     const requestedVote = requestedVotes[0] || null;
-    const currentVote = currentVotes[0] || null;
 
-    if (requestedVote === currentVote) {
-      return res.json({ success: true, message: 'Preferenza Grazia già aggiornata' });
-    }
-
-    await assertPreferenceChangeAllowed(pool, {
-      userId,
-      scope: 'grazia:preferenza',
-      fallbackChangedAt: existingResult.rows[0]?.changed_at || null,
-      isAdmin: Boolean(req.user?.isAdmin)
-    });
-
-    // Inizia una transazione
-    console.log('🔍 DEBUG - Inizio transazione');
+    // Serialize each account's choice within a transaction so parallel POSTs
+    // cannot both pass a stale cooldown and write conflicting preferences.
     const client = await pool.connect();
-
     try {
       await client.query('BEGIN');
 
+      // Serialize personal vote writes with account deletion AND suspension.
+      // FOR SHARE conflicts with both deletion and a status UPDATE, unlike
+      // FOR KEY SHARE. Recheck status='a' under the existing transaction lock
+      // so a still-valid/cached JWT cannot write personal votes or cooldown
+      // after an account becomes inactive; no extra SQL round trip.
+      const owner = await client.query(
+        "SELECT id FROM users WHERE id::text=$1 AND status='a' FOR SHARE",
+        [String(userId)]
+      );
+      if (!owner.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(401).json({ success: false, error: 'Utente non trovato' });
+      }
+
+      // A request can pass the middleware consent check just BEFORE a
+      // concurrent revoke transaction. The users-row FOR SHARE lock above
+      // serializes with revoke's UPDATE users; re-read the authoritative
+      // consent AFTER acquiring that lock, on the same transaction client.
+      // Otherwise the revoke cleanup could delete votes and a stale POST
+      // could then create a new personal vote without active consent.
+      const currentConsent = await getPoliticalConsentState(client, userId);
+      if (!currentConsent.exists || !currentConsent.granted) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          success: false, error: 'Consenso politico non attivo',
+          code: 'POLITICAL_CONSENT_REQUIRED', consent_required: true
+        });
+      }
+
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1::text, 12005))',
+        [String(userId)]
+      );
+
+      const existingResult = await client.query(
+        `SELECT nome, ${timestampColumn} AS changed_at
+         FROM voti_grazia
+         WHERE ${userIdColumn} = $1
+         ORDER BY ${timestampColumn} DESC`,
+        [userId]
+      );
+      const currentVote = existingResult.rows
+        .map((row) => String(row.nome || '').normalize('NFC').trim().replace(/\s+/gu, ' ')).filter(Boolean)[0] || null;
+
+      // Keep a new vote serialized with a concurrent Admin withdrawal.
+      if (requestedVote) {
+        const stillActive = await client.query(
+          "SELECT id, nome FROM grazia_carcerati WHERE attivo = true AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) FOR SHARE",
+          [requestedVote]
+        );
+        // The historic catalogue can contain canonically equal names in
+        // distinct rows (its legacy unique index does not collapse inner
+        // whitespace or normalize Unicode). Fail closed rather than attach
+        // a personal vote to an arbitrary row; preserve the existing vote.
+        if (stillActive.rows.length !== 1) {
+          await client.query('ROLLBACK');
+          return res.status(422).json({ success: false, error: 'Soggetto non approvato per la votazione' });
+        }
+        // Use the catalogue's exact stored display name for new votes.
+        // Legacy catalogues may contain repeated spaces or decomposed Unicode.
+        requestedVotes[0] = stillActive.rows[0].nome;
+      }
+
+      // Equivalent case variants name the same approved subject. Re-sending the
+      // same preference must not consume cooldown or delete/re-insert a vote.
+      // Input and saved value are already NFC and whitespace-normalized.
+      const sameVote = requestedVote === currentVote ||
+        (requestedVote !== null && currentVote !== null &&
+         requestedVote.toLowerCase() === currentVote.toLowerCase());
+      if (sameVote) {
+        await client.query('ROLLBACK');
+        return res.json({ success: true, message: 'Preferenza Grazia già aggiornata' });
+      }
+
+      // Check the recorded cooldown after acquiring the lock, against
+      // the same transaction state that will receive the new vote.
+      await assertPreferenceChangeAllowed(client, {
+        userId,
+        scope: 'grazia:preferenza',
+        fallbackChangedAt: existingResult.rows[0]?.changed_at || null,
+        isAdmin: Boolean(req.user?.isAdmin)
+      });
+
       // Elimina i voti esistenti
-      console.log('🔍 DEBUG - Eliminazione voti esistenti per user:', userId);
       const deleteQuery = `DELETE FROM voti_grazia WHERE ${userIdColumn} = $1`;
       const deleteResult = await client.query(deleteQuery, [userId]);
-      console.log('🔍 DEBUG - Voti eliminati:', deleteResult.rowCount);
 
       // Inserisci i nuovi voti
       if (voti.length > 0) {
-        console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
 
         for (const nome of requestedVotes) {
           // Genera ID in base al tipo della colonna
@@ -330,69 +477,257 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
           const insertParams = [votoId, userId, nome];
 
           await client.query(insertQuery, insertParams);
-          console.log('✅ DEBUG - Voto inserito con successo');
         }
       }
 
       // Conferma la transazione
-      console.log('🔍 DEBUG - Commit transazione');
       await recordPreferenceChange(client, { userId, scope: 'grazia:preferenza' });
 
       await client.query('COMMIT');
 
-      console.log('✅ DEBUG - Voti salvati con successo');
       res.json({ success: true, message: 'Voti grazia salvati' });
     } catch (error) {
       // Rollback in caso di errore
-      console.error('❌ DEBUG - Errore nella transazione, rollback:', error.message);
-      console.error('❌ DEBUG - Stack trace:', error.stack);
-      console.error('❌ DEBUG - Error code:', error.code);
-      console.error('❌ DEBUG - Error detail:', error.detail);
       try {
         await client.query('ROLLBACK');
       } catch (rollbackError) {
-        console.error('❌ DEBUG - Errore durante rollback:', rollbackError.message);
       }
       throw error;
     } finally {
       client.release();
-      console.log('🔍 DEBUG - Client rilasciato');
     }
   } catch (error) {
+    // A live migration can rename a cached column. Do not keep stale SQL
+    // identifiers across later personal vote requests.
+    if (error?.code === '42703') voteColumnsPromise = null;
     if (sendCooldownError(res, error)) return;
-    console.error('❌❌❌ ERRORE CRITICO nel salvataggio voti grazia ❌❌❌');
-    console.error('❌ Error message:', error.message);
-    console.error('❌ Error code:', error.code);
-    console.error('❌ Error detail:', error.detail);
-    console.error('❌ Error stack:', error.stack);
 
     res.status(500).json({
       success: false,
-      error: 'Errore nel salvare voti grazia',
-      details: error.message,
-      code: error.code
+      error: 'Errore nel salvare voti grazia'
     });
   }
 });
 
-// POST /api/grazia/richiesta/:id/:action - Gestisci richiesta grazia
-router.post('/richiesta/:id/:action', verifyToken, requireAdmin, async (req, res) => {
+// Grazia keeps one canonical queue: richieste_grazia. The two Admin GETs
+// are on-demand and never expose the proposer UUID or proof URL.
+// Bounded, opaque keyset cursor. Keep the database's microsecond precision;
+// using JavaScript Date would skip proposals reviewed in the same millisecond.
+function parseGraziaAdminCursor(raw) {
+  if (raw == null) return null;
+  if (typeof raw !== 'string' || raw.length > 512 || !/^[A-Za-z0-9_-]+$/.test(raw)) return false;
   try {
-    const { id, action } = req.params;
+    const bytes = Buffer.from(raw, 'base64url');
+    // Reject alternate Base64URL spellings of an otherwise identical cursor.
+    if (bytes.toString('base64url') !== raw) return false;
+    const decoded = JSON.parse(bytes.toString('utf8'));
+    if (!Array.isArray(decoded) || decoded.length !== 2) return false;
+    const [epoch, id] = decoded;
+    if (typeof epoch !== 'string' || !/^\d{1,11}(?:\.\d{1,6})?$/.test(epoch) ||
+        Number(epoch) > 4102444800 || typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,254}$/.test(id)) return false;
+    return [epoch, id];
+  } catch (_) { return false; }
+}
 
-    if (action === 'approve') {
-      await pool.query('UPDATE voti_grazia SET stato = $1 WHERE id = $2', ['approvata', id]);
-    } else if (action === 'reject') {
-      await pool.query('UPDATE voti_grazia SET stato = $1 WHERE id = $2', ['rifiutata', id]);
+function graziaAdminPage(rows, field) {
+  const page = rows.slice(0, 100);
+  return {
+    [field]: page.map(({ cursor_epoch, ...entry }) => entry),
+    next_cursor: rows.length > 100
+      ? Buffer.from(JSON.stringify([page[page.length - 1].cursor_epoch, page[page.length - 1].id])).toString('base64url')
+      : null
+  };
+}
+
+// Admin-only, on-demand pagination. Do not select the proposer ID, proof URL,
+// review notes, or personal votes from approved publication and audit listings.
+router.get('/approvate', personalNoStore, verifyToken, requireAdmin, async (req,res) => {
+  const cursor = parseGraziaAdminCursor(req.query.cursor);
+  if (cursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
+  try {
+    const result=await pool.query(
+      `SELECT id, nome, data_creazione AS "createdAt",
+              EXTRACT(EPOCH FROM data_creazione)::text AS cursor_epoch
+       FROM richieste_grazia
+       WHERE status='approved' AND withdrawn_at IS NULL
+         AND ($1::numeric IS NULL OR (data_creazione,id::text) < (to_timestamp($1::numeric),$2::text))
+       ORDER BY data_creazione DESC, id DESC LIMIT 101`,
+      [cursor?.[0] ?? null, cursor?.[1] ?? null]
+    );
+    return res.json({success:true,...graziaAdminPage(result.rows,'richieste')});
+  } catch (_) {
+    return res.status(503).json({success:false,error:'Pubblicazioni Grazia non disponibili'});
+  }
+});
+
+router.get('/ritiri-avvisi', personalNoStore, verifyToken, requireAdmin, async (req,res) => {
+  const cursor = parseGraziaAdminCursor(req.query.cursor);
+  if (cursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
+  try {
+    const result=await pool.query(
+      `SELECT id, withdrawn_at, EXTRACT(EPOCH FROM withdrawn_at)::text AS cursor_epoch
+       FROM richieste_grazia
+       WHERE withdrawn_at IS NOT NULL AND withdraw_notification_sent IS DISTINCT FROM TRUE
+         AND ($1::numeric IS NULL OR (withdrawn_at,id::text) < (to_timestamp($1::numeric),$2::text))
+       ORDER BY withdrawn_at DESC, id DESC LIMIT 101`,
+      [cursor?.[0] ?? null, cursor?.[1] ?? null]
+    );
+    return res.json({success:true,...graziaAdminPage(result.rows,'ritiri')});
+  } catch (_) {
+    return res.status(503).json({success:false,error:'Verifica avvisi Grazia non disponibile'});
+  }
+});
+
+// A previously approved request is the withdrawal authority. No new queue.
+// Soft-deactivation and audit commit together; historic votes remain unchanged.
+router.post('/richiesta/:id/ritira', personalNoStore, verifyToken, requireAdmin, async (req,res) => {
+  const id=String(req.params.id||'');
+  const note=typeof req.body?.note==='string'?req.body.note.trim():'';
+  if(!/^[A-Za-z0-9][A-Za-z0-9_-]{0,254}$/.test(id) || note.length<3 || note.length>500) {
+    return res.status(400).json({success:false,error:'Riferimento o motivazione non valida'});
+  }
+  let client;
+  let retired;
+  try {
+    client=await pool.connect();
+    await client.query('BEGIN');
+    const found=await client.query(
+      "SELECT id,nome,utente_id FROM richieste_grazia WHERE id=$1 AND status='approved' AND withdrawn_at IS NULL FOR UPDATE",
+      [id]
+    );
+    if(!found.rows[0]){
+      await client.query('ROLLBACK');
+      return res.status(409).json({success:false,error:'Richiesta Grazia assente o già ritirata'});
     }
+    retired=found.rows[0];
+    const off=await client.query(
+      "UPDATE grazia_carcerati SET attivo=FALSE WHERE attivo=TRUE AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) RETURNING id",
+      [retired.nome]
+    );
+    if(off.rowCount!==1){
+      await client.query('ROLLBACK');
+      return res.status(409).json({success:false,error:'Catalogo Grazia non riconciliato'});
+    }
+    const audit=await client.query(
+      "UPDATE richieste_grazia SET withdrawn_at=now(),withdrawn_by=$2,withdraw_note=$3,withdraw_notification_sent=FALSE WHERE id=$1 AND status='approved' AND withdrawn_at IS NULL",
+      [id,req.user.id,note]
+    );
+    if(audit.rowCount!==1)throw new Error('CONFLICT');
+    await client.query('COMMIT');
+  }catch(_){
+    if(client){try{await client.query('ROLLBACK');}catch(_){/* disconnected */}}
+    return res.status(503).json({success:false,error:'Ritiro Grazia temporaneamente non disponibile'});
+  }finally{client?.release();}
+  let noticeClient;
+  let notificationSent=false;
+  try{
+    noticeClient=await pool.connect();
+    await noticeClient.query('BEGIN');
+    // FOR SHARE on the active proposer also serializes notification with status changes.
+    const recipient=await noticeClient.query(
+      "INSERT INTO notifiche_demos (id,id_utente,titolo,testo,data_creazione,data) SELECT gen_random_uuid(),id,'DEMOS — Ritiro proposta Grazia','Una proposta Grazia approvata è stata ritirata.',NOW(),CURRENT_DATE FROM users WHERE id::text=$1 AND status='a' FOR SHARE",
+      [retired.utente_id]
+    );
+    if(recipient.rowCount!==1)throw new Error('NO_ACTIVE_RECIPIENT');
+    await noticeClient.query(
+      'UPDATE richieste_grazia SET withdraw_notification_sent=TRUE WHERE id=$1 AND withdrawn_at IS NOT NULL AND withdraw_notification_sent=FALSE',
+      [id]
+    );
+    await noticeClient.query('COMMIT');
+    notificationSent=true;
+  }catch(_){
+    if(noticeClient){try{await noticeClient.query('ROLLBACK');}catch(_){/* disconnected */}}
+  }finally{noticeClient?.release();}
+  return res.json({success:true,status:'withdrawn',notification_sent:notificationSent});
+});
 
-    res.json({ success: true, message: `Richiesta ${action === 'approve' ? 'approvata' : 'rifiutata'}` });
+// POST /api/grazia/richiesta/:id/:action - Decisione moderazione solo Admin
+router.post('/richiesta/:id/:action', personalNoStore, verifyToken, requireAdmin, async (req, res) => {
+  const id = String(req.params.id || '');
+  // Preserve legacy non-UUID Grazia IDs while rejecting malformed/unbounded inputs
+  // before acquiring a private SQL connection. Match the existing withdrawal gate.
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,254}$/.test(id)) {
+    return res.status(400).json({ success: false, error: 'Riferimento Grazia non valido' });
+  }
+  const action = req.params.action;
+  const approved = action === 'accetta' || action === 'approve';
+  if (!approved && action !== 'rifiuta' && action !== 'reject') {
+    return res.status(400).json({ success: false, error: 'Azione non valida' });
+  }
+  if (approved && !isGraziaNominationWriteEnabled()) return rejectUnavailableNomination(res);
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const result = await client.query(
+      "SELECT id, nome, utente_id FROM richieste_grazia WHERE id = $1 AND status = 'pending' FOR UPDATE",
+      [id]
+    );
+    if (!result.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'Richiesta assente o già elaborata' });
+    }
+    const richiesta = result.rows[0];
+    if (approved) {
+      // Legacy requests may predate the cross-account submission lock.
+      // Serialize approval for the same canonical subject as well, so two
+      // historical pending rows cannot both become approved.
+      await client.query(
+        "SELECT pg_advisory_xact_lock(hashtextextended(lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))), 12004))",
+        [richiesta.nome]
+      );
+      const priorApproval=await client.query(
+        "SELECT id FROM richieste_grazia WHERE id<>$1 AND status='approved' AND withdrawn_at IS NULL AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($2::text, NFC), '[[:space:]]+', ' ', 'g'))) LIMIT 1",
+        [richiesta.id,richiesta.nome]
+      );
+      // A withdrawn catalogue subject must not be republished through an
+      // older pending request, nor through a previously inactive legacy row.
+      const retired=await client.query(
+        "SELECT 1 FROM richieste_grazia WHERE withdrawn_at IS NOT NULL AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) LIMIT 1",
+        [richiesta.nome]
+      );
+      // Serialize approvals with withdrawal against the canonical catalogue
+      // row. If withdrawal won the race, its inactive state is now visible.
+      const catalogue=await client.query(
+        "SELECT id,attivo FROM grazia_carcerati WHERE lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) FOR UPDATE",
+        [richiesta.nome]
+      );
+      if (priorApproval.rows.length || retired.rows.length || catalogue.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({success:false,error:'Catalogo Grazia non ripubblicabile'});
+      }
+      // Require a NEW catalogue row. Never revive an inactive legacy entry or
+      // silently approve a second request when a unique insert loses a race.
+      const inserted=await client.query(
+        'INSERT INTO grazia_carcerati (nome, attivo) VALUES ($1,true) ON CONFLICT DO NOTHING RETURNING id',
+        [richiesta.nome]
+      );
+      if (inserted.rowCount !== 1) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({success:false,error:'Catalogo Grazia già presente'});
+      }
+    }
+    const status = approved ? 'approved' : 'rejected';
+    await client.query("UPDATE richieste_grazia SET status = $1 WHERE id = $2 AND status = 'pending'", [status, richiesta.id]);
+    await client.query('COMMIT');
+    client.release();
+    client = null;
+    let notificationSent = false;
+    try {
+      const notice = await pool.query(
+        "INSERT INTO notifiche_demos (id, id_utente, titolo, testo, data_creazione, data) SELECT gen_random_uuid(), id, 'DEMOS — Esito proposta', $2, NOW(), CURRENT_DATE FROM users WHERE id::text = $1 AND status = 'a' FOR SHARE",
+        [richiesta.utente_id, approved ? 'La tua proposta Grazia è stata approvata.' : 'La tua proposta Grazia non è stata approvata.']
+      );
+      notificationSent = (notice.rowCount || 0) > 0;
+    } catch {
+      console.error('Grazia moderation notification unavailable after commit');
+    }
+    return res.json({ success: true, status, notification_sent: notificationSent });
   } catch (error) {
-    console.error('❌ Errore nella gestione richiesta grazia:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nella gestione richiesta grazia'
-    });
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    return res.status(500).json({ success: false, error: 'Decisione non applicata' });
+  } finally {
+    if (client) client.release();
   }
 });
 

@@ -1,0 +1,274 @@
+name: Unified subject proposal page — contracts and client build
+on:
+  push:
+    branches:
+      - feat/unified-proposals-page-20261031
+      - feat/proposals-integration-20261031
+  pull_request:
+    branches:
+      - feat/moderated-subject-proposals-20261031
+      - main
+    paths:
+      - 'client/src/pages/ProponiSoggetto.tsx'
+      - 'client/src/config/subjectProposalCategories.ts'
+      - 'client/src/components/ProposeSubjectButton.tsx'
+      - 'client/src/pages/Proponi.tsx'
+      - 'client/src/App.tsx'
+      - 'client/src/pages/Attivisti/index.tsx'
+      - 'api/tests/singleMountedActivistsDirectory.contract.test.js'
+      - 'api/tests/mainRoutesPreserved.contract.test.js'
+      - 'api/tests/compactCivicHeaders.contract.test.js'
+      - 'api/tests/amnistiaMainMerge.contract.test.js'
+      - 'api/routes/subject-proposals.js'
+      - 'api/routes/grazia.js'
+      - 'api/utils/thirdPartyNominationGate.js'
+      - 'api/tests/d12NominationProductionGate.synthetic.test.js'
+      - 'client/src/pages/GestisciGrazia.tsx'
+      - 'client/src/pages/Grazia/hooks/useGraziaVoting.ts'
+      - 'api/tests/d12GraziaAdminErrorRedaction.synthetic.test.js'
+      - 'client/src/pages/Grazia/index.tsx'
+      - 'client/src/pages/Grazia/components/ClassificaCarcerati.tsx'
+      - 'client/src/pages/Grazia/hooks/useGraziaData.ts'
+      - 'api/tests/d12GraziaPrivacyContact.contract.test.js'
+      - 'api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js'
+      - 'api/tests/d12GraziaAccountSwitchIsolation.synthetic.test.js'
+      - 'scripts/test-grazia-privacy-browser.cjs'
+      - 'api/tests/graziaAdminPagination.synthetic.test.js'
+      - 'scripts/test-grazia-admin-pagination-browser.cjs'
+      - 'scripts/test-registered-directory-pagination-browser.cjs'
+      - 'api/services/registeredDirectoryPage.js'
+      - 'api/tests/registeredDirectoryPagination.pg.integration.test.js'
+      - 'api/services/publicDirectoryMemberProjection.js'
+      - 'api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js'
+      - 'client/src/pages/Organizzazioni/index.tsx'
+      - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
+      - 'api/tests/subjectProposalSingleQueue.synthetic.test.js'
+      - 'api/migrations/20261031_subject_proposals_review_gate.sql'
+      - 'scripts/test-unified-proposal-browser.cjs'
+      - '.github/workflows/unified-subject-proposal-page.yml'
+permissions:
+  contents: read
+jobs:
+  static-navigation-and-no-fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Validate shared proposal backend syntax
+        run: node --check api/routes/subject-proposals.js
+      - name: Test five routes, active activist directory, no personal debug logs
+        run: node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js api/tests/mountedActivistsPublicDirectory.contract.test.js
+      - name: Block nested private profile fields in public directories
+        run: node --test api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js
+      - name: Enforce one mounted Attivisti implementation
+        run: node --test api/tests/singleMountedActivistsDirectory.contract.test.js
+      - name: Preserve main application routes while integrating DEMOS12
+        run: node --test api/tests/mainRoutesPreserved.contract.test.js
+      - name: Guard the main-based Draft compatibility workflow
+        run: node --test api/tests/d12MainIntegrationWorkflow.contract.test.js
+      - name: Verify GDPR release checklist matches current Draft code
+        run: node --test api/tests/d12ReleaseGateDocumentation.contract.test.js
+      - name: Fail closed on non-staging PostgreSQL preflight endpoints
+        run: node --test api/tests/d12StagingPreflightTarget.contract.test.js
+      - name: Reject private/non-public nomination source URLs in browser and API
+        run: node --experimental-strip-types --test api/tests/d12PublicHttpsSources.contract.test.js api/tests/recognitionEvidence.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js
+      - name: Prevent unapproved third-party collection and publication in production
+        run: node --test api/tests/d12NominationProductionGate.synthetic.test.js
+      - name: No-store for every generic nomination response, including auth failures
+        run: node --test api/tests/d12GenericNoStoreAllResponses.synthetic.test.js
+      - name: Keep Grazia voting preferences out of browser logs and expose privacy contact
+        run: node --test api/tests/d12GraziaPrivacyContact.contract.test.js
+      - name: Page all Grazia moderation and notification audit entries without exposing private fields
+        run: node --test api/tests/graziaAdminPagination.synthetic.test.js api/tests/graziaModerationContract.test.js
+      - name: Cache Grazia vote schema for reads and writes; fail closed on drift
+        run: node --test api/tests/graziaVoteReadEfficiency.synthetic.test.js api/tests/graziaVoteSchemaCache.synthetic.test.js
+      - name: Keep compact mobile civic headers and proposal buttons
+        run: node --test api/tests/compactCivicHeaders.contract.test.js
+      - name: Amnistia compact voting form and review-gated proposals
+        run: node --test api/tests/amnistiaMainMerge.contract.test.js
+  client-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Parse legacy registration and claim data without location debug logs
+        run: node --test api/tests/d12FrontendParsingPrivacy.contract.test.js
+      - name: Keep personal Grazia vote cache isolated between accounts
+        run: node --test api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js
+      - name: Keep Grazia local votes isolated across account changes and prevent deferred writes
+        run: node --test api/tests/d12GraziaAccountSwitchIsolation.synthetic.test.js
+      - name: Redact private server details across Grazia admin and proposal error paths
+        run: node --test api/tests/d12GraziaAdminErrorRedaction.synthetic.test.js
+      - run: npm run build --prefix client
+
+  mobile-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Parse legacy registration and claim data without location debug logs
+        run: node --test api/tests/d12FrontendParsingPrivacy.contract.test.js
+      - name: Keep personal Grazia vote cache isolated between accounts
+        run: node --test api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js
+      - name: Redact private server details across Grazia admin and proposal error paths
+        run: node --test api/tests/d12GraziaAdminErrorRedaction.synthetic.test.js
+      - run: npm run build --prefix client
+      - name: Use local Chrome with isolated Playwright library
+        run: |
+          command -v google-chrome
+          npm install --prefix /tmp/demos-unified-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+      - name: "Browser test: mobile five-category proposals, only POST on submit"
+        run: |
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-unified-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/proponi-soggetto >/dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-grazia-privacy-browser.cjs
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-unified-proposal-browser.cjs
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-admin-audit-pagination-browser.cjs
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-mounted-activist-browser.cjs
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-public-approved-pagination-browser.cjs
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-registered-directory-pagination-browser.cjs
+          D12_QA_WIDTH=320 NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-grazia-admin-pagination-browser.cjs
+          D12_QA_WIDTH=390 NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-grazia-admin-pagination-browser.cjs
+      - name: "Browser test: mounted personal status isolated after account switch"
+        run: |
+          npm run dev --prefix client -- --host localhost --port 4180 --strictPort > /tmp/demos-owner-dev.log 2>&1 &
+          DEV_PID=$!
+          trap 'kill "$DEV_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4180/proponi-soggetto >/dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-proposal-owner-isolation-browser.cjs
+
+
+  # Informational only; this does not authorize a main merge or a release.
+  main-merge-readiness:
+    if: github.ref == 'refs/heads/feat/proposals-integration-20261031'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: "Read-only dry-run of feature against current main"
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          FEATURE_SHA="$(git rev-parse HEAD)"
+          PARENT="$(mktemp -d)"
+          WORKTREE="$PARENT/merge-check"
+          cleanup() {
+            if [ -d "$WORKTREE" ]; then
+              git -C "$WORKTREE" merge --abort >/dev/null 2>&1 || true
+              git worktree remove --force "$WORKTREE" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$PARENT"
+          }
+          trap cleanup EXIT
+          git worktree add --detach "$WORKTREE" "$FEATURE_SHA" >/dev/null
+          set +e
+          git -C "$WORKTREE" -c user.name="DEMOS CI" -c user.email="ci@localhost" merge --no-commit --no-ff refs/remotes/origin/main >/dev/null 2>&1
+          STATUS=$?
+          set -e
+          echo "### DEMOS: informational main integration preflight" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Feature SHA: $FEATURE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Main SHA: $MAIN_SHA" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$STATUS" -eq 0 ]; then
+            echo "- Git merge dry-run: **no textual conflicts**" >> "$GITHUB_STEP_SUMMARY"
+            echo "- This is NOT a runtime, SQL or Android validation." >> "$GITHUB_STEP_SUMMARY"
+            echo "Main merge dry-run: no textual conflicts; no merge performed."
+          else
+            CONFLICTS="$(git -C "$WORKTREE" diff --name-only --diff-filter=U)"
+            if [ -z "$CONFLICTS" ]; then
+              echo "::warning::Main merge dry-run failed without indexed conflicts."
+              echo "- Git merge dry-run: **failed without indexed conflicts**" >> "$GITHUB_STEP_SUMMARY"
+            else
+              COUNT="$(printf '%s\n' "$CONFLICTS" | wc -l | tr -d ' ')"
+              echo "::warning::Main integration blocked: $COUNT conflicting files."
+              echo "- Git merge dry-run: **BLOCKED, $COUNT conflicting files**" >> "$GITHUB_STEP_SUMMARY"
+              printf '%s\n' "$CONFLICTS" | tee /dev/stderr >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          echo "- No branch, database, staging or production change was made." >> "$GITHUB_STEP_SUMMARY"
+
+
+  # Disposable integration rehearsal only. No pushes, PR merge, secrets,
+  # migrations, staging, Android, FCM or production systems are accessed.
+  main-integration-candidate:
+    if: github.ref == 'refs/heads/feat/proposals-integration-20261031'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: "Verify current main is included in the Draft branch"
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          FEATURE_SHA="$(git rev-parse HEAD)"
+          if ! git merge-base --is-ancestor "$MAIN_SHA" "$FEATURE_SHA"; then
+            echo "::error::Branch has not incorporated the current main. Reconcile before proceeding."
+            exit 1
+          fi
+          if ! git merge-tree --write-tree "$MAIN_SHA" "$FEATURE_SHA" >/dev/null; then
+            echo "::error::Current main and Draft branch have unresolved integration conflicts."
+            exit 1
+          fi
+          # Semantic checks guard against resolving a conflict by dropping
+          # DEMOS10 privacy, DEMOS12 moderation, or existing main routes.
+          grep -qF 'lockCivicPushDuringAccountErasure(client)' api/services/privacyErasureLedgerService.js
+          grep -qF "DELETE FROM subject_proposals WHERE proposer_user_id::text=\$1 AND status IN ('pending','rejected')" api/services/privacyErasureLedgerService.js
+          grep -qF 'reconcileCivicTopicsForUser' api/routes/notifiche.js
+          grep -qF 'const candidate = classifica.find' client/src/pages/CapodiStato/components/VotingForm.tsx
+          grep -qF 'ProposeSubjectButton category="attivisti"' client/src/pages/Attivisti.tsx
+          grep -qF 'gestisci/proposte-soggetti' client/src/App.tsx
+          grep -qF 'compasso-politico' client/src/App.tsx
+          node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js api/tests/mainRoutesPreserved.contract.test.js api/tests/compactCivicHeaders.contract.test.js api/tests/amnistiaMainMerge.contract.test.js api/tests/civicSubjectPublicationGate.test.js api/tests/privacyErasureCombinedGuards.contract.test.js api/tests/notificationPreferencesReadOnly.contract.test.js api/tests/notificationPrivacyLogs.contract.test.js api/tests/notificationMainCompatibility.contract.test.js
+          npm ci --prefix client --ignore-scripts --no-audit --no-fund
+          npm run build --prefix client
+          echo "### Main-based Draft candidate: no merge or deploy" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Draft SHA: $FEATURE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Current main included: $MAIN_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Merge-tree: clean, semantic privacy and route contracts: PASS." >> "$GITHUB_STEP_SUMMARY"
+          echo "- No staging, data migration, Android, FCM, deployment or main merge performed." >> "$GITHUB_STEP_SUMMARY"
+          echo "- GDPR and real staging/Android release gates remain NO-GO." >> "$GITHUB_STEP_SUMMARY"
