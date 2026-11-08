@@ -95,7 +95,13 @@ function parseOfficialDecisionBallots(payload, sittingDate) {
       }
       if (ambiguous) break;
     }
-    if (ambiguous || ballots.size === 0) continue;
+    // A malformed *final* roll-call might contain a newer vote for a MEP.
+    // Silently skipping it could make an older record look like their latest.
+    // Fail the whole official sitting rather than invent a last vote.
+    if (ambiguous || ballots.size === 0) {
+      if (final) throw new Error('EP_OFFICIAL_FINAL_VOTERS_UNVERIFIABLE');
+      continue;
+    }
     // EP API represents official order as strings such as "22.0".
     const orderText = String(d.activity_order ?? '');
     const parsedOrder = /^\d+(?:\.0+)?$/.test(orderText) ? Number(orderText) : NaN;
