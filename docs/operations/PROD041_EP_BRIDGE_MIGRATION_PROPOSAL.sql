@@ -39,9 +39,14 @@ BEGIN
   IF current_institution IS NULL OR current_person IS NULL THEN
     RAISE EXCEPTION 'PROD041_PE_BRIDGE_CONSTRAINT_NAMES_UNEXPECTED';
   END IF;
-  IF current_institution NOT LIKE '%Camera%'
-     OR current_institution NOT LIKE '%Senato%'
-     OR current_person NOT LIKE '%length(source_person_id)%' THEN
+  -- Exact original CHECK definitions, observed in unified staging.
+  -- If any migration has already altered either constraint, refuse to
+  -- overwrite it. The owner of #633 must reconcile that change first.
+  IF current_institution <>
+     'CHECK ((institution = ANY (ARRAY[''Camera''::text, ''Senato''::text])))'
+     OR current_person <>
+     'CHECK (((length(source_person_id) >= 12) AND (length(source_person_id) <= 250)))'
+  THEN
     RAISE EXCEPTION 'PROD041_PE_BRIDGE_CONSTRAINT_DEFINITION_UNEXPECTED';
   END IF;
   IF EXISTS (
