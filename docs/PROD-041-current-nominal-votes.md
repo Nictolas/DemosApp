@@ -13,9 +13,15 @@ cannot be compared. An older or equal-order replay cannot overwrite current stat
 Same-day ambiguous sequencing must remain unresolved rather than guessed.
 No party, political group, source roster, or individual history is stored.
 
-- Camera and Senate selected representatives: `demos:<users.id UUID>`,
-  taken from the currently selected, active representative and a
-  fail-closed unique roster match on a checked roll call. The identity key
+- **All active Camera and Senate representatives with an approved
+  source-person identity bridge**, regardless of the number of DEMOS
+  followers: `demos:<users.id UUID>`. The current-vote synchronizer
+  checks one verified source roll call and stores one global vote per
+  stable DEMOS ID; a separate `has_followers` check determines whether
+  an in-app notification/push candidate should be created. No historic
+  per-follower copies or notifications for unselected representatives.
+  A representative with no verified identity or source vote stays null.
+  Attribution requires a fail-closed unique roll-call match. The identity key
   is **not** the person's name. **A matching name alone is never
   sufficient to attribute a vote.** Senate uses an explicit individual
   source-person link in the roll-call row matched exactly to a reviewed
@@ -284,3 +290,40 @@ for source IDs and DEMOS UUIDs, with **no writes, history retention or
 automatic link creation**. This candidate audit is not a license to
 delete the 720 historical Senato rows. Human/DPO review and a verified
 real backup/restore remain independent GO gates.
+
+## All-representative current votes and explicit identity review gate — 8 November 2026
+
+**Coverage correction:** the earlier sync only processed representatives
+followed by active DEMOS accounts. That would leave all other active MPs
+without their one latest verified vote. Now it queries **all** active
+Camera/Senato representatives with reviewed source-person links, independent
+of follower count. The source roll call, date, ordering, stable ID and
+anti-replay guarantees are unchanged. A canonical current vote is written
+even for a representative with **zero followers**; in that case the
+notification row and FCM push candidate are skipped. Notification delivery
+is still filtered by the user's active political selection and consent,
+and the existing switch remains disabled in production by default.
+No new persistent vote history is introduced. The current source window
+still spans up to 50 recent final ballots per chamber; missing verified
+sources remain null rather than guessed.
+
+**Explicit reviewer constraint:** a newly created
+`institutional_nominal_identity_links` entry is **PENDING**, not
+implicitly approved by insertion. Migration
+`api/database/20261108_institutional_identity_review_gate.sql`
+adds `review_state`, `reviewed_by` (existing DEMOS reviewer UUID)
+and `reviewed_at`. Its CHECK prevents `VERIFIED` with missing reviewer
+or timestamp; selected representative SQL reads only
+`review_state='VERIFIED'` with all required evidence fields. The
+migration was applied to the existing staging service, where the link
+table remained empty. No real person's identity was automatically
+approved or copied into staging.
+
+**CI:** unit tests and real isolated PostgreSQL 16 integration cover:
+an unselected MP gets the current vote but **no notification**; a
+PENDING identity cannot be selected; a VERIFIED identity with missing
+reviewer is rejected; manually reviewed synthetic identities can be
+used; same-day replay, cross-chamber transition, reaction reset and
+FCM consent tests remain active. Human identity review, end-to-end QA,
+EU job integration, DPO and explicit production/release GO remain open.
+
