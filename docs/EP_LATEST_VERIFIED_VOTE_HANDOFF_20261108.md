@@ -656,3 +656,16 @@ di sua esclusiva competenza; **questo ramo non applica migration**.
 
 Questo checkpoint si riferisce alla HEAD sopra citata e deve essere
 riverificato se la PR #633 progredisce.
+
+
+## Importatore corrente collegato al cron esistente — solo Draft (08/11/2026)
+
+La PR #635 contiene ora `api/services/europeanParliamentSelectedCurrentVoteRefresh.js`, chiamabile dal cron Openpolis **già esistente** attraverso il collegamento conservato nella PR #633. Nessun nuovo cron, tabella, servizio esterno o archivio di votazioni.
+
+Il percorso è: `political_selections` + identità PE `VERIFIED` → fetch ufficiale **solo per MepId selezionati** → candidati `demos:<UUID>` → writer condiviso PR #633 → UPSERT monotono sotto controllo SQL dell'identità e follower. Transazione unica per il batch con `ROLLBACK` sugli errori; in caso di identità revocata al momento dell'UPSERT nessun voto è scritto. Senza link verificati non vengono effettuati HTTP PE né operazioni di scrittura. I conteggi nei log non includono UUID, follower o nomi.
+
+**Variabile operativa** `PARLIAMENT_EP_CURRENT_REFRESH_ENABLED`: deve rimanere **assente/OFF** in tutti gli ambienti finché non sia concluso e approvato il test autenticato sullo staging unico; la presenza del codice nella PR non la attiva. I due rami Draft devono essere composti insieme prima di abilitare il writer: da sola, la PR #635 non include il servizio di scrittura PR #633; da sola, la PR #633 non include il lettore/refresh PR #635.
+
+Test: `europeanParliamentSelectedCurrentVoteRefresh.test.js` prova OFF no-query/no-network, 0 link no HTTP e no DML, transazione unica, ROLLBACK se il writer fallisce, copertura ufficiale incompleta e ritorno non valido del writer. `epSelectedWriterRealPgSmoke.js` esercita l'intero flusso contro il **writer reale** ottenuto dalla HEAD PR #633 e PostgreSQL16 effimero, sempre all'interno di `ROLLBACK` con SAVEPOINT. Test Chrome sintetici preesistenti invariati.
+
+**NO-GO:** non sono stati approvati collegamenti PE reali, non è stata applicata la migrazione PE su staging o produzione e non è disponibile una prova end-to-end autenticata sulla release Android. La revisione delle tre identità, incluso il DOB discordante, precede ogni import reale. Solo l'Admin/DPO autorizza eventuali migrazioni, abilitazioni e release.
