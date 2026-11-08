@@ -40,7 +40,7 @@ test('source date and office are independently verified; no grouping heuristics'
     'CANDIDATE_ONLY');
   assert.equal(profileEvidence(html('Claudio Borghi','1970-06-06','Senatrice'),p,'it.senato',u).state,
     'OFFICE_UNAVAILABLE','unknown office wording is not positive evidence');
-  assert.equal(profileEvidence(html('Claudio Borghi','1970-06-06','Senatore')+' <p>Deputato dal 13/10/2022</p>',p,'it.senato',u).state,
+  assert.equal(profileEvidence(html('Claudio Borghi','1970-06-06','Senatore').replace('</body>',' <p>Deputato dal 13/10/2022</p></body>'),p,'it.senato',u).state,
     'OFFICE_UNAVAILABLE');
 });
 
@@ -94,5 +94,32 @@ test('feature switch off makes no DB/HTTP requests; when enabled scans only sele
   }finally{
     if(old===undefined)delete process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED;
     else process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED=old;
+  }
+});
+
+test('bounded identity-office screening rotates to later selected MPs rather than starving them',async()=>{
+  const before=process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED;
+  process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED='true';
+  const offsets=[];
+  const rows=Array.from({length:13},(_,i)=>({
+    nome:'Persona',cognome:'Selezionata '+i,data_nascita:null,expected_office:'it.camera'
+  }));
+  const pool={query:async (sql,params)=>{
+    offsets.push(params[0]);
+    return {rows:rows.slice(params[0],params[0]+12)};
+  }};
+  try{
+    const first=await preflightSelectedParliamentaryOffices(pool,{
+      fetchPage:()=>{throw Error('invalid: no DOB means zero remote requests');}
+    });
+    const second=await preflightSelectedParliamentaryOffices(pool,{
+      fetchPage:()=>{throw Error('invalid: no DOB means zero remote requests');}
+    });
+    assert.equal(first.checked,12);
+    assert.equal(second.checked,1);
+    assert.deepEqual(offsets,[0,12]);
+  }finally{
+    if(before===undefined)delete process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED;
+    else process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED=before;
   }
 });
