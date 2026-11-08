@@ -77,8 +77,8 @@ export default function TermsOfService() {
               <li><strong>Trasparenza:</strong> Consultazione di dati e statistiche pubbliche e, quando disponibili, di votazioni istituzionali tratte da fonti ufficiali</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              Alcune funzioni possono non essere ancora disponibili. La piattaforma può mostrare
-              annunci pubblicitari quando la monetizzazione è attivata, secondo le preferenze
+              Alcune funzioni possono non essere ancora disponibili. Le versioni Android future possono mostrare
+              annunci pubblicitari solo dopo l'attivazione della relativa integrazione, secondo le preferenze
               di consenso applicabili e le informative pubblicate. Eventuali servizi a pagamento
               saranno descritti prima della loro attivazione.
             </p>
@@ -256,7 +256,7 @@ export default function TermsOfService() {
               <li>I dati sono protetti con misure di sicurezza appropriate</li>
             </ul>
 
-            <h3 className="text-xl font-medium mb-2 mt-4">8.1 Utilizzo Anonimo dei Dati per Ricerca e Analisi</h3>
+            <h3 className="text-xl font-medium mb-2 mt-4">8.1 Utilizzo di Statistiche Aggregate o Anonimizzate per Ricerca e Analisi</h3>
             <p className="text-gray-700 mb-3">
               Nei limiti indicati dalla Privacy Policy e secondo la base giuridica applicabile,
               Demos può produrre analisi e statistiche con dati aggregati o effettivamente
