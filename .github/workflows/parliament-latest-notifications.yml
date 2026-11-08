@@ -11,6 +11,10 @@ on:
       - 'api/tests/europeanCurrentNominalVoteAdapter.test.js'
       - 'api/database/20261108_institutional_current_nominal_votes.sql'
       - 'api/database/20261108_institutional_nominal_identity_links.sql'
+      - 'api/database/20261108_institutional_current_vote_outcome.sql'
+      - 'client/src/components/LatestItalianNominalVote.tsx'
+      - 'client/src/components/ProfileRepresentatives.tsx'
+      - 'client/tests/latestItalianNominalVote.test.mjs'
       - 'api/database/20261108_latest_parliament_notifications_one_per_rep.sql'
       - 'api/tests/institutionalCurrentNominalVotes.test.js'
       - 'api/services/parliamentFinalBallotPushService.js'
@@ -91,7 +95,7 @@ jobs:
           TEST_PARLIAMENT_PG_EPHEMERAL: 'true'
         run: bash api/tests/prod041SyntheticBackupRestore.sh
       - name: Verify notification UI wiring
-        run: node --test client/tests/parliamentNotificationIntegration.test.mjs
+        run: node --test client/tests/parliamentNotificationIntegration.test.mjs client/tests/latestItalianNominalVote.test.mjs
       - name: Install frontend dependencies (no scripts)
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend
