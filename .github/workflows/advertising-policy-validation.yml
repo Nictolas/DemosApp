@@ -296,6 +296,11 @@ jobs:
           out=app/build/outputs/apk/debug/real-age-qa
           mkdir -p "$out"
           cp "$apk" "$out/DEMOS-REAL-AGE-QA-TEST-ONLY.apk"
+          # A subsequent :app:assembleDebug for Play Internal Sharing can
+          # replace/clean app/build/outputs. Preserve the QA smoke input
+          # outside Gradle's build directory before that later compilation.
+          mkdir -p qa-real-age-apks
+          cp "$apk" qa-real-age-apks/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
           sha256sum "$out/DEMOS-REAL-AGE-QA-TEST-ONLY.apk"
           cat > "$out/LEGGIMI-ETA-REALE.txt" <<EOF
           DEMOS ANDROID - TEST ETA REALE (SOLO ADULTI TESTER)
@@ -449,8 +454,8 @@ jobs:
             adb shell svc wifi disable
             adb shell svc data disable
             adb logcat -c
-            test -s client/android/app/build/outputs/apk/debug/real-age-qa/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
-            adb install client/android/app/build/outputs/apk/debug/real-age-qa/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
+            test -s client/android/qa-real-age-apks/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
+            adb install client/android/qa-real-age-apks/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
             adb shell am start -W -n community.demos.qaage/community.demos.MainActivity
             sleep 5
             test -n "$(adb shell pidof community.demos.qaage | tr -d '\r')"
