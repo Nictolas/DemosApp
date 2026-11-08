@@ -24,6 +24,8 @@ const coverage=()=>{
 const link=(id,uuid)=>({
   institution:'PE',representative_id:uuid,source_person_id:id,
   evidence_url:'https://data.europarl.europa.eu/person/'+id,
+  review_state:'VERIFIED',reviewed_by:'00000000-0000-4000-8000-000000000099',
+  reviewed_at:'2026-11-08T00:00:00.000Z',
   verified_at:'2026-11-08T00:00:00.000Z'
 });
 
@@ -73,7 +75,11 @@ test('ambiguous UUID, MepId or evidence rejects entire preview instead of duplic
     [good,{...link('256900',UUID2)}],
     [good,{...link('256901',UUID2),evidence_url:'https://data.europarl.europa.eu/person/256900'}],
     [good,{...link('256901',UUID2),institution:'Senato'}],
-    [good,{...link('256901',UUID2),verified_at:null}]
+    [good,{...link('256901',UUID2),verified_at:null}],
+    [good,{...link('256901',UUID2),review_state:'PENDING',
+      reviewed_by:null,reviewed_at:null}],
+    [good,{...link('256901',UUID2),review_state:'VERIFIED',reviewed_by:null}],
+    [good,{...link('256901',UUID2),reviewed_at:null}]
   ];
   for(const xs of variants)
     assert.throws(()=>prepareVettedEuropeanCurrentVoteCandidates(coverage(),xs),/EP_CURRENT_/);
