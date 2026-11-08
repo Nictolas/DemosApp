@@ -583,3 +583,10 @@ No production or staging data has been mutated.
 - La suite PostgreSQL 16 effimera include i casi di rifiuto dopo revoca review, sostituzione indebita MepId e assenza di follower, oltre a scritture concorrenti, replay e unicità di voto. L'esito della CI va verificato sulla HEAD dopo ogni modifica.
 
 **Rimane NO-GO:** collegamento dei tre UUID europei da revisionare (uno con anno di nascita discordante), E2E autenticato sullo staging unico, QA AAB Android, controllo DPO, autorizzazioni specifiche a modifiche schema, cleanup, merge/deploy e pubblicazione.
+
+
+## Collegamento cron PE — interruttore disabilitato (08/11/2026, Draft)
+
+Il file `api/jobs/openpolisVotazioniFinaliJob.js` richiama `refreshSelectedEuropeanCurrentVote` della PR #635 **solamente** con `PARLIAMENT_EP_CURRENT_REFRESH_ENABLED=true`. Non è stata aggiunta una schedulazione: il refresh utilizza il job Openpolis con la frequenza esistente. OFF/variabile mancante => nessun `require` del modulo #635, nessuna lettura o scrittura PE. Una volta composti i due rami, il servizio #635 usa il writer #633 e la transazione corrente con `UPSERT` solo su chiavi `demos:<UUID>`. Gli errori non lanciano import alternativi né causano fallback verso il vecchio storico.
+
+La CI #633 testa esplicitamente il wiring e il fatto che non nascano altri cron. La CI #635 testa modalità disattivata, 0 chiamate HTTP con 0 MepId verificati, transazione unica e ROLLBACK; esegue anche un collaudo PostgreSQL 16 con il writer effettivo della PR #633. **Nessuna variabile runtime è stata abilitata e nessun database DEMOS è stato modificato.** Rilascio NO-GO: approvazione identità, schema staging unico, E2E autenticato, DPO, QA AAB e autorizzazioni GO specifiche.
