@@ -38,6 +38,13 @@ def demosReleaseQaIsolated = (project.findProperty('demosReleaseQaIsolated') ?: 
 def demosReleaseAppOpenAds = (project.findProperty('demosReleaseAppOpenAds') ?: 'false').toString() == 'true'
 def demosReleaseAdsTestOnly = (project.findProperty('demosReleaseAdsTestOnly') ?: 'true').toString() == 'true'
 def demosReleaseAdsApproved = (project.findProperty('demosReleaseAdsApproved') ?: 'false').toString() == 'true'
+// Google demo ad units are only for pre-publication/local QA. An AAB distributed
+// on a closed Play track must use the OWNER's units with AdMob app-version test
+// mode enabled beforehand. That external console state cannot be proven here.
+// If test mode is later switched off, REAL ads may be served to that build.
+def demosReleasePlayClosedQa = (project.findProperty('demosReleasePlayClosedQa') ?: 'false').toString() == 'true'
+def demosReleasePlayClosedQaOwnerConfirmed =
+    (project.findProperty('demosReleasePlayClosedQaOwnerConfirmed') ?: 'false').toString() == 'true'
 def demosReleaseAdMobAppId = (project.findProperty('demosReleaseAdMobAppId') ?: '').toString()
 def demosReleaseAdUnitId = (project.findProperty('demosReleaseAdUnitId') ?: '').toString()
 def demosSampleAppId = 'ca-app-pub-3940256099942544~3347511713'
@@ -46,6 +53,13 @@ def demosSampleAppOpenUnitId = 'ca-app-pub-3940256099942544/9257395921'
 if (demosReleaseQaIsolated && (!demosReleaseAdsTestOnly || demosReleaseAdsApproved
     || (demosReleaseAppOpenAds && demosReleaseAdMobAppId != demosSampleAppId))) {
     throw new GradleException('Isolated QA upgrade APK requires Google SAMPLE ads only, no production approval')
+}
+// Explicit closed-track gate is incompatible with Google demo IDs, fake
+// adult eligibility, production permission or the isolated QA app package.
+if (demosReleasePlayClosedQa && (!demosReleaseAppOpenAds
+    || demosReleaseQaIsolated || demosReleaseAdsTestOnly
+    || demosReleaseAdsApproved || !demosReleasePlayClosedQaOwnerConfirmed)) {
+    throw new GradleException('Play closed QA requires own AdMob IDs and explicit owner verification of app-version TEST MODE')
 }
 if (demosReleaseAppOpenAds) {
     if (!(demosReleaseAdMobAppId ==~ /ca-app-pub-\d{16}~\d{10}/)) {
@@ -56,13 +70,13 @@ if (demosReleaseAppOpenAds) {
             throw new GradleException('Test-only candidate must use the Google TEST App Open unit')
         }
     } else {
-        if (!demosReleaseAdsApproved) {
-            throw new GradleException('Real AdMob release requires explicit approval and reviewed build opt-in')
+        if (!demosReleaseAdsApproved && !demosReleasePlayClosedQa) {
+            throw new GradleException('Real AdMob unit requires production approval OR explicit Play closed QA gate')
         }
         if (demosReleaseAdMobAppId == demosSampleAppId
             || !(demosReleaseAdUnitId ==~ /ca-app-pub-\d{16}\/\d{10}/)
             || demosReleaseAdUnitId == demosSampleAppOpenUnitId) {
-            throw new GradleException('Real AdMob release requires non-test App ID and App Open unit')
+            throw new GradleException('Own AdMob App ID and App Open unit required; Google demo IDs are forbidden for Play closed QA/production')
         }
     }
 }
