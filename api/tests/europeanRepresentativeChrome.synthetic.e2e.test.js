@@ -63,7 +63,8 @@ test('Chrome 320/390: real European representative card, one verified vote and f
     for(const screen of [{width:320,height:568},{width:390,height:844}]){
       for(const full of [true,false]){
         const context=await browser.newContext({
-          viewport:screen,serviceWorkers:'block',permissions:[]
+          viewport:screen,hasTouch:screen.width===320,
+          serviceWorkers:'block',permissions:[]
         });
         const payload=Buffer.from(JSON.stringify({
           userId,role:'E',status:'a',exp:Math.floor(Date.now()/1000)+3600
@@ -103,10 +104,18 @@ test('Chrome 320/390: real European representative card, one verified vote and f
           await page.goto(origin+'/rappresentanti',{waitUntil:'domcontentloaded'});
           const rep=page.getByText(name,{exact:true}).first();
           await rep.waitFor({timeout:30000});
-          await rep.click();
+          if(screen.width===320) await rep.tap();
+          else await rep.click();
           const card=page.locator('[aria-label="Ultimo voto del Parlamento europeo"]');
-          await card.waitFor({timeout:10000});
+          await card.waitFor({timeout:15000});
           assert.ok(await card.isVisible(),'Current EU vote section must be visible');
+          // The outer representative tile used to schedule a navigation on
+          // mouseup/touchend BEFORE the inner name's click could stop it.
+          // Wait longer than that historical 100-ms timer; staying on the
+          // page proves there is no delayed redirect that hides the dialog.
+          await page.waitForTimeout(180);
+          assert.equal(new URL(page.url()).pathname,'/rappresentanti',
+            'Tap/click on the MEP name must not navigate to chooser');
           const frame=await card.boundingBox();
           assert.ok(frame&&frame.height<=screen.height*0.35+8,
             'Long subject must fit viewport '+screen.width+'x'+screen.height);
