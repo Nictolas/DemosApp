@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.institutional_current_nominal_votes (
     'Presente non votante', 'Presidente di turno'
   )),
   ballot_title text NOT NULL,
+  ballot_outcome text CHECK (ballot_outcome IS NULL OR length(ballot_outcome) BETWEEN 1 AND 100),
   source_url text NOT NULL CHECK (source_url LIKE 'https://%'),
   source_type text NOT NULL CHECK (source_type IN ('camera_ufficiale', 'senato_openpolis', 'pe_ufficiale')),
   verified_at timestamptz NOT NULL DEFAULT now(),
