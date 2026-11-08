@@ -66,7 +66,8 @@ BEGIN
       AND lower(trim(u.nome))=lower(rec.first_name)
       AND lower(trim(u.cognome))=lower(rec.last_name)
     FOR UPDATE OF u,p;
-    IF NOT FOUND OR original_user_date IS DISTINCT FROM original_profile_date
+    IF NOT FOUND OR original_user_date IS NULL OR original_profile_date IS NULL
+       OR original_user_date IS DISTINCT FROM original_profile_date
        OR original_user_date NOT IN (rec.old_dob,rec.new_dob)
        OR original_profile_date NOT IN (rec.old_dob,rec.new_dob)
     THEN
