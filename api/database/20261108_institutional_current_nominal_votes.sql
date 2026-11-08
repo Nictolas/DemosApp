@@ -24,7 +24,7 @@ ALTER TABLE public.institutional_current_nominal_votes ENABLE ROW LEVEL SECURITY
 -- Backend-only. No public Data API grants and no direct client-side access.
 REVOKE ALL ON TABLE public.institutional_current_nominal_votes FROM PUBLIC;
 -- Supabase defines anon/authenticated roles; standalone ephemeral CI PostgreSQL does not.
-DO $
+DO $prod041$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
     REVOKE ALL ON TABLE public.institutional_current_nominal_votes FROM anon;
@@ -32,7 +32,7 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
     REVOKE ALL ON TABLE public.institutional_current_nominal_votes FROM authenticated;
   END IF;
-END $;
+END $prod041$;
 COMMENT ON TABLE public.institutional_current_nominal_votes IS
   'PROD-041: one latest verifiable nominal roll-call per stable representative key; no historical nominal snapshots';
 COMMIT;
