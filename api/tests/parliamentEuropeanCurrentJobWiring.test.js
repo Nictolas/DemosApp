@@ -13,6 +13,8 @@ test('EP importer shares the existing scheduled job and defaults OFF',()=>{
   assert.match(block[1],/await refreshSelectedEuropeanCurrentVote\(pool\)/);
   assert.ok(source.indexOf("PARLIAMENT_EP_CURRENT_REFRESH_ENABLED")<
     source.indexOf("require('../services/europeanParliamentSelectedCurrentVoteRefresh')"));
+  assert.match(source,/} finally \{[\s\S]*?if \(pool\) \{[\s\S]*?PARLIAMENT_EP_CURRENT_REFRESH_ENABLED/,
+    'EU refresh must run even when the Italian ballot source fails');
   assert.equal((source.match(/cron\.schedule\(/g)||[]).length,1,'reuse cron, do not create a second job');
   assert.match(source,/const openpolisVotazioniFinaliCron = process\.env\.OPENPOLIS_VOTAZIONI_FINALI_CRON/);
   const executable=block[1].split('\n').filter(line=>!line.trim().startsWith('//')).join('\n');
