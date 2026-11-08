@@ -17,6 +17,7 @@ on:
       - 'api/tests/europeanRepresentativeChrome.synthetic.e2e.test.js'
       - 'client/src/pages/Rappresentanti/hooks/useRappresentantiData.ts'
       - 'client/src/pages/Rappresentanti/components/RappresentanteCard.tsx'
+      - 'client/src/pages/Rappresentanti/components/CategoriaPrincipale.tsx'
       - 'api/routes/rappresentanti.js'
       - 'api/scripts/verifyEuropeanParliamentOfficialDecisionAPI.js'
       - 'api/scripts/probeEuropeanParliamentOfficialRollCall.js'
