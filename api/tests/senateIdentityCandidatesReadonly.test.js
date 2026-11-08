@@ -23,6 +23,10 @@ test('selected-only reviewer queue is read-only, follower-private and scoped to 
   const body=sql.replace(/--[^\n]*/g,'').replace(/\/\*[\s\S]*?\*\//g,'');
   assert.doesNotMatch(body,/\b(?:INSERT|UPDATE|DELETE|MERGE|TRUNCATE|DROP|ALTER|CREATE|GRANT|REVOKE|COPY|CALL|DO)\b/i);
   assert.match(body,/COUNT\(DISTINCT representative_id\)/);
+  assert.match(body,/QUARANTINED_CROSS_CHAMBER_LEGACY_DUPLICATE/);
+  assert.match(body,/other_user\.data_nascita=u\.data_nascita/);
+  assert.match(body,/other_m\.source='LEGACY_BACKFILL'/);
+  assert.match(body,/own_m\.source='LEGACY_BACKFILL'/);
   assert.match(body,/lower\(follower\.status\)='a'/);
   assert.match(body,/ps\.selection_kind='representative'/);
   assert.match(body,/m\.status='ACTIVE'/);
