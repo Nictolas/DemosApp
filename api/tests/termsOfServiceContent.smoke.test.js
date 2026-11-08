@@ -8,6 +8,11 @@ const terms = fs.readFileSync(
   'utf8'
 );
 
+const privacy = fs.readFileSync(
+  path.resolve(__dirname, '..', '..', 'client', 'src', 'pages', 'PrivacyPolicy.tsx'),
+  'utf8'
+);
+
 test('Terms of Service show a fixed revision, not the current visit date', () => {
   assert.match(terms, /const TERMS_VERSION = '\d{2}\/\d{2}\/\d{4}'/);
   assert.doesNotMatch(terms, /new Date\(\)\.toLocaleDateString/);
@@ -32,4 +37,12 @@ test('Terms of Service do not make unsupported claims of universal Italian eligi
   assert.doesNotMatch(terms, /Essere cittadino italiano o residente in Italia/);
   assert.doesNotMatch(terms, /impossibile risalire all.identità dei singoli utenti/);
   assert.match(terms, /rischio di identificazione/);
+});
+
+test('Privacy Policy does not confuse publication of aggregate statistics with the legal basis for processing raw political data', () => {
+  assert.match(privacy, /rischio di identificazione/);
+  assert.match(privacy, /risposte personali sottostanti/);
+  assert.match(privacy, /art\. 9 GDPR/);
+  assert.match(privacy, /consenso esplicito/);
+  assert.doesNotMatch(privacy, /I dati sono sempre\s+aggregati e anonimi, pertanto non richiedono consenso specifico/);
 });
