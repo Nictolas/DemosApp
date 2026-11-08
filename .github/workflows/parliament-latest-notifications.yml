@@ -2,9 +2,10 @@ name: DEMOS Parliament Latest Notification Validation
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/parliament-verified-ballots-20261103]
     paths:
       - 'api/services/parliamentLatestVoteNotificationsService.js'
+      - 'api/routes/voti-politici.js'
       - 'api/services/institutionalCurrentNominalVotesService.js'
       - 'api/database/20261108_institutional_current_nominal_votes.sql'
       - 'api/tests/institutionalCurrentNominalVotes.test.js'
