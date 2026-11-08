@@ -22,7 +22,7 @@ test('public source role mismatch is detected only with matching name and birthd
   assert.deepEqual(profileEvidence(body,p,'it.camera',url),
     {state:'CANDIDATE_ONLY',office:'it.camera',profileUrl:url});
   assert.equal(profileEvidence(body,{...p,data_nascita:'1962-04-04'},'it.senato',url).state,
-    'DOB_MISMATCH','mismatching DOB must not be called a verified office discrepancy');
+    'SECONDARY_SOURCE_DOB_CONFLICT','mismatching DOB must not be called a verified office discrepancy');
   assert.equal(profileEvidence(body,{...p,cognome:'Della Notte'},'it.senato',url).state,
     'NAME_MISMATCH');
   assert.equal(profileEvidence(body,{...p,data_nascita:null},'it.senato',url).state,
@@ -63,6 +63,19 @@ test('strict official Peppe/Giuseppe alias is accepted, no generic nickname gues
     'NAME_MISMATCH');
 });
 
+test('correct DEMOS/first-party DOB is not silently overwritten by a stale Openpolis profile',()=>{
+  // Official Senate registry first-party biography of Peppe De Cristofaro
+  // is 1971-06-26, but a cached Openpolis profile has 1971-02-22.
+  // The mismatch must be labeled THIRD-PARTY, not a DEMOS DOB error.
+  const candidate='https://parlamento19.openpolis.it/persone/peppe-de-cristofaro-1971-02-22';
+  const rep={nome:'Peppe',cognome:'De Cristofaro',data_nascita:'1971-06-26'};
+  const secondary=html('Giuseppe De Cristofaro','1971-02-22','Senatore');
+  assert.equal(profileEvidence(secondary,rep,'it.senato',candidate).state,
+    'SECONDARY_SOURCE_DOB_CONFLICT');
+  assert.equal(profileEvidence(secondary,{...rep,data_nascita:'1971-02-22'},'it.senato',candidate).state,
+    'CANDIDATE_ONLY','Openpolis can agree with a wrong DEMOS DOB; this still does not approve identity');
+});
+
 test('profile candidates depend on public name and DOB and use safe limited HTTPS hosts',()=>{
   assert.deepEqual(profileCandidates({nome:'Claudio',cognome:'Borghi',data_nascita:'1970-06-06'}),[
     'https://parlamento19.openpolis.it/persone/claudio-borghi-1970-06-06',
@@ -77,7 +90,7 @@ test('feature switch off makes no DB/HTTP requests; when enabled scans only sele
   const db={query:async()=>{throw Error('disabled DB read')}};
   try{
     assert.deepEqual(await preflightSelectedParliamentaryOffices(db),
-      {enabled:false,checked:0,officeMismatches:0,birthDateMismatches:0,candidates:0,unresolved:0});
+      {enabled:false,checked:0,officeMismatches:0,secondarySourceDobConflicts:0,candidates:0,unresolved:0});
     process.env.PARLIAMENT_IDENTITY_PREFLIGHT_ENABLED='true';
     const queries=[];
     const reps=[
@@ -101,7 +114,7 @@ test('feature switch off makes no DB/HTTP requests; when enabled scans only sele
       return data[name];
     }});
     assert.deepEqual(result,
-      {enabled:true,checked:4,officeMismatches:2,birthDateMismatches:0,candidates:1,unresolved:1});
+      {enabled:true,checked:4,officeMismatches:2,secondarySourceDobConflicts:0,candidates:1,unresolved:1});
     assert.equal(queries.length,1);
     assert.equal(fetched,3,'no HTTP for missing birthdate');
     assert.match(queries[0],/political_selections/);
@@ -131,7 +144,7 @@ test('wrong legacy DOB is counted without granting VERIFIED or writing personal 
       return html('Carlo Calenda','1973-04-09','Senatore');
     }});
     assert.deepEqual(result,{
-      enabled:true,checked:1,officeMismatches:0,birthDateMismatches:1,
+      enabled:true,checked:1,officeMismatches:0,secondarySourceDobConflicts:1,
       candidates:0,unresolved:0
     });
     assert.equal(calls,1);
