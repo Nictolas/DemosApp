@@ -246,3 +246,11 @@ Il flag `demosReleasePlayClosedQa` (default `false`) è separato da `demosReleas
 6. Il test chiuso non prova né sostituisce la pubblicazione pubblica necessaria per il collegamento definitivo alla scheda Google Play e la revisione di idoneità AdMob. Restano aperti anche `app-ads.txt` crawler, DPO/Play e AAB cumulativa firmata.
 
 **Non richiedere adesso alcun cambio AdMob o Play al titolare:** prima CI e verifica del contratto; successivamente serviranno ID reale dell'unità App Open (già creata in console), conferma modalità test per i destinatari e autorizzazione esplicita al caricamento nel test chiuso. Nessun test reale, merge, upload Play o ricavo è implicito in questi flag.
+
+### Preflight aggiuntivo: publisher coerente e caso positivo Play closed QA
+
+Nel ramo #634 è ora presente un'ulteriore protezione Gradle per evitare che un App ID reale e l'unità App Open (entrambi formalmente validi) appartengano **a publisher AdMob differenti**. In modalità `demosReleaseAdsTestOnly=false`, il build confronta il prefisso `ca-app-pub-<publisher>` di `demosReleaseAdMobAppId` e `demosReleaseAdUnitId` e fallisce in caso di disallineamento. Copre tanto la QA Play chiusa quanto l'eventuale rilascio successivo con annunci reali.
+
+CI: test di contratto JS + verifiche Gradle negative per ID Google demo, proprietario non confermato e publisher diversi; controllo positivo `:app:help` con **ID sintetici temporanei, NON compilati o distribuiti**, stessa radice publisher, Play closed QA abilitato e dichiarazione esplicita. Gli ID sintetici non rappresentano AdMob DEMOS né autorizzano richieste di annunci. Il build/test riproduce solo il contratto tecnico; **nessuna prova di Test Apps effettivamente abilitato nell'account**. La verifica richiederà la console `Impostazioni → App di test`, con versione AAB esatta e test mode attivo. Se indisponibile, usare il fallback test-device autorizzato o una release senza richieste ads.
+
+L'App ID DEMOS `ca-app-pub-7488681940015678~2926952834` era già stato fornito dal titolare; **il reale ID dell'unità App Open non è stato ancora recuperato in forma testuale verificabile**. Il foglio canonico ADS-08 collega la pagina di gestione unità AdMob `https://admob.google.com/v2/apps/2926952834/adunits/list` ma non riporta l'ID completo dell'unità. Non dedurlo dal publisher ID né usare la Google SAMPLE in Play. 
