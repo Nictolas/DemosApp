@@ -37,6 +37,7 @@ on:
       - 'client/public/firebase-messaging-sw.js'
       - 'api/database/20261103_latest_parliament_votes.sql'
       - 'api/jobs/openpolisVotazioniFinaliJob.js'
+      - 'api/tests/parliamentEuropeanCurrentJobWiring.test.js'
       - 'api/routes/notifiche.js'
       - 'api/tests/parliamentLatestVoteNotifications.test.js'
       - 'api/services/parlamentoEuropeoService.js'
@@ -89,6 +90,7 @@ jobs:
           node --test api/tests/parliamentSelectedOfficePreflight.test.js
           node --check api/services/parliamentFinalBallotPushService.js
           node --check api/jobs/openpolisVotazioniFinaliJob.js
+          node --test api/tests/parliamentEuropeanCurrentJobWiring.test.js
           node --check api/routes/notifiche.js
           node --test api/tests/parliamentLatestVoteNotifications.test.js api/tests/parliamentFinalBallotPush.test.js api/tests/parliamentVerifiedFinalBallots.test.js
           node --check api/services/institutionalCurrentNominalVotesService.js
