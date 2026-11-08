@@ -54,6 +54,14 @@ test('only stable DEMOS UUID is read from the shared current-vote table, never b
     assert.match(sql,/x\.representative_id = \$1::uuid/);
     assert.match(sql,/x\.review_state = 'VERIFIED'/);
     assert.match(sql,/x\.reviewed_by IS NOT NULL AND x\.reviewed_at IS NOT NULL/);
+    assert.match(sql,/x.verified_at IS NOT NULL/);
+    assert.ok(sql.includes('EXISTS (SELECT 1 FROM public.political_mandates AS m'));
+    assert.ok(sql.includes("m.office_code = 'E' AND m.status = 'ACTIVE'"));
+    assert.ok(sql.includes('m.starts_at <= now()'));
+    assert.ok(sql.includes('EXISTS (SELECT 1 FROM public.political_selections AS ps'));
+    assert.ok(sql.includes("follower.status = 'a'"));
+    assert.ok(sql.includes("ps.political_office_id = 'eu.parliament.it'"));
+    assert.ok(sql.includes('ps.selected_user_id = x.representative_id'));
     assert.match(sql,/x\.evidence_url LIKE 'https:\/\/data\.europarl\.europa\.eu\/%'/);
     assert.doesNotMatch(sql,/INSERT|UPDATE|DELETE|DROP|JOIN\s+users/i);
     assert.deepEqual(params,[UUID,'demos:'+UUID]);
