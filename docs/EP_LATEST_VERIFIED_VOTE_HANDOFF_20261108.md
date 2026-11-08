@@ -5,6 +5,84 @@ Data controllo: 2026-11-08. Proprietario: fonte PE, attribuzione, API reader/UI 
 
 
 
+## Audit conclusivo del lettore PE — verifica aggiuntiva 8/11/2026
+
+### Copertura delle fonti vs identità delle persone
+- La ricerca di fonte PE è **completa su 76/76 MEP italiani correnti**, usando
+  8 sedute reali e decisioni sul testo complessivo confermate:
+  [run 42511232120](https://github.com/Nictolas/DemosApp/actions/runs/42511232120).
+  Questo NON significa che 76 identità DEMOS siano già riconciliate.
+- Audit Supabase produzione **solo SELECT e conteggi**, nessun nominativo
+  esportato: `political_mandates.office_code='E'` = 76 mandati e 76 account
+  UUID distinti; solo **14/76** profili hanno `data_nascita` e **0/76**
+  hanno `luogo_nascita`. Fonti mandati: 68 `EP_CURRENT_ROSTER`,
+  8 `LEGACY_BACKFILL`. Il JSON `legacy_context` contiene solo
+  `roster_date` / `source_url` (68) e `legacy_role` (8):
+  **nessun identificativo EP MepId autorevole collegato all'UUID**.
+  Il solo nome o il dato di nascita di un candidato non autorizza
+  automaticamente alcun collegamento.
+- Supabase **staging unificato**: 0 righe in
+  `institutional_nominal_identity_links`, 0 in
+  `institutional_current_nominal_votes`. La migration review gate
+  del proprietario PR #633 aggiunge `review_state='PENDING'` di default,
+  `reviewed_by` e `reviewed_at` obbligatori per `VERIFIED`.
+  Le CHECK attuali del link non ammettono ancora `PE` e rifiutano
+  source ID numerici corti come MepId a causa di `length>=12`.
+- Query `GET /api/rappresentanti` della PR #635 verificata tramite
+  **PostgreSQL EXPLAIN sullo staging esistente** con UUID
+  interamente sintetico: piano con index scan su
+  `institutional_current_nominal_votes_pkey` e
+  `institutional_nominal_identity_links_pkey`. Nessuna mutazione.
+  Entrambe le tabelle hanno RLS attiva e
+  **nessuna autorizzazione SELECT** per `anon` o `authenticated`.
+- È stato consegnato il blocco al proprietario dello schema:
+  [commento PR #633](https://github.com/Nictolas/DemosApp/pull/633#issuecomment-6725916164).
+
+### Contratto read-only pronto per il writer comune
+- `api/services/europeanParliamentCurrentOnlyCandidateBridge.js` prepara
+  in memoria la coppia MepId istituzionale → singolo voto corrente
+  `representativeKey='demos:<UUID>'` **solo dopo** una prova documentale
+  proveniente dall'URL esatto del profilo MEP e dopo
+  `review_state='VERIFIED'`, `reviewed_by` e `reviewed_at` validi,
+  con `verified_at` e controllo dell'unicità biunivoca.
+- Senza link approvati ritorna **0 candidati**, anche se le fonti
+  ufficiali hanno individuato 76 voti. Niente associazione per nome,
+  niente storico nominativo e niente `INSERT`/`UPDATE`/`DELETE`
+  in questo servizio. Il writer e lo schema non appartengono a questa PR.
+- La lettura delle schede richiede anche nel SQL JOIN
+  `x.review_state='VERIFIED' AND x.reviewed_by IS NOT NULL
+  AND x.reviewed_at IS NOT NULL`. La prova `evidence_url`
+  deve incorporare esattamente l'ID della persona, non essere
+  la home del sito ufficiale o un ID simile. La decisione,
+  il suo ordine e la posizione nominale vengono ricontrollati
+  contro l'API EP per mostrare un solo voto.
+- `api/tests/europeanParliamentCurrentOnlyCandidateBridge.test.js`
+  copre link assenti, PENDING, senza revisore, con ID discordanti,
+  duplicati, esito non verificato e assenza totale di DML.
+- Il recupero delle sedute ha ora un **fallback cronologico al
+  31 dicembre dell'anno precedente**, soltanto se il nuovo anno ha
+  troppe poche sedute. Il sistema non deve perdere l'ultimo voto
+  dicembre 2026 durante gennaio 2027 e non deve oltrepassare la
+  legislatura iniziata nel 2024. Test per 2027 prima della prima seduta,
+  prime sedute 2027 con voti 2026 ancora correnti, e API storica
+  indisponibile (fail-closed). Cache di client simulati non contaminate
+  dalla cache HTTP reale; in produzione resta cache in memoria 6h.
+
+### Gate residui inderogabili
+1. **PR #633** deve rendere compatibile il bridge PE e certificare
+   istituzionalmente l'associazione MepId↔UUID con revisore umano;
+   l'adattatore deve scrivere un solo voto `demos:<UUID>`.
+2. Eseguire import reale corrente nello staging unico e E2E autenticato
+   con identità già verificate, testando anche il passaggio Camera/Senato/PE.
+   Le prove Chrome 320×568/390×844 sintetiche sono PASS, ma non
+   equivalgono a questa E2E.
+3. QA Android su AAB completa, verifica GDPR/DPO, revisione
+   cancellazione storico legacy e autorizzazioni di rilascio separate.
+
+**Finché questi gate non sono superati: NO-GO, nessun merge,
+deploy, SQL di modifica o pubblicazione AAB; nessuna dichiarazione
+«HO FINITO».**
+
 ## QA Chrome reale sintetico, sicurezza log — 08/11/2026
 
 - [Workflow GitHub Actions 42512341439](https://github.com/Nictolas/DemosApp/actions/runs/42512341439)
