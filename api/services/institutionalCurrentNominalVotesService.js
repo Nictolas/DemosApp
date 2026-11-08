@@ -30,6 +30,9 @@ function assertVerifiedVote(vote) {
   if (!VALID_VOTES.has(vote.status)) throw new Error('CURRENT_VOTE_STATUS_UNVERIFIED');
   if (typeof vote.ballotTitle !== 'string' || !vote.ballotTitle.trim() || vote.ballotTitle.length > 2000)
     throw new Error('CURRENT_VOTE_TITLE_REQUIRED');
+  if (vote.ballotOutcome != null && (typeof vote.ballotOutcome !== 'string' ||
+      !vote.ballotOutcome.trim() || vote.ballotOutcome.length > 100))
+    throw new Error('CURRENT_VOTE_OUTCOME_INVALID');
   if (vote.verified !== true || vote.sourceType !== SOURCES[vote.institution].type)
     throw new Error('CURRENT_VOTE_VERIFICATION_REQUIRED');
   let url;
@@ -64,8 +67,8 @@ function assertVerifiedVote(vote) {
 const UPSERT_CURRENT_VOTE_SQL = `
   INSERT INTO public.institutional_current_nominal_votes
     (institution, representative_key, source_person_id, ballot_id,
-     vote_date, ballot_order, vote, ballot_title, source_url, source_type)
-  VALUES ($1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10)
+     vote_date, ballot_order, vote, ballot_title, ballot_outcome, source_url, source_type)
+  VALUES ($1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11)
   ON CONFLICT (representative_key) DO UPDATE SET
     institution = EXCLUDED.institution,
     source_person_id = EXCLUDED.source_person_id,
@@ -74,6 +77,7 @@ const UPSERT_CURRENT_VOTE_SQL = `
     ballot_order = EXCLUDED.ballot_order,
     vote = EXCLUDED.vote,
     ballot_title = EXCLUDED.ballot_title,
+    ballot_outcome = EXCLUDED.ballot_outcome,
     source_url = EXCLUDED.source_url,
     source_type = EXCLUDED.source_type,
     verified_at = now()
@@ -88,7 +92,7 @@ async function upsertVerifiedCurrentVote(db, raw) {
   const vote = assertVerifiedVote(raw); // fail closed before any DB access
   const values = [vote.institution, vote.representativeKey, vote.sourcePersonId,
     vote.ballotId, vote.voteDate, vote.ballotOrder, vote.status,
-    vote.ballotTitle.trim(), vote.sourceUrl, vote.sourceType];
+    vote.ballotTitle.trim(), vote.ballotOutcome?.trim() || null, vote.sourceUrl, vote.sourceType];
   const { rows } = await db.query(UPSERT_CURRENT_VOTE_SQL, values);
   return { changed: rows.length === 1, current: rows[0] || null };
 }
@@ -98,7 +102,7 @@ async function getCurrentVote(db, institution, representativeKey) {
       representativeKey.length > 180) throw new Error('CURRENT_VOTE_INVALID_LOOKUP');
   const { rows } = await db.query(
     `SELECT institution, representative_key, ballot_id, vote_date, ballot_order,
-            vote, ballot_title, source_url, source_type
+            vote, ballot_title, ballot_outcome, source_url, source_type
        FROM public.institutional_current_nominal_votes
       WHERE institution = $1 AND representative_key = $2 LIMIT 1`,
     [institution, representativeKey]);
