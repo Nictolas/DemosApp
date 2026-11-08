@@ -62,18 +62,49 @@ function memberNameVariants(rep) {
   return variants;
 }
 
-function matchUniqueMember(rep, members, allReps) {
-  // A verified identity bridge is mandatory. Names may cross-check a source
-  // link, but names (even exact/unique names or aliases) never establish it.
+function officialCameraIdentityEvidence(rep) {
+  // Camera's genuine final-vote roster has names but no person href. Only
+  // a separate vetted official Camera person-ID bridge can disambiguate it.
+  // A free-form name or a link from an unrelated website is insufficient.
+  let identity, evidence;
+  try {
+    identity = new URL(rep.source_person_id);
+    evidence = new URL(rep.evidence_url);
+  } catch { return false; }
+  const officialHosts = new Set(['www.camera.it','camera.it','dati.camera.it','documenti.camera.it']);
+  return identity.protocol === 'https:' && evidence.protocol === 'https:' &&
+    officialHosts.has(identity.hostname) && officialHosts.has(evidence.hostname) &&
+    !identity.username && !identity.password && !identity.hash &&
+    !evidence.username && !evidence.password && !evidence.hash &&
+    /\\/(?:deputat|ocd\\/deputato)/i.test(identity.pathname);
+}
+
+function matchUniqueMember(rep, members, allReps, context = {}) {
   const sourcePersonId = rep?.source_person_id;
   if (typeof sourcePersonId !== 'string' || !sourcePersonId ||
       !Array.isArray(members) || !Array.isArray(allReps)) return null;
   if (allReps.filter(other => other.source_person_id === sourcePersonId).length !== 1)
     return null;
-  const rows = members.filter(row => row.sourcePersonId === sourcePersonId);
-  if (rows.length !== 1 || !ALLOWED.has(rows[0].vote)) return null;
   const variants = memberNameVariants(rep);
-  return variants.has(normalizeName(rows[0].name)) ? rows[0] : null;
+  // One official source-person link in the actual ballot row is strongest.
+  const byId = members.filter(row => row.sourcePersonId === sourcePersonId);
+  if (byId.length > 1) return null;
+  if (byId.length === 1) {
+    return ALLOWED.has(byId[0].vote) && variants.has(normalizeName(byId[0].name))
+      ? byId[0] : null;
+  }
+  // No fallback for Senate/EP or a conflicting nonempty person link.
+  if (context.chamber !== 'Camera' || context.sourceType !== 'official' ||
+      !officialCameraIdentityEvidence(rep)) return null;
+  const matchedName = members.filter(row => variants.has(normalizeName(row.name)));
+  if (matchedName.length !== 1 || !ALLOWED.has(matchedName[0].vote) ||
+      matchedName[0].sourcePersonId) return null;
+  // Reject any other mapped representative whose name or vetted alias could
+  // fit the same name-only Camera row; only this one may be attributed.
+  if (allReps.filter(other =>
+    [...memberNameVariants(other)].some(name => variants.has(name))
+  ).length !== 1) return null;
+  return { ...matchedName[0], sourcePersonId, attributionMethod: 'vetted_camera_official_identity' };
 }
 
 async function selectedRepresentatives(pool, chamber) {
@@ -84,7 +115,7 @@ async function selectedRepresentatives(pool, chamber) {
   // Authoritative current choices: do not read stale legacy TEXT projections
   // or create one copy per follower. Active follower + active politician mandate.
   const sql =
-    "SELECT DISTINCT p.id, p.nome, p.cognome, link.source_person_id " +
+    "SELECT DISTINCT p.id, p.nome, p.cognome, link.source_person_id, link.evidence_url " +
     "FROM users p JOIN public.institutional_nominal_identity_links link ON link.representative_id = p.id AND link.institution = $3 JOIN political_selections ps ON ps.selected_user_id = p.id " +
     "JOIN users follower ON follower.id = ps.user_id AND lower(follower.status) = 'a' " +
     "WHERE ps.selection_kind = 'representative' AND ps.political_office_id = $1 " +
@@ -103,7 +134,7 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
       !verified.source?.url || !Array.isArray(verified.members) || verified.members.length < 120) {
     throw new Error('LATEST_VOTE_SOURCE_MISMATCH');
   }
-  const matches = reps.map(rep => ({ rep, ballot: matchUniqueMember(rep, verified.members, reps) }))
+  const matches = reps.map(rep => ({ rep, ballot: matchUniqueMember(rep, verified.members, reps, {chamber:vote.camera,sourceType:verified.source.type}) }))
     .filter(x => x.ballot);
   if (!matches.length) return { changed: 0, matched: 0, updated: [] };
   const order = voteOrder(vote);
@@ -219,7 +250,7 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
       // member/status remains unresolved and may be found in an older final.
       const allReps = allByChamber.get(vote.camera);
       const matched = [...pending.values()].filter(rep =>
-        matchUniqueMember(rep, verified.members || [], allReps)
+        matchUniqueMember(rep, verified.members || [], allReps, {chamber:vote.camera,sourceType:verified.source?.type})
       );
       if (!matched.length) {
         checked++;
