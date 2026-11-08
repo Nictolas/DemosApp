@@ -35,7 +35,7 @@ Status: **DRAFT / NO-GO**. Scope: PR #502 only. This document is a test plan, no
 - CI results for that exact SHA, plus a human-reviewed evidence record in the privacy sheet.
 - Actual mailbox intake and Android/staging end-to-end testing are **separate release gates** and are not proven by this rehearsal.
 
-**Current result: NOT RUN.** This plan introduces no production/staging changes, migration, feature flag, or real DSAR.
+**Stato del piano integrale: NON ESEGUITO end-to-end.** I test sintetici successivi, documentati sotto, coprono singoli controlli tecnici ma non costituiscono una richiesta DSAR reale né una verifica completa degli scenari A/B. Nessuna prova di ricezione email, identificazione del richiedente, risposta effettiva, staging o Android fisico; i gate giuridici restano aperti. Il piano non autorizza modifiche a produzione/staging, migrazioni o feature flag.
 
 
 ## 07/11/2026 — Regressione sintetica: ritiro dopo generazione cursore (prova parziale)
