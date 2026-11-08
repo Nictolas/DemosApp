@@ -449,17 +449,17 @@ async function main(){
 
     // Selected-only Senato official-ID review stays read-only, reuse the
     // existing (legacy) public person URI cache for CANDIDATES only.
-    const senateRep='00000000-0000-4000-8000-000000000007';
+    const senateAuditRep='00000000-0000-4000-8000-000000000007';
     await pool.query(
       "INSERT INTO users(id,nome,cognome,data_nascita,status) VALUES($1,'Peppe','De Cristofaro','1971-06-26','a')",
-      [senateRep]);
+      [senateAuditRep]);
     await pool.query(
       "INSERT INTO political_mandates(user_id,status,office_code,source,starts_at) " +
       "VALUES($1,'ACTIVE','S','LEGACY_BACKFILL',now()-INTERVAL '10 days')",
-      [senateRep]);
+      [senateAuditRep]);
     await pool.query(
       "INSERT INTO political_selections(user_id,selected_user_id,selection_kind,political_office_id) " +
-      "VALUES($1,$2,'representative','it.senato')",[follower,senateRep]);
+      "VALUES($1,$2,'representative','it.senato')",[follower,senateAuditRep]);
     await pool.query(
       "CREATE TABLE parlamento_voti_nominali(camera varchar(20),nome_politico text,uri_politico text)");
     await pool.query(
@@ -471,7 +471,7 @@ async function main(){
     const reviewSql=fs.readFileSync(
       path.join(root,'api/database/20261108_selected_senate_official_id_candidates_readonly.sql'),'utf8');
     let candidateRows=(await pool.query(reviewSql)).rows;
-    let senator=candidateRows.find(row=>row.representative_id===senateRep);
+    let senator=candidateRows.find(row=>row.representative_id===senateAuditRep);
     assert.ok(senator,'selected senator must appear in the review queue');
     assert.equal(senator.official_senator_id_candidates,1,
       'deduplicate repeated official links and reject wrong chamber and host');
@@ -482,19 +482,19 @@ async function main(){
     assert.equal(senator.review_status,'UNVERIFIED_OFFICIAL_ID_CANDIDATE_REVIEW_NAME_DOB_AND_OFFICE');
     assert.equal((await pool.query(
       "SELECT COUNT(*)::int n FROM public.institutional_nominal_identity_links WHERE representative_id=$1",
-      [senateRep])).rows[0].n,0,'review candidate is NOT auto-promoted to identity link');
+      [senateAuditRep])).rows[0].n,0,'review candidate is NOT auto-promoted to identity link');
     await pool.query(
       "INSERT INTO parlamento_voti_nominali(camera,nome_politico,uri_politico) " +
       "VALUES('Senato','DE CRISTOFARO PEPPE','http://dati.senato.it/senatore/77777')");
     candidateRows=(await pool.query(reviewSql)).rows;
-    senator=candidateRows.find(row=>row.representative_id===senateRep);
+    senator=candidateRows.find(row=>row.representative_id===senateAuditRep);
     assert.equal(senator.official_senator_id_candidates,2);
     assert.equal(senator.official_review_url,null,
       'ambiguous official source IDs cannot supply a reviewable single URL');
     assert.equal(senator.review_status,'AMBIGUOUS_SOURCE_PERSON_IDENTITIES');
     await pool.query(
-      "DELETE FROM political_selections WHERE selected_user_id=$1",[senateRep]);
-    assert.equal((await pool.query(reviewSql)).rows.some(row=>row.representative_id===senateRep),false,
+      "DELETE FROM political_selections WHERE selected_user_id=$1",[senateAuditRep]);
+    assert.equal((await pool.query(reviewSql)).rows.some(row=>row.representative_id===senateAuditRep),false,
       'deselected senators must stop appearing in the person-ID candidate queue');
 
     // Orchestration disabled means no DB writes even when this table exists.
