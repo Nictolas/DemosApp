@@ -515,3 +515,61 @@ without logging names/UUIDs or approving any link. Synthetic
 unit tests assert date mistakes do not grant `VERIFIED`.
 No DOB or selection was rewritten in production, no merge was
 performed and the deployment remains NO-GO.
+
+## Selected Senate IDs from existing source cache — 8 November 2026
+
+**Additional selected-only, source-backed identity-preparation work:**
+`api/database/20261108_selected_senate_official_id_candidates_readonly.sql`
+extracts **only politician person-ID candidates**, not vote histories,
+from the existing legacy table `parlamento_voti_nominali`.
+It joins active citizen selections and live eligible Senato mandates,
+checks the chamber exactly, restricts politician URIs to the
+`dati.senato.it/senatore/<number>` host/path, deduplicates identical
+IDs, and returns an `official_review_url` only for exactly **one**
+institutional ID candidate. Different official IDs for the same name
+produce `AMBIGUOUS_SOURCE_PERSON_IDENTITIES`; absence of an ID
+produces `NO_OFFICIAL_PERSON_ID_IN_EXISTING_CACHE`. These are
+**read-only reviewer candidates**, never `VERIFIED` identities.
+No new DB table, download of per-politician vote history, user selection
+change, link upsert, profile write, merge, or FCM dispatch.
+
+**Live aggregate result for four currently followed Senate slots:**
+- **Peppe De Cristofaro**: **1 unique official Senate person ID**,
+  `22918` from four previously cached nominative-source rows.
+  Reviewer URL:
+  `https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=22918`.
+  His DEMOS public DOB agrees with the first-party Senate registry.
+  The Openpolis historic profile URL contains a **different DOB suffix**
+  and must NOT be treated as a first-party DOB authority.
+- **Matteo Salvini**: **1 unique official Senate person ID**,
+  `25407` from one cached nominal source row. Reviewer URL:
+  `https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=25407`.
+  DEMOS DOB remains inconsistent with the institutional biography,
+  so no approval or automatic correction.
+- **Carlo Calenda**: no official person ID in this limited source cache.
+  The Senate's public first-party registry already identifies person ID
+  `30110` and public DOB `1973-04-09`, but this MUST NOT be
+  silently assumed equal to a nominal roll-call source-person href.
+- **Benedetto Della Vedova**: no official Senate candidate in the
+  cache, consistent with the outstanding historical wrong-house slot.
+  His active first-party office is Camera, requiring the issue #396
+  selection/identity reconciliation without changing a citizen's
+  preference without authorization.
+
+**Important stale-cache limitation:** `voti_camera.url_openpolis`
+also contains three legacy Openpolis profile URLs for the current
+selection names Grimaldi, Calenda and Peppe De Cristofaro, whose
+birth-date suffixes conflict with at least one first-party registry
+DOB. Never parse those slug dates as evidence to grant
+`review_state='VERIFIED'`, to correct `users.data_nascita` or to
+merge people. The optional public Openpolis `profileEvidence`
+is *screening only*. For the authoritative DOB/office, use actual
+Camera/Senato first-party documents.
+
+**Regression:** PG16 ephemeral integration inserts a synthetic
+selected senator, duplicate source URI, a cross-chamber URI,
+an untrusted host, and later a conflicting official ID. The report
+must dedupe valid repeats, ignore foreign hosts/chambers, withhold
+ambiguous URLs, drop deselected senators, and leave all identity links
+unchanged. The static audit test forbids DML/DDL.
+No production or staging data has been mutated.
