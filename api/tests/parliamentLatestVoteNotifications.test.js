@@ -222,6 +222,9 @@ test('enabled orchestration considers verified active representatives and checks
     assert.ok(queries.some(sql=>sql.includes('political_mandates')));
     assert.ok(queries.some(sql=>sql.includes('political_selections ps')));
     assert.ok(queries.some(sql=>sql.includes('AS has_followers')));
+    assert.ok(queries.some(sql=>sql.includes("link.review_state = 'VERIFIED'")));
+    assert.ok(queries.some(sql=>sql.includes('link.reviewed_by IS NOT NULL')));
+    assert.ok(queries.some(sql=>sql.includes('link.reviewed_at IS NOT NULL')));
     assert.ok(queries.some(sql=>sql.includes('EXISTS (SELECT 1 FROM political_selections ps')));
     assert.ok(queries.some(sql=>sql.includes('ps.selection_kind')));
     assert.ok(queries.some(sql=>sql.includes('follower.status')));
