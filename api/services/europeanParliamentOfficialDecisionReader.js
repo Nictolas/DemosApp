@@ -97,6 +97,33 @@ function parseOfficialDecisionBallots(payload, sittingDate) {
   return records;
 }
 
+/**
+ * Attach a readable Italian subject using the OFFICIAL /vote-results agenda.
+ * Join only by exact decision IDs in consists_of; never by name or text.
+ * Ambiguous joins retain the specific decision label instead of guessing.
+ */
+function joinOfficialAgendaSubjects(records, voteResults) {
+  if (!Array.isArray(voteResults?.data)) return records;
+  const byDecision = new Map();
+  const ambiguous = new Set();
+  for (const item of voteResults.data) {
+    const title = labelText(item.activity_label);
+    if (!title || title.length > 500 || !Array.isArray(item.consists_of)) continue;
+    for (const link of item.consists_of) {
+      const id = typeof link === 'string' && link.match(/^eli\\/dl\\/event\\/(MTG-PL-20\\d{2}-\\d{2}-\\d{2}-DEC-\\d+)$/);
+      if (!id) continue;
+      if (byDecision.has(id[1]) && byDecision.get(id[1]) !== title) ambiguous.add(id[1]);
+      else byDecision.set(id[1], title);
+    }
+  }
+  return records.map(r => {
+    const title = byDecision.get(r.voteId);
+    return title && !ambiguous.has(r.voteId) &&
+      !r.subject.startsWith(title) ?
+      {...r, subject:title + ' — ' + r.subject} : r;
+  });
+}
+
 function selectLatestFinalRollCall(recordsBySitting, italianMepIds) {
   const italian = new Set((italianMepIds || []).map(exactMepId).filter(Boolean));
   const records = (recordsBySitting || []).flat().filter(v => v.final && v.verified);
@@ -134,13 +161,20 @@ async function fetchOfficialDecisionBallots(sittingDate, client=axios) {
   if (stored && stored.expires > Date.now()) return stored.records;
   if (pending.has(sittingDate)) return pending.get(sittingDate);
   const job = (async () => {
-    const res = await client.get(url,{
-      timeout:15000,responseType:'json',maxContentLength:6*1024*1024,
-      maxBodyLength:6*1024*1024,maxRedirects:0,proxy:false,
+    const request = {
+      timeout:15000,responseType:'json',maxContentLength:8*1024*1024,
+      maxBodyLength:8*1024*1024,maxRedirects:0,proxy:false,
       headers:{Accept:'application/ld+json'}
-    });
+    };
+    // Two official calls per sitting; no N+1 requests per MEP.
+    const [res, aggregate] = await Promise.all([
+      client.get(url,request),
+      client.get(url.replace(/\\/decisions$/, '/vote-results'),request)
+    ]);
     if (res.status !== 200) throw new Error('EP_OFFICIAL_API_UNAVAILABLE');
-    const records = parseOfficialDecisionBallots(res.data,sittingDate);
+    const rollCalls = parseOfficialDecisionBallots(res.data,sittingDate);
+    const records = aggregate.status === 200
+      ? joinOfficialAgendaSubjects(rollCalls, aggregate.data) : rollCalls;
     if (!records.length) throw new Error('EP_OFFICIAL_API_NO_VALID_ROLLCALLS');
     if (cache.size >= 3) cache.delete(cache.keys().next().value);
     cache.set(sittingDate,{records,expires:Date.now()+TTL});
@@ -151,6 +185,6 @@ async function fetchOfficialDecisionBallots(sittingDate, client=axios) {
 }
 
 module.exports = {
-  decisionUrl,labelText,parseOfficialDecisionBallots,
+  decisionUrl,labelText,parseOfficialDecisionBallots,joinOfficialAgendaSubjects,
   selectLatestFinalRollCall,fetchOfficialDecisionBallots
 };
