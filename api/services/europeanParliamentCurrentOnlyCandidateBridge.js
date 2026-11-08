@@ -70,6 +70,11 @@ function prepareVettedEuropeanCurrentVoteCandidates(coverage,links) {
     const uuid=String(l?.representative_id||'').toLowerCase();
     if(l?.institution!=='PE'||!MEP.test(mep)||!UUID.test(uuid) ||
        !officialMepEvidenceMatches(l.evidence_url,mep) ||
+       // PROD-041 PR #633: a newly linked person is PENDING, not vetted.
+       // Only an authorized, independently reviewed identity is eligible.
+       l.review_state!=='VERIFIED' ||
+       !UUID.test(String(l.reviewed_by||'')) ||
+       !l.reviewed_at || Number.isNaN(Date.parse(l.reviewed_at)) ||
        !l.verified_at || Number.isNaN(Date.parse(l.verified_at)))
       throw Error('EP_CURRENT_UNVETTED_IDENTITY_LINK');
     if(seenPeople.has(mep)||seenUuids.has(uuid))
