@@ -42,7 +42,12 @@ test('target query is only a SELECT of human-verified actively followed MEP UUID
   assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/l.reviewed_at IS NOT NULL/);
   assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/follower.status = 'a'/);
   assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/m.office_code = 'E' AND m.status = 'ACTIVE'/);
-  assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/lower\(trim\(to_jsonb\(r\)->>'rappresentante_europeo'\)\) = l.representative_id::text/);
+  assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/FROM public.political_selections AS ps/);
+  assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/ps.selection_kind = 'representative'/);
+  assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/ps.political_office_id = 'eu.parliament.it'/);
+  assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/ps.selected_user_id = l.representative_id/);
+  assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/m.starts_at <= now\(\) AND \(m.ends_at IS NULL OR m.ends_at > now\(\)\)/);
+  assert.doesNotMatch(SELECT_VERIFIED_SELECTED_MEP_LINKS,/user_representatives|rappresentante_europeo/);
   assert.doesNotMatch(SELECT_VERIFIED_SELECTED_MEP_LINKS,/\b(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP)\b/i);
   assert.doesNotMatch(SELECT_VERIFIED_SELECTED_MEP_LINKS,/parlamento_europeo_voti_nominali|cognome|nome|gruppo_politico|partito/i);
   assert.match(SELECT_VERIFIED_SELECTED_MEP_LINKS,/LIMIT 101/);
