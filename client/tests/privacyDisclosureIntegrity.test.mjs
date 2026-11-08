@@ -10,8 +10,8 @@ test("policy and treatment register never pass today's date off as revision date
   for (const document of [privacy, cookie, register]) {
     assert.doesNotMatch(document, /Ultima modifica[^\n]*new Date\(/);
   }
-  // The compass inference disclosure was revised on 05/11; Cookie Policy and register retain their actual earlier dates.
-  assert.match(privacy, /Ultima modifica del testo: 05\/11\/2026/);
+  // Legal disclosures (including aggregate-statistics safeguards) were revised on 08/11; Cookie Policy and register retain earlier dates.
+  assert.match(privacy, /Ultima modifica del testo: 08\/11\/2026/);
   assert.match(cookie, /Ultima modifica del testo: 02\/11\/2026/);
   assert.match(register, /Ultima modifica del testo: 30\/10\/2026/);
 });
