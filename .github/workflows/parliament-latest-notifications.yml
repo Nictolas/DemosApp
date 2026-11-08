@@ -30,6 +30,8 @@ on:
       - 'api/database/20261108_selected_mp_identity_review_readonly.sql'
       - 'api/database/20261108_selected_official_registry_audit_readonly.sql'
       - 'api/database/20261108_selected_senate_official_id_candidates_readonly.sql'
+      - 'api/database/20261108_selected_public_dob_correction_REQUIRES_GO.sql'
+      - 'api/tests/prod041SelectedDobCandidate.postgres.js'
       - 'api/tests/senateIdentityCandidatesReadonly.test.js'
       - 'docs/PROD-041-current-nominal-votes.md'
       - 'api/create-notifiche-voti-parlamento-table.sql'
@@ -112,6 +114,13 @@ jobs:
         env:
           TEST_PARLIAMENT_PG_EPHEMERAL: 'true'
         run: bash api/tests/prod041SyntheticBackupRestore.sh
+      - name: Rehearse three selected public DOB corrections in isolated ephemeral PG16
+        env:
+          TEST_PARLIAMENT_PG_EPHEMERAL: 'true'
+          TEST_PARLIAMENT_PG_URL: postgres://demos_test:temporary_ci_only@127.0.0.1:55432/demos_test
+        run: |
+          node --check api/tests/prod041SelectedDobCandidate.postgres.js
+          node api/tests/prod041SelectedDobCandidate.postgres.js
       - name: Verify notification UI wiring
         run: node --test client/tests/parliamentNotificationIntegration.test.mjs client/tests/latestItalianNominalVote.test.mjs
       - name: Install frontend dependencies (no scripts)
