@@ -78,6 +78,7 @@ async function probeRealOfficeConflicts(){
       nome:'Benedetto',cognome:'Della Vedova',dob:'1962-04-03',expected:'it.senato'}
   ];
   let checked=0,correctlyFlagged=0,inconclusive=0;
+  const states={};
   for(const item of cases){
     try{
       const response=await axios.get(item.url,{timeout:9000,maxRedirects:0,
@@ -87,12 +88,13 @@ async function probeRealOfficeConflicts(){
         nome:item.nome,cognome:item.cognome,data_nascita:item.dob
       },item.expected,item.url);
       checked++;
+      states[result.state]=(states[result.state]||0)+1;
       if(result.state==='OFFICE_MISMATCH')correctlyFlagged++;
       else inconclusive++;
     }catch{inconclusive++;}
   }
   console.log('PROD041_LIVE_OFFICE_DIAGNOSTIC '+JSON.stringify({
-    checked,correctlyFlagged,inconclusive
+    checked,correctlyFlagged,inconclusive,states
   }));
   if(correctlyFlagged!==cases.length)
     console.log('::warning::PROD041_PUBLIC_OFFICE_SOURCE_CHANGED_OR_UNAVAILABLE');
