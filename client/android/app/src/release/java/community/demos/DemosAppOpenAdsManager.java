@@ -1,8 +1,8 @@
 package community.demos;
 
 /**
- * Release no-op. No advertising SDKs are packaged with production/release AAB.
- * A separate reviewed release change is necessary before enabling ads.
+ * Default release no-op. An explicitly opted-in candidate uses the separate
+ * SDK-backed implementation instead; no ad SDK is packaged by default.
  */
 final class DemosAppOpenAdsManager {
     DemosAppOpenAdsManager(MainActivity activity) {}
