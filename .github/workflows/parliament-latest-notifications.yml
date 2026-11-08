@@ -32,6 +32,8 @@ on:
       - 'api/database/20261108_selected_senate_official_id_candidates_readonly.sql'
       - 'api/database/20261108_selected_public_dob_correction_REQUIRES_GO.sql'
       - 'api/tests/prod041SelectedDobCandidate.postgres.js'
+      - 'api/database/20261108_three_selected_dob_preflight_READONLY.sql'
+      - 'api/tests/prod041DobGate.static.test.js'
       - 'api/tests/senateIdentityCandidatesReadonly.test.js'
       - 'docs/PROD-041-current-nominal-votes.md'
       - 'api/create-notifiche-voti-parlamento-table.sql'
@@ -98,6 +100,7 @@ jobs:
           node --check api/services/institutionalCurrentNominalVotesService.js
           node --test api/tests/institutionalCurrentNominalVotes.test.js
           node --test api/tests/senateIdentityCandidatesReadonly.test.js
+          node --test api/tests/prod041DobGate.static.test.js
           node --check api/services/europeanCurrentNominalVoteAdapter.js
           node --test api/tests/europeanCurrentNominalVoteAdapter.test.js
           node --check api/services/parlamentoEuropeoService.js
