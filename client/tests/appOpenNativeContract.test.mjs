@@ -294,12 +294,12 @@ test('minor/unknown-age users do not invoke UMP, initialize SDK or request App O
   assert.match(authProvider, /userData\.ads_adult_eligible === true/);
   assert.match(authProvider, /setNativeAppOpenAdultEligibility\(verifiedAdultForAds\)/);
   assert.match(authProvider, /await setNativeAppOpenAdultEligibility\(false\)/);
-  assert.match(clientPrivacy, /setAdultEligibility\(\{ eligible: eligible === true \}\)/);
+  assert.match(clientPrivacy, /eligible: eligible === true,\s*revalidateSession: eligible === true/);
   assert.match(nativePrivacy, /setAdultEligibility\(PluginCall call\)/);
   assert.match(nativePrivacy, /Boolean\.TRUE\.equals\(confirmed\)/);
-  assert.match(mainActivity, /runOnUiThread\(\(\) -> \{[\s\S]*?appOpenAdsManager\.setAdultEligible\(verifiedAdult\)/);
+  assert.match(mainActivity, /runOnUiThread\(\(\) -> \{[\s\S]*?appOpenAdsManager\.setAdultEligible\(verifiedAdult, revalidateSession\)/);
   assert.match(manager, /private boolean adultEligible = false/);
-  assert.match(manager, /void setAdultEligible\(boolean confirmedAdult\)/);
+  assert.match(manager, /void setAdultEligible\(boolean confirmedAdult, boolean revalidateSession\)/);
   assert.match(manager, /if \(BuildConfig\.DEMOS_QA_FORCE_ADULT && !confirmedAdult\) return/);
   assert.match(manager, /if \(!umpRequested\) \{[\s\S]*?requestAdultConsent\(\)/);
   assert.match(manager, /if \(!adultEligible \|\| activity\.isFinishing\(\) \|\| activity\.isDestroyed\(\)\) return/);
@@ -309,6 +309,30 @@ test('minor/unknown-age users do not invoke UMP, initialize SDK or request App O
   assert.match(gradle, /demosDebugQaForceAdult = demosDebugUmpEea &&/);
   assert.match(gradle, /DEMOS_QA_FORCE_ADULT', 'false'/);
   assert.doesNotMatch(nativePrivacy, /data_nascita|birthYear|userId|politicalOpinions/);
+});
+
+test('adult-to-adult account switch cannot reuse the previous native UMP authorization', () => {
+  // Two back-to-back verified adult profiles both have "eligible: true".
+  // A boolean-only dependency would not fire on an adult-A -> adult-B change.
+  assert.match(authProvider, /\}, \[verifiedAdultForAds, token, userData\?\.id\]\);/);
+  assert.match(authProvider, /setNativeAppOpenAdultEligibility\(verifiedAdultForAds\)/);
+  assert.match(clientPrivacy, /revalidateSession: eligible === true/);
+  assert.match(nativePrivacy, /call\.getBoolean\("revalidateSession"\)/);
+  assert.match(nativePrivacy, /Boolean\.TRUE\.equals\(confirmed\)[\s\S]*?Boolean\.TRUE\.equals\(call\.getBoolean\("revalidateSession"\)\)/);
+  assert.match(mainActivity, /appOpenAdsManager\.setAdultEligible\(verifiedAdult, revalidateSession\)/);
+  assert.match(manager, /adultEligible == confirmedAdult && !revalidateSession/);
+  const refresh = manager.slice(
+    manager.indexOf('void setAdultEligible('),
+    manager.indexOf('private void requestAdultConsent()')
+  );
+  assert.match(refresh, /invalidateConsentGeneration\(\)/);
+  assert.match(refresh, /consentVerifiedForAdultSession = false/);
+  assert.match(refresh, /if \(!confirmedAdult \|\| revalidateSession\) \{\s*[\s\S]*?umpRequested = false;/);
+  assert.match(refresh, /requestAdultConsent\(\)/);
+  assert.match(releaseStub, /setAdultEligible\(boolean confirmedAdult, boolean revalidateSession\) \{\}/);
+  // Never forward identifying information in either the web/native bridge.
+  assert.doesNotMatch(nativePrivacy, /call\.getString\("userId"\)|call\.getString\("token"\)/);
+  assert.doesNotMatch(clientPrivacy, /setAdultEligibility\(\{[^}]*userId|setAdultEligibility\(\{[^}]*token/);
 });
 
 test('new authenticated adult sessions revalidate UMP and stale callbacks cannot authorize ads', () => {
