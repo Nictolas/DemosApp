@@ -110,12 +110,22 @@ test('Capo di Stato keeps title/consent/voting controls fixed while only ranking
   assert.ok(page.indexOf('capo-stato__fixed-controls') < page.indexOf('<CandidatesRanking'));
   assert.match(ranking, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto/);
   assert.match(ranking, /aria-label="Lista candidati Capo di Stato"/);
-  assert.ok(ranking.indexOf('<CardHeader') < ranking.indexOf('app-page-scroll min-h-0'));
+  assert.doesNotMatch(ranking, /<CardHeader|Classifica candidati/);
+  assert.ok(ranking.indexOf('app-page-scroll min-h-0') < ranking.indexOf('classifica.map('));
   assert.ok(!header.includes('<Link'), 'Capo di Stato header must have no links');
   assert.ok(!header.includes('href="/vota"'), 'No back-to-Vota route');
   assert.ok(!header.includes('Torna a Vota'), 'No back-to-Vota text');
   assert.ok(!header.includes('<ArrowLeft'), 'No back arrow');
   assert.doesNotMatch(page, /min-h-screen bg-gradient|page-with-navbar/);
+});
+
+
+test('Capo di Stato keeps a compact vote form with direct candidate suggestions', () => {
+  const form = read('client/src/pages/CapodiStato/components/VotingForm.tsx');
+  assert.doesNotMatch(form, /Il tuo voto|<CardHeader|<Badge|aria-label="Conferma candidato"/);
+  assert.match(form, /placeholder="Nome del candidato\\.\\.\\."/);
+  assert.match(form, /onAddNome\\(suggestion\\.nome\\)/);
+  assert.match(form, /disabled=\\{isBlocked \\|\\| hasReachedLimit\\}/);
 });
 
 
