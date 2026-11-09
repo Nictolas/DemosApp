@@ -17,7 +17,7 @@ declare global {
     __demosWebAdsConsentBridge?: {
       canServeNonPersonalizedAds(): boolean;
     };
-    adsbygoogle?: Array<Record<string, never>>;
+    adsbygoogle?: Array<Record<string, never>> & { requestNonPersonalizedAds?: number };
   }
 }
 
@@ -96,10 +96,16 @@ export function WebAdSenseBanner() {
   useEffect(() => {
     if (!allowed) return;
     let active = true;
+    // Google defaults to personalized ads unless explicitly configured. Set
+    // NPA=1 before loading the script and before every ad-slot request.
+    const queue = window.adsbygoogle = window.adsbygoogle || [];
+    queue.requestNonPersonalizedAds = 1;
     const injectAd = () => {
       if (!active || !approvedForManualBanner()) return;
       try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
+        const requestQueue = window.adsbygoogle = window.adsbygoogle || [];
+        requestQueue.requestNonPersonalizedAds = 1;
+        requestQueue.push({});
       } catch {
         // An ad may be blocked by the browser, provider or ad inventory.
         // The app remains usable; no retry loop or forced loading screen.
