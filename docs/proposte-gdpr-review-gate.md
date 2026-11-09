@@ -1,5 +1,15 @@
 # DEMOS — Gate GDPR delle proposte di soggetti (bozza DPO)
 
+## DPO — VALIDAZIONE CONCESSA IN CHAT IL 09/11/2026
+
+**Attestazione del DPO:** nel confronto operativo su `DEMOS 5 — Completamento Proponi soggetti`, il DPO ha comunicato testualmente: **«validazione DPO concessa»** (9 novembre 2026). La validazione DPO generale per il perimetro DEMOS 5 è pertanto **ACQUISITA**; non richiederne nuovamente una generica per lo stesso perimetro.
+
+**Portata e limiti:** questa attestazione documenta l'assenso DPO espresso, non una verifica eseguita su dati di produzione né un parere legale indipendente, una matrice delle singole basi giuridiche, una decisione sui tempi RP-18/19/20, la prova DSAR-02..06 o uno screening DPIA firmato. Le voci specifiche sotto restano da completare/attestare **separatamente** dove non esiste ancora evidenza puntuale; in particolare non desumere dall'assenso una base legale per dati giudiziari di Grazia (art. 10 GDPR).
+
+**Gate di sicurezza invariati:** feature flag delle nuove nomine e di Grazia **OFF**, PR #502 **Draft**, nessuna migrazione o deploy autorizzato dalla sola validazione; staging unificato e schema/runtimes E2E, moderazione effettiva, DSAR, revisione eventuali normative e test Android/AAB devono superare i loro controlli prima della decisione di rilascio. L'approvazione DPO **non è un GO AAB**. Conservare l'evidenza di questa dichiarazione nella PR #502 e nel registro Privacy E602.
+
+**Lettura delle sezioni storiche:** le precedenti diciture «gate DPO aperto», «bozza DPO» e «revisione DPO da acquisire» sono evidenze/stati antecedenti alla dichiarazione del 09/11/2026; non annullano la validazione generale qui registrata. Le condizioni sostanziali puntualmente indicate come «DA DECIDERE», «NON ESEGUITO» o «BLOCCO LEGALE» rimangono vincolanti finché non documentate.
+
 **Stato:** DRAFT / NO-GO. Verifica tecnica aggiornata: 5 novembre 2026. Le sezioni datate sotto descrivono evidenze storiche, non il piano attuale. Documento tecnico per la valutazione del DPO e di un professionista legale competente; **non** stabilisce da solo una base giuridica, un'eccezione agli articoli 9/10 o un termine di conservazione. Nessuna migrazione o pubblicazione autorizzata dalla sola esistenza di questa bozza.
 
 **Gate tecnici correnti, entrambi OFF di default:** l'abilitazione delle nuove proposte e approvazioni delle quattro categorie generiche richiede `DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED=true` (valore esatto, in qualsiasi ambiente). **Grazia richiede due opt-in distinti contemporaneamente:** `DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED=true` **e** `DEMOS_GRAZIA_NOMINATIONS_ENABLED=true`. Attivare il solo flag generale non abilita quindi Grazia. Non impostare nessuno dei due sui servizi reali finché le rispettive decisioni giuridiche, le informative, la revisione DPO e i collaudi autorizzati non siano conclusi. I testi storici sotto sul singolo flag descrivono lo stato dei commit precedenti, non il gate attuale.
