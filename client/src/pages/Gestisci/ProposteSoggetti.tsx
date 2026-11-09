@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Check, X, RefreshCw } from "lucide-react";
-import { DEMO_SUBJECT_PROPOSALS } from "./demoSubjectProposals";
 
 type Proposal = {
   id: string; category: string; title: string; details: string; source_url: string | null;
@@ -32,7 +31,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function ProposteSoggetti() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
-  const [showDemo, setShowDemo] = useState(false);
   const [pending, setPending] = useState<Proposal[]>([]);
   const [pendingCursor, setPendingCursor] = useState<string | null>(null);
   const [approved, setApproved] = useState<ApprovedSubject[]>([]);
@@ -332,40 +330,13 @@ export default function ProposteSoggetti() {
             Avvisi da verificare
           </Button>
         </div>
-        {!showApproved && !showUndelivered && (
-          <div className="mb-3 shrink-0">
-            <Button type="button" variant="outline" onClick={() => setShowDemo(value => !value)}
-              aria-pressed={showDemo} disabled={!!submittingId}>
-              {showDemo ? "Nascondi i 4 esempi TEST" : "Mostra i 4 esempi TEST"}
-            </Button>
-          </div>
-        )}
         <div className="app-page-scroll min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-6" role="region" aria-label={showUndelivered ? "Avvisi delle proposte e dei ritiri da verificare" : showApproved ? "Pubblicazioni da gestire" : "Coda proposte"} tabIndex={0}>
           {!showApproved && !showUndelivered && loading && <p className="text-sm">Aggiornamento...</p>}
           {showApproved && loadingApproved && <p className="text-sm">Aggiornamento pubblicazioni...</p>}
           {showUndelivered && loadingUndelivered && <p className="text-sm">Verifica notifiche in corso...</p>}
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-          {!showApproved && !showUndelivered && !loading && !error && pending.length === 0 && <p className="text-sm text-slate-600">Nessuna proposta reale in attesa.</p>}
+          {!showApproved && !showUndelivered && !loading && !error && pending.length === 0 && <p className="text-sm text-slate-600">Nessuna proposta in attesa.</p>}
           {showApproved && !loadingApproved && !error && approved.length === 0 && <p className="text-sm text-slate-600">Nessuna pubblicazione gestibile qui. Le richieste Grazia conservano la propria coda separata.</p>}
-          {!showApproved && !showUndelivered && showDemo && (
-            <section className="space-y-3 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/60 p-3" aria-label="Esempi dimostrativi di proposte">
-              <div role="status" className="text-sm text-blue-950">
-                <p className="font-semibold">MODALITÀ TEST — 4 esempi fittizi dello staging</p>
-                <p>Queste schede non sono proposte reali. Nessun utente o voto viene creato, nessun dato viene salvato e i comandi di moderazione sono disabilitati.</p>
-              </div>
-              {DEMO_SUBJECT_PROPOSALS.map(item => (
-                <article key={item.id} className="space-y-2 rounded-xl border border-blue-200 bg-white p-3 shadow-sm">
-                  <p className="text-xs font-semibold text-blue-800">TEST — {CATEGORY_LABELS[item.category]}</p>
-                  <h2 className="break-words text-lg font-semibold">{item.title}</h2>
-                  <p className="text-xs text-slate-600">Proponente: utente di prova dello staging, non un account di produzione.</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" disabled>Approva (solo anteprima)</Button>
-                    <Button type="button" variant="outline" disabled>Rifiuta (solo anteprima)</Button>
-                  </div>
-                </article>
-              ))}
-            </section>
-          )}
           {!showApproved && !showUndelivered && pending.map(p => (
             <article key={p.id} className="space-y-2 rounded-xl border bg-white p-3 shadow-sm">
               <p className="text-xs font-medium text-slate-600">{CATEGORY_LABELS[p.category]}</p>
