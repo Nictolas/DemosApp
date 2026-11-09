@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/auth');
+const { cleanName,changeChoice,proposalRanking,sendCooldownError:sendChoiceCooldown } = require('../services/capoStatoCurrentChoice');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { getPool } = require('../config/database');
@@ -24,14 +26,12 @@ const isIneligibleCandidate = (name) => INELIGIBLE_CANDIDATE_NAMES.has(normalize
 router.get('/', async (req, res) => {
   try {
     // Query per ottenere la classifica dei candidati basata sui voti ricevuti
-    const classificaQuery = `
-      SELECT
-        nome,
-        COUNT(*) as voti
-      FROM voti_capo_stato
-      GROUP BY nome
-      ORDER BY voti DESC, nome ASC
-    `;
+    const classificaQuery = [
+      "SELECT c.nome,COUNT(DISTINCT c.user_id)::int AS voti",
+      "FROM capo_stato_scelte c JOIN users u ON u.id=c.user_id AND lower(u.status)='a'",
+      "WHERE c.tipo='voto'",
+      "GROUP BY c.nome ORDER BY voti DESC,c.nome ASC"
+    ].join(" ");
 
     const classificaResult = await pool.query(classificaQuery);
 
@@ -73,7 +73,7 @@ router.get('/', async (req, res) => {
           const voteColumns = tableInfoResult.rows.map((row) => row.column_name);
           const cooldownUserColumn = voteColumns.includes('userid') ? 'userid' : 'userId';
           const lastResult = await pool.query(
-            `SELECT MAX(timestamp) AS last_changed_at FROM voti_capo_stato WHERE ${cooldownUserColumn} = $1`,
+            `SELECT MAX(changed_at) AS last_changed_at FROM capo_stato_scelte WHERE user_id = $1`,
             [userId]
           );
           const cooldown = await getPreferenceCooldown(pool, {
@@ -97,11 +97,8 @@ router.get('/', async (req, res) => {
         const hasUserid = columns.includes('userid');
         const userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'userId' : 'userid'); // Default a userid
 
-        const userVotiQuery = `
-          SELECT nome
-          FROM voti_capo_stato
-          WHERE ${userIdColumn} = $1
-        `;
+        const userVotiQuery =
+          "SELECT nome FROM capo_stato_scelte WHERE user_id=$1 AND tipo='voto'";
         const userVotiResult = await pool.query(userVotiQuery, [userId]);
         mieiVoti = userVotiResult.rows.map(v => v.nome);
       } catch (authError) {
@@ -137,208 +134,75 @@ router.post('/test-vota', (_req, res) => {
 });
 
 // POST /api/capo-stato/vota - Endpoint principale per voti (con autenticazione)
-router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  console.log('🚨🚨🚨 POST /api/capo-stato/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
-  console.log('🚨🚨🚨 Request ID:', requestId);
-  console.log('🚨🚨🚨 Timestamp:', new Date().toISOString());
-  console.log('🚨🚨🚨 Method:', req.method);
-  console.log('🚨🚨🚨 URL:', req.url);
-
-  let client = null;
+router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req,res) => {
+  const voti=req.body?.voti;
+  if (!Array.isArray(voti) || voti.length>1) return res.status(400).json({
+    success:false,error:"Una sola scelta per Capo di Stato"
+  });
+  const name=voti.length?cleanName(voti[0]):null;
+  if (voti.length && !name) return res.status(400).json({success:false,error:"Nome non valido"});
+  if (name && isIneligibleCandidate(name)) return res.status(422).json({success:false,error:"Candidato non eleggibile"});
   try {
-    console.log('🔍 DEBUG /api/capo-stato/vota - Richiesta ricevuta');
-
-    const { voti } = req.body;
-    // Usa req.userId con fallback a req.user.id per sicurezza
-    const userId = req.userId || req.user?.id;
-
-    if (!userId) {
-      console.log('❌ DEBUG - User ID non trovato');
-      return res.status(401).json({
-        success: false,
-        error: 'Utente non autenticato'
-      });
-    }
-
-
-    if (!Array.isArray(voti)) {
-      console.log('❌ DEBUG - Voti non è un array:', typeof voti);
-      return res.status(400).json({
-        success: false,
-        error: 'I voti devono essere un array'
-      });
-    }
-
-    if (voti.some(isIneligibleCandidate)) {
-      return res.status(422).json({
-        success: false,
-        error: 'Candidato non selezionabile',
-        message: 'La persona indicata non e piu eleggibile per questa votazione'
-      });
-    }
-
-    // Controlla il limite di 1 voto massimo per Capo di Stato
-    if (voti.length > 1) {
-      console.log('❌ DEBUG - Troppi voti:', voti.length);
-      return res.status(400).json({
-        success: false,
-        error: 'Puoi selezionare al massimo 1 candidato per Capo di Stato'
-      });
-    }
-
-    const isAdmin = Boolean(req.user?.isAdmin);
-    let userIdColumn = 'userid';
-    let idType = 'uuid';
-
-    try {
-      const tableInfo = await pool.query(`
-        SELECT column_name, data_type
-        FROM information_schema.columns
-        WHERE LOWER(table_name) = 'voti_capo_stato'
-        ORDER BY ordinal_position
-      `);
-      const columns = tableInfo.rows.map((row) => row.column_name);
-      if (!columns.includes('userid') && columns.includes('userId')) {
-        // Compatibilità schema legacy: il nome viene usato solo in query interpolate da questa allowlist.
-        // eslint-disable-next-line no-unused-vars
-        userIdColumn = 'userId';
-      }
-      const idColumn = tableInfo.rows.find((row) => row.column_name === 'id');
-      if (idColumn) idType = idColumn.data_type;
-    } catch (tableInfoError) {
-      console.warn('Impossibile rilevare struttura voti_capo_stato, uso schema canonico:', tableInfoError.message);
-    }
-
-    const existingResult = await pool.query(
-      `SELECT nome, timestamp FROM voti_capo_stato WHERE ${userIdColumn} = $1 ORDER BY timestamp DESC LIMIT 1`,
-      [userId]
-    );
-    const existingVote = existingResult.rows[0] || null;
-    const requestedVote = voti.length > 0 ? String(voti[0]) : null;
-    const currentVote = existingVote?.nome ? String(existingVote.nome) : null;
-    const preferenceChanged = requestedVote !== currentVote;
-
-    if (!preferenceChanged) {
-      return res.json({ success: true, message: 'Preferenza già aggiornata', voti });
-    }
-
-    await assertPreferenceChangeAllowed(pool, {
-      userId,
-      scope: 'capo-stato:preferenza',
-      fallbackChangedAt: existingVote?.timestamp || null,
-      isAdmin
+    const result=await changeChoice(pool,{
+      userId:req.userId||req.user?.id,name,kind:name?"voto":null,
+      isAdmin:req.user?.isAdmin===true
     });
+    return res.json({success:true,voti:result.kind==="voto"?[result.name]:[]});
+  }catch(e) {
+    if (sendChoiceCooldown(res,e)) return;
+    if ([401,403,409,422].includes(e.status)) return res.status(e.status).json({success:false,error:e.message});
+    return res.status(503).json({success:false,error:"Preferenza non disponibile"});
+  }
+});
 
-    // Inizia una transazione
-    console.log('🔍 DEBUG - Inizio transazione');
-    client = await pool.connect();
+router.get('/mia-scelta',verifyToken,async(req,res)=>{
+  res.set('Cache-Control','private, no-store');
+  try {
+    const r=await pool.query(
+      "SELECT nome,tipo FROM capo_stato_scelte WHERE user_id=$1",
+      [req.userId||req.user?.id]
+    );
+    const scelta=r.rows[0]||null;
+    if (!scelta || scelta.tipo!=="proposta") return res.json({success:true,latest:null});
+    const pending=await pool.query(
+      "SELECT status FROM subject_proposals WHERE category='capo_stato' "+
+      "AND lower(btrim(regexp_replace(normalize(title,NFC),'[[:space:]]+',' ','g'))) = "+
+      "lower(btrim(regexp_replace(normalize($1::text,NFC),'[[:space:]]+',' ','g'))) "+
+      "ORDER BY created_at DESC LIMIT 1",
+      [scelta.nome]
+    );
+    return res.json({success:true,latest:{status:pending.rows[0]?.status||"none"}});
+  } catch (_) {
+    return res.status(503).json({success:false,error:"Preferenza non disponibile"});
+  }
+});
 
-    try {
-      await client.query('BEGIN');
+router.post('/proponi', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req,res)=>{
+  const name=cleanName(req.body?.nome);
+  if (!name) return res.status(400).json({success:false,error:"Nome non valido"});
+  if (isIneligibleCandidate(name)) return res.status(422).json({success:false,error:"Candidato non eleggibile"});
+  try {
+    const result=await changeChoice(pool,{
+      userId:req.userId||req.user?.id,name,kind:"proposta",
+      isAdmin:req.user?.isAdmin===true
+    });
+    return res.status(result.changed?201:200).json({
+      success:true,status:"pending",nome:result.name
+    });
+  }catch(e) {
+    if (sendChoiceCooldown(res,e)) return;
+    if ([401,403,409,422].includes(e.status)) return res.status(e.status).json({success:false,error:e.message});
+    return res.status(503).json({success:false,error:"Proposta non disponibile"});
+  }
+});
 
-      // Prima elimina tutti i voti esistenti dell'utente
-      console.log('🔍 DEBUG - Eliminazione voti esistenti per user:', userId);
-      const deleteQuery = `DELETE FROM voti_capo_stato WHERE ${userIdColumn} = $1`;
-      const deleteResult = await client.query(deleteQuery, [userId]);
-      console.log('🔍 DEBUG - Voti eliminati:', deleteResult.rowCount);
-
-      // Poi inserisce i nuovi voti
-      if (voti.length > 0) {
-        console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
-
-        for (const nome of voti) {
-          // Genera ID in base al tipo della colonna
-          let votoId;
-          if (idType === 'uuid') {
-            // Se la colonna è UUID, genera un UUID
-            const uuidResult = await client.query('SELECT gen_random_uuid() as id');
-            votoId = uuidResult.rows[0].id;
-          } else {
-            // Se è VARCHAR o TEXT, usa una stringa
-            votoId = `voto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          }
-
-
-          // Inserisci il voto
-          const insertQuery = `
-            INSERT INTO voti_capo_stato (id, ${userIdColumn}, nome, timestamp)
-            VALUES ($1, $2, $3, NOW())
-          `;
-          const insertParams = [votoId, userId, nome];
-
-          await client.query(insertQuery, insertParams);
-          console.log('✅ DEBUG - Voto inserito con successo');
-        }
-
-        console.log('🔍 DEBUG - Tutti i voti inseriti con successo');
-      }
-
-      // Conferma la transazione
-      console.log('🔍 DEBUG - Commit transazione');
-      await recordPreferenceChange(client, { userId, scope: 'capo-stato:preferenza' });
-
-      await client.query('COMMIT');
-
-      console.log('✅ DEBUG - Voti salvati con successo');
-      res.json({
-        success: true,
-        message: 'Voti salvati con successo',
-        voti: voti
-      });
-    } catch (error) {
-      // Rollback in caso di errore
-      console.error('❌ DEBUG - Errore nella transazione, rollback:', error.message);
-      console.error('❌ DEBUG - Stack trace:', error.stack);
-      console.error('❌ DEBUG - Error code:', error.code);
-      console.error('❌ DEBUG - Error detail:', error.detail);
-      console.error('❌ DEBUG - Error hint:', error.hint);
-      console.error('❌ DEBUG - Error name:', error.name);
-      try {
-        await client.query('ROLLBACK');
-      } catch (rollbackError) {
-        console.error('❌ DEBUG - Errore durante rollback:', rollbackError.message);
-      }
-      throw error;
-    } finally {
-      if (client) {
-        client.release();
-        client = null;
-        console.log('🔍 DEBUG - Client rilasciato');
-      }
-    }
-  } catch (error) {
-    if (sendCooldownError(res, error)) return;
-    console.error('❌❌❌ ERRORE CRITICO nel salvataggio voti capo di stato ❌❌❌');
-    console.error('❌ Request ID:', requestId);
-    console.error('❌ Error message:', error.message);
-    console.error('❌ Error name:', error.name);
-    console.error('❌ Error code:', error.code);
-    console.error('❌ Error detail:', error.detail);
-    console.error('❌ Error hint:', error.hint);
-    console.error('❌ Error stack:', error.stack);
-
-    // Rilascia il client se non è stato rilasciato
-    if (client) {
-      try {
-        client.release();
-      } catch (releaseError) {
-        console.error('❌ Errore nel rilasciare client:', releaseError.message);
-      }
-    }
-
-    // Assicurati che la risposta non sia già stata inviata
-    if (!res.headersSent) {
-      res.status(500).json({
-        success: false,
-        error: 'Errore interno del server',
-        details: error.message,
-        code: error.code,
-        requestId: requestId
-      });
-    } else {
-      console.error('❌ Risposta già inviata, impossibile inviare errore');
-    }
+router.get('/admin/proposte',verifyToken,requireAdmin,async(_req,res)=>{
+  res.set('Cache-Control','private, no-store');
+  try {
+    const classifica=await proposalRanking(pool);
+    return res.json({success:true,classifica});
+  }catch(_){
+    return res.status(503).json({success:false,error:"Classifica non disponibile"});
   }
 });
 

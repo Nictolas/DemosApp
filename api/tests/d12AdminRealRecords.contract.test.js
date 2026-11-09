@@ -12,7 +12,7 @@ test("Admin pending section uses database API only: no synthetic fixtures or imp
   assert.doesNotMatch(page, /DEMO_SUBJECT_PROPOSALS|showDemo|MODALITÀ TEST|FITTIZIO|esempi TEST/);
   assert.equal(fs.existsSync(path.join(root, "client/src/pages/Gestisci/demoSubjectProposals.ts")), false);
   assert.match(page, /apiRequest\("GET", "\/api\/subject-proposals\/admin"\)/);
-  assert.match(page, /pending\.map\(p =>/);
+  assert.match(page, /pending\.filter\(p => p\.category === activeCategory\)\.map\(p =>/);
   assert.match(page, /Nessuna proposta in attesa/);
 });
 

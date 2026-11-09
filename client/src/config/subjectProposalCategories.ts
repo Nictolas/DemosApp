@@ -6,7 +6,7 @@ export const SUBJECT_PROPOSAL_CATEGORIES = [
     nameLabel: "Nome della persona",
     placeholder: "Nome e cognome",
     sourceLabel: "Fonte pubblica HTTPS",
-    explanation: "Proponi un possibile candidato. La candidatura non sarà pubblicata prima della verifica amministrativa.",
+    explanation: "Scrivi solo il nome. Se già proposto, il tuo sostegno sarà sommato. Puoi avere una sola scelta: voto o proposta.",
     backPath: "/capo-stato",
   },
   {

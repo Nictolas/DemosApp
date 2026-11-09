@@ -10,6 +10,7 @@ const TECHNICAL_SECRET_KEY = /(password|secret|token|credential)/i;
 const ACTIVITY_TABLES = [
   'voti_elezioni',
   'voti_capo_stato',
+  'capo_stato_scelte',
   'voti_ice',
   'voti_referendum_abrogativi',
   'voti_amnistia',

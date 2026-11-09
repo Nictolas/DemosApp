@@ -21,16 +21,24 @@ type UnconfirmedProposalNotice = {
   recipient_unavailable: boolean;
 };
 
+type SubjectCategory = "capo_stato" | "grazia" | "amnistia" | "attivisti" | "organizzazioni";
+const SUBJECT_CATEGORIES: SubjectCategory[] = ["capo_stato","grazia","amnistia","attivisti","organizzazioni"];
+type RankedName = { nome: string; sostenitori: number };
 const SELF_PROFILE_CATEGORIES = new Set(["attivisti","organizzazioni"]);
 
 const CATEGORY_LABELS: Record<string, string> = {
-  capo_stato: "Capo di Stato", amnistia: "Amnistia",
+  capo_stato: "Capo di Stato", grazia: "Grazia", amnistia: "Amnistia",
   attivisti: "Attivisti", organizzazioni: "Organizzazioni"
 };
 
 export default function ProposteSoggetti() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
+  const [activeCategory, setActiveCategory] = useState<SubjectCategory>("capo_stato");
+  const [rankedNames, setRankedNames] = useState<RankedName[]>([]);
+  const [graziaNames, setGraziaNames] = useState<string[]>([]);
+  const [loadingRanked, setLoadingRanked] = useState(false);
+  const [loadingGrazia, setLoadingGrazia] = useState(false);
   const [pending, setPending] = useState<Proposal[]>([]);
   const [pendingCursor, setPendingCursor] = useState<string | null>(null);
   const [approved, setApproved] = useState<ApprovedSubject[]>([]);
@@ -70,6 +78,42 @@ export default function ProposteSoggetti() {
       setLoading(false);
     }
   }, [isAdmin]);
+
+  const refreshRanked = useCallback(async () => {
+    if (!isAdmin) return;
+    setLoadingRanked(true);
+    setError(null);
+    try {
+      const response = await apiRequest("GET", "/api/capo-stato/admin/proposte");
+      const data = await response.json();
+      if (!data.success || !Array.isArray(data.classifica)) throw new Error("Classifica non disponibile");
+      setRankedNames(data.classifica);
+    } catch (_) {
+      setRankedNames([]);
+      setError("Impossibile recuperare la classifica dei nomi proposti.");
+    } finally { setLoadingRanked(false); }
+  }, [isAdmin]);
+
+  const refreshGrazia = useCallback(async () => {
+    if (!isAdmin) return;
+    setLoadingGrazia(true);
+    setError(null);
+    try {
+      const response = await apiRequest("GET", "/api/subject-proposals/admin/grazia");
+      const data = await response.json();
+      if (!data.success || !Array.isArray(data.nomi)) throw new Error("Coda Grazia non disponibile");
+      setGraziaNames(data.nomi);
+    } catch (_) {
+      setGraziaNames([]);
+      setError("Impossibile recuperare la coda Grazia.");
+    } finally { setLoadingGrazia(false); }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin || showApproved || showUndelivered) return;
+    if (activeCategory === "capo_stato") void refreshRanked();
+    if (activeCategory === "grazia") void refreshGrazia();
+  }, [isAdmin, activeCategory, showApproved, showUndelivered, refreshRanked, refreshGrazia]);
 
   const loadMorePending = async () => {
     if (!isAdmin || !pendingCursor || loading || submittingId) return;
@@ -197,6 +241,8 @@ export default function ProposteSoggetti() {
     setShowApproved(false);
     setShowUndelivered(false);
     setError(null);
+    if (activeCategory === "capo_stato") void refreshRanked();
+    if (activeCategory === "grazia") void refreshGrazia();
   };
   const switchApproved = () => {
     if (showApproved) return;
@@ -310,7 +356,7 @@ export default function ProposteSoggetti() {
             <h1 className="text-xl font-bold">Proposte di nuovi soggetti</h1>
             <p className="text-sm text-slate-600">Solo l'admin può rendere pubbliche le proposte.</p>
           </div>
-          <Button variant="outline" onClick={() => showUndelivered ? void refreshUndelivered() : showApproved ? void refreshApproved() : void refresh()} disabled={showUndelivered ? loadingUndelivered : showApproved ? loadingApproved : loading} aria-label="Aggiorna proposte">
+          <Button variant="outline" onClick={() => showUndelivered ? void refreshUndelivered() : showApproved ? void refreshApproved() : activeCategory === "capo_stato" ? void refreshRanked() : activeCategory === "grazia" ? void refreshGrazia() : void refresh()} disabled={showUndelivered ? loadingUndelivered : showApproved ? loadingApproved : loading} aria-label="Aggiorna proposte">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -330,14 +376,48 @@ export default function ProposteSoggetti() {
             Avvisi da verificare
           </Button>
         </div>
+        <div role="tablist" aria-label="Categoria proposte" className="mb-3 flex shrink-0 flex-wrap gap-2">
+          {SUBJECT_CATEGORIES.map(category => (
+            <Button key={category} type="button" size="sm"
+              role="tab" aria-selected={activeCategory === category}
+              variant={activeCategory === category ? "default" : "outline"}
+              disabled={!!submittingId}
+              onClick={() => { setActiveCategory(category); setError(null); }}>
+              {CATEGORY_LABELS[category]}
+            </Button>
+          ))}
+        </div>
         <div className="app-page-scroll min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-6" role="region" aria-label={showUndelivered ? "Avvisi delle proposte e dei ritiri da verificare" : showApproved ? "Pubblicazioni da gestire" : "Coda proposte"} tabIndex={0}>
           {!showApproved && !showUndelivered && loading && <p className="text-sm">Aggiornamento...</p>}
           {showApproved && loadingApproved && <p className="text-sm">Aggiornamento pubblicazioni...</p>}
           {showUndelivered && loadingUndelivered && <p className="text-sm">Verifica notifiche in corso...</p>}
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-          {!showApproved && !showUndelivered && !loading && !error && pending.length === 0 && <p className="text-sm text-slate-600">Nessuna proposta in attesa.</p>}
+          {!showApproved && !showUndelivered && activeCategory === "capo_stato" && (
+            <section className="space-y-2" aria-label="Classifica proposte Capo di Stato">
+              {loadingRanked && <p className="text-sm">Caricamento classifica...</p>}
+              {!loadingRanked && !error && rankedNames.length === 0 && <p className="text-sm text-slate-600">Nessun nome proposto.</p>}
+              {!loadingRanked && !error && rankedNames.map((item, i) => (
+                <div key={item.nome} className="flex items-center justify-between gap-4 rounded-xl border bg-white px-4 py-3">
+                  <span className="min-w-0 break-words font-semibold">{i + 1}. {item.nome}</span>
+                  <span className="shrink-0 font-medium tabular-nums" aria-label={item.sostenitori + " sostenitori"}>
+                    {item.sostenitori}
+                  </span>
+                </div>
+              ))}
+            </section>
+          )}
+          {!showApproved && !showUndelivered && activeCategory === "grazia" && (
+            <section className="space-y-2" aria-label="Nomi proposti per Grazia">
+              {loadingGrazia && <p className="text-sm">Caricamento Grazia...</p>}
+              {!loadingGrazia && !error && graziaNames.length === 0 && <p className="text-sm text-slate-600">Nessuna proposta Grazia in attesa.</p>}
+              {!loadingGrazia && !error && graziaNames.map((nome, i) => (
+                <div key={i} className="rounded-xl border bg-white px-4 py-3 font-semibold">{nome}</div>
+              ))}
+            </section>
+          )}
+          {!showApproved && !showUndelivered && activeCategory !== "capo_stato" && activeCategory !== "grazia" && !loading && !error && pending.filter(p => p.category === activeCategory).length === 0 && <p className="text-sm text-slate-600">Nessuna proposta in attesa.</p>}
           {showApproved && !loadingApproved && !error && approved.length === 0 && <p className="text-sm text-slate-600">Nessuna pubblicazione gestibile qui. Le richieste Grazia conservano la propria coda separata.</p>}
-          {!showApproved && !showUndelivered && pending.map(p => (
+          {!showApproved && !showUndelivered && activeCategory !== "capo_stato" && activeCategory !== "grazia" && pending.filter(p => p.category === activeCategory).map(p => (
             <article key={p.id} className="space-y-2 rounded-xl border bg-white p-3 shadow-sm">
               <p className="text-xs font-medium text-slate-600">{CATEGORY_LABELS[p.category]}</p>
               <h2 className="break-words text-lg font-semibold">{p.title}</h2>
@@ -390,7 +470,7 @@ export default function ProposteSoggetti() {
               </div>
             </article>
           ))}
-          {!showApproved && !showUndelivered && pendingCursor && !loading && (
+          {!showApproved && !showUndelivered && activeCategory !== "capo_stato" && activeCategory !== "grazia" && pendingCursor && !loading && (
             <Button type="button" variant="outline" onClick={() => void loadMorePending()}
               disabled={!!submittingId} className="w-full">
               Carica altre richieste
@@ -444,7 +524,7 @@ export default function ProposteSoggetti() {
                Carica altri avvisi da verificare
              </Button>
            )}
-           {showApproved && approved.map(p => (
+           {showApproved && approved.filter(p => p.category === activeCategory).map(p => (
             <article key={p.id} className="space-y-2 rounded-xl border bg-white p-3 shadow-sm">
               <p className="text-xs font-medium text-slate-600">{CATEGORY_LABELS[p.category]}</p>
               <h2 className="break-words text-base font-semibold">{p.title}</h2>

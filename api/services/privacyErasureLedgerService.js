@@ -183,6 +183,7 @@ class PrivacyErasureLedgerService {
       'notifiche',
       'voti_elezioni',
       'voti_capo_stato',
+  'capo_stato_scelte',
       'voti_ice',
       'voti_referendum_abrogativi',
       'voti_amnistia',
