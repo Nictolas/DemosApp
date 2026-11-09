@@ -1,4 +1,4 @@
-import { Users, BookOpen, BarChart3, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award } from "lucide-react";
+import { Users, BookOpen, BarChart3, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award, ClipboardList } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -34,6 +34,17 @@ export const gestisciSections: GestisciSection[] = [
     buttonColor: "bg-cyan-500 hover:bg-cyan-600",
     route: "/gestisci-opinioni",
     buttonText: "Gestisci Opinioni"
+  },
+  {
+    id: "proposte-soggetti",
+    category: "amministrazione",
+    title: "Proposte soggetti",
+    description: "Stato della moderazione delle nuove proposte (non ancora attiva)",
+    icon: ClipboardList,
+    color: "text-slate-600 group-hover:text-slate-800",
+    buttonColor: "bg-slate-500 hover:bg-slate-600",
+    route: "/gestisci/proposte-soggetti",
+    buttonText: "Stato proposte"
   },
   {
     id: "riconoscimenti",
