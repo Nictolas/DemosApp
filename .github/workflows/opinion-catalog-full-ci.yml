@@ -23,9 +23,6 @@ on:
       - 'client/src/pages/Opinioni*.tsx'
       - 'api/config/publicCachePolicy.js'
       - 'client/src/pages/GestisciOpinioni/**'
-      - 'client/src/pages/Gestisci/ProposteSoggetti.tsx' # required catalog-contract on Admin proposal UI
-      - 'client/src/pages/Gestisci/demoSubjectProposals.ts' # guard synthetic-only preview labels
-      - 'api/tests/d12AdminDemoPreview.contract.test.js' # guard Admin demo fixtures against production votes
       - 'client/src/pages/VotiPolitici.tsx' # required catalog-contract for UI-only fix
       - 'client/src/pages/VotiPoliticiFinali.tsx'
       - 'client/src/pages/VotiParlamento.tsx' # required catalog-contract on parliament feed UI
