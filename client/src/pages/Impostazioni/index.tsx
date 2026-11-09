@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { useLogout } from "./hooks/useLogout";
 import { LinksSection } from "./components/LinksSection";
 import { AppOpenPrivacyOptions } from "./components/AppOpenPrivacyOptions";
+import { WebAdvertisingPreview } from "./components/WebAdvertisingPreview";
 import { IdentityVerificationSection } from "./components/IdentityVerificationSection";
 import { LogoutDialog } from "./components/LogoutDialog";
 import { PageContainer } from "@/components/PageContainer";
@@ -97,6 +98,7 @@ export default function Impostazioni() {
           <IdentityVerificationSection />
           <LinksSection onLogout={logout.showLogoutDialog} />
           <AppOpenPrivacyOptions />
+          <WebAdvertisingPreview />
         </div>
       </div>
 
