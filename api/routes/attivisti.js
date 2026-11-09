@@ -2,12 +2,15 @@ const express = require('express');
 const { compressRegione, decompressRegione } = require('../utils/locationUtils');
 const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
+const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
+const { projectPublicDirectoryMembers } = require('../services/publicDirectoryMemberProjection');
+const {decodeRegisteredCursor,pageRegistered,isPagedRegisteredRequest,isValidRegisteredDirectoryFilters} = require('../services/registeredDirectoryPage');
 const router = express.Router();
 require('dotenv').config();
 
 const pool = getPool();
-const MODERN_ACTIVIST_FILTER = 'COALESCE(u.is_activist, FALSE) = TRUE';
-const LEGACY_ACTIVIST_FILTER = "(u.ruolo = 'A' OR u.ruolo = 'AD')";
+const MODERN_ACTIVIST_FILTER = "COALESCE(u.is_activist, FALSE) = TRUE AND u.status = 'a'";
+const LEGACY_ACTIVIST_FILTER = "(u.ruolo = 'A' OR u.ruolo = 'AD') AND u.status = 'a'";
 
 function queryActivists(sqlTemplate, values = []) {
   return queryWithAccountModelFallback(
@@ -21,8 +24,17 @@ function queryActivists(sqlTemplate, values = []) {
 // GET /api/attivisti - Lista tutti gli utenti con ruolo "Attivista"
 router.get('/', async (req, res) => {
   try {
+    if (!isValidRegisteredDirectoryFilters(req.query)) {
+      res.set('Cache-Control','no-store');
+      return res.status(400).json({success:false,error:'Parametri di ricerca non validi'});
+    }
     const { search, regione, tipologia, exclude_user_id } = req.query;
-    console.log('🔍 GET /api/attivisti - Lista attivisti richiesta', { search, regione, tipologia, exclude_user_id });
+    const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
+    if (membersCursor === false) {
+      res.set('Cache-Control','no-store');
+      return res.status(400).json({success:false,error:'Cursore non valido'});
+    }
+    const membersPaged = isPagedRegisteredRequest(req.query);
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -51,24 +63,16 @@ router.get('/', async (req, res) => {
     if (regione && regione.trim() && regione !== 'all') {
       // Converte nome regione in codice per la query database
       const regionCode = compressRegione(regione.trim());
-      console.log('🔍 Filtro regione:', { 
-        input: regione.trim(), 
-        regionCode, 
-        willFilter: !!regionCode 
-      });
       if (regionCode) {
         whereConditions.push(`u.regione_residenza = $${paramIndex}`);
         queryParams.push(regionCode);
         paramIndex++;
       } else {
-        console.log('⚠️ Regione non riconosciuta o non trovata:', regione);
-        console.log('⚠️ Proviamo a cercare anche AD (Admin) che hanno regione:', regione);
       }
     }
 
     // Filtro per tipologia di attivismo
     if (tipologia && tipologia.trim() && tipologia !== 'all') {
-      console.log('🔍 Filtro tipologia:', tipologia);
       // Cerca tipologie che contengono un elemento con tipo = tipologia
       whereConditions.push(`EXISTS (
         SELECT 1 
@@ -86,14 +90,15 @@ router.get('/', async (req, res) => {
       paramIndex++;
     }
 
+    // Stable keyset: descending supporter count, creation time and textual ID.
+    // A cursor does not alter any user-supplied search or region filters.
+    if (membersCursor) {
+      const n=queryParams.length+1;
+      whereConditions.push(`(COALESCE(us.cnt,0)::int, u.created_at, u.id::text) < ($${n}::int, (SELECT cursor_user.created_at FROM users cursor_user WHERE cursor_user.id=$${n+1}::uuid), $${n+1}::text)`);
+      queryParams.push(...membersCursor);
+    }
     const whereClause = whereConditions.join(' AND ');
 
-    // Log per debug
-    console.log('🔍 Query params:', { 
-      whereConditions, 
-      queryParams, 
-      whereClause 
-    });
 
     // Query per ottenere tutti gli utenti con ruolo "Attivista" con conteggio voti e ordinati
     const result = await queryActivists(`
@@ -101,19 +106,9 @@ router.get('/', async (req, res) => {
         u.id,
         u.nome,
         u.cognome,
-        u.email,
         u.ruolo,
-        u.status,
-        u.created_at,
-        u.updated_at,
         u.avatar_config,
-        u.genere,
-        u.data_nascita,
-        u.cittadinanza,
-        u.paese_residenza,
         u.regione_residenza,
-        u.provincia_residenza,
-        u.comune_residenza,
         u.facebook_url,
         u.twitter_url,
         u.instagram_url,
@@ -128,25 +123,34 @@ router.get('/', async (req, res) => {
       LEFT JOIN LATERAL (
         SELECT COUNT(*) AS cnt
         FROM users s
-        WHERE s.attivisti = u.id
+        WHERE s.attivisti = u.id AND s.status = 'a'
       ) us ON TRUE
       WHERE __ACCOUNT_FILTER__ AND ${whereClause}
-      ORDER BY supporters_count DESC, u.created_at DESC
+      ORDER BY supporters_count DESC, u.created_at DESC, u.id::text DESC ${membersPaged ? 'LIMIT 101' : ''}
     `, queryParams);
     
-    const attivisti = result.rows;
+    const {rows:attivisti,members_next_cursor} = membersPaged
+      ? pageRegistered(result.rows)
+      : {rows:result.rows,members_next_cursor:null};
     
-    console.log(`✅ Trovati ${attivisti.length} attivisti`);
     
+    // One indexed read piggybacks on the directory response; no extra browser GET.
+    // Public directory shows only approved IDs and titles: user-submitted details and source links are private to moderation.
+    // Pending/rejected proposals and proposer identities are never exposed.
+    const approvedPage = membersCursor ? {data:[],next_cursor:null} : await readApprovedPage(pool, 'attivisti');
+
     res.json({
       success: true,
-      data: attivisti,
+      data: projectPublicDirectoryMembers(attivisti),
+      approved_subjects: approvedPage.data,
+      approved_next_cursor: approvedPage.next_cursor,
+      members_next_cursor,
       count: attivisti.length,
       message: attivisti.length === 0 ? 'Al momento non ci sono attivisti registrati' : `${attivisti.length} attivisti trovati`
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero degli attivisti:', error);
+    console.error('❌ Errore nel recupero degli attivisti:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -158,8 +162,17 @@ router.get('/', async (req, res) => {
 // GET /api/attivisti/tipologia/:tipo - Lista attivisti per tipologia specifica
 router.get('/tipologia/:tipo', async (req, res) => {
   try {
+    if (!isValidRegisteredDirectoryFilters(req.query)) {
+      res.set('Cache-Control','no-store');
+      return res.status(400).json({success:false,error:'Parametri di ricerca non validi'});
+    }
     const { tipo } = req.params;
-    console.log(`🔍 GET /api/attivisti/tipologia/${tipo} - Lista attivisti per tipologia`);
+    const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
+    if (membersCursor === false) {
+      res.set('Cache-Control','no-store');
+      return res.status(400).json({success:false,error:'Cursore non valido'});
+    }
+    const membersPaged = isPagedRegisteredRequest(req.query);
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -174,19 +187,9 @@ router.get('/tipologia/:tipo', async (req, res) => {
         id,
         nome,
         cognome,
-        email,
         ruolo,
-        status,
-        created_at,
-        updated_at,
         avatar_config,
-        genere,
-        data_nascita,
-        cittadinanza,
-        paese_residenza,
         regione_residenza,
-        provincia_residenza,
-        comune_residenza,
         facebook_url,
         twitter_url,
         instagram_url,
@@ -195,27 +198,31 @@ router.get('/tipologia/:tipo', async (req, res) => {
         website_url,
         twitch_url,
         youtube_url,
-        tipologie_attivismo
+        tipologie_attivismo,
+        0::int AS supporters_count
       FROM users u
       WHERE __ACCOUNT_FILTER__
       AND tipologie_attivismo @> $1
-      ORDER BY created_at DESC
-    `, [JSON.stringify([{ tipo }])]);
+      ${membersCursor ? 'AND (0::int,u.created_at,u.id::text) < ($2::int,(SELECT cursor_user.created_at FROM users cursor_user WHERE cursor_user.id=$3::uuid),$3::text)' : ''}
+      ORDER BY u.created_at DESC, u.id::text DESC ${membersPaged ? 'LIMIT 101' : ''}
+    `, [JSON.stringify([{ tipo }]), ...(membersCursor || [])]);
     
-    const attivisti = result.rows;
+    const {rows:attivisti,members_next_cursor} = membersPaged
+      ? pageRegistered(result.rows)
+      : {rows:result.rows,members_next_cursor:null};
     
-    console.log(`✅ Trovati ${attivisti.length} attivisti per tipologia "${tipo}"`);
     
     res.json({
       success: true,
-      data: attivisti,
+      data: projectPublicDirectoryMembers(attivisti),
+      members_next_cursor,
       count: attivisti.length,
       tipologia: tipo,
       message: attivisti.length === 0 ? `Nessun attivista trovato per la tipologia "${tipo}"` : `${attivisti.length} attivisti trovati per la tipologia "${tipo}"`
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero degli attivisti per tipologia:', error);
+    console.error('❌ Errore nel recupero degli attivisti per tipologia:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -227,7 +234,6 @@ router.get('/tipologia/:tipo', async (req, res) => {
 // GET /api/attivisti/statistiche - Statistiche per tipologie di attivismo
 router.get('/statistiche', async (req, res) => {
   try {
-    console.log('📊 GET /api/attivisti/statistiche - Statistiche tipologie attivismo');
     
     // Query per contare attivisti per tipologia
     const result = await queryActivists(`
@@ -253,7 +259,6 @@ router.get('/statistiche', async (req, res) => {
     
     const totalAttivisti = parseInt(totalResult.rows[0].total);
     
-    console.log(`📊 Statistiche calcolate: ${statistiche.length} tipologie, ${totalAttivisti} attivisti totali`);
     
     res.json({
       success: true,
@@ -266,7 +271,7 @@ router.get('/statistiche', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel calcolo delle statistiche:', error);
+    console.error('❌ Errore nel calcolo delle statistiche:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -278,7 +283,6 @@ router.get('/statistiche', async (req, res) => {
 // GET /api/attivisti/filtri - Ottieni regioni e tipologie disponibili per i filtri
 router.get('/filtri', async (req, res) => {
   try {
-    console.log('🔍 GET /api/attivisti/filtri - Filtri disponibili richiesti');
     
     // Ottieni regioni uniche (già compresse nel DB come "LO", "TO", etc.)
     const regioniResult = await queryActivists(`
@@ -308,9 +312,6 @@ router.get('/filtri', async (req, res) => {
     
     const tipologie = tipologieResult.rows.map(row => row.tipo);
     
-    console.log(`✅ Filtri disponibili: ${regioni.length} regioni, ${tipologie.length} tipologie`);
-    console.log('📍 Regioni disponibili:', regioni);
-    console.log('🎯 Tipologie disponibili:', tipologie);
     
     res.json({
       success: true,
@@ -322,7 +323,7 @@ router.get('/filtri', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero dei filtri:', error);
+    console.error('❌ Errore nel recupero dei filtri:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',

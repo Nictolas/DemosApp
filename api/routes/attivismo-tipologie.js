@@ -129,8 +129,6 @@ router.put('/:userId', verifyToken, async (req, res) => {
     const { userId } = req.params;
     const { tipologie } = req.body;
     
-    console.log(`💾 PUT /api/attivismo-tipologie/${userId} - Aggiornamento tipologie`);
-    console.log('📋 Tipologie ricevute:', tipologie);
     
     // Validazione input
     if (!Array.isArray(tipologie)) {
@@ -173,29 +171,10 @@ router.put('/:userId', verifyToken, async (req, res) => {
       });
     }
     
-    // Verifica che l'utente esista
-    const userCheck = await pool.query(
-      'SELECT id, nome, cognome, ruolo FROM users WHERE id = $1',
-      [userId]
-    );
-    
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato',
-        message: 'L\'utente specificato non esiste'
-      });
-    }
-    
-    const user = userCheck.rows[0];
-    console.log(`👤 Utente trovato: ${user.nome} ${user.cognome} (${user.ruolo})`);
-    
-    // Verifica che l'utente possa modificare le tipologie
-    // L'utente può modificare le proprie tipologie o essere admin
+    // Authorize before reading another account's profile.
     const requestingUserId = req.user?.id;
     const isOwnProfile = requestingUserId === userId;
     const isAdmin = Boolean(req.user?.isAdmin);
-    
     if (!isOwnProfile && !isAdmin) {
       return res.status(403).json({
         success: false,
@@ -203,9 +182,19 @@ router.put('/:userId', verifyToken, async (req, res) => {
         message: 'Puoi modificare solo le tue tipologie di attivismo'
       });
     }
-    
-    console.log(`🔐 Autorizzazione: isOwnProfile=${isOwnProfile}, isAdmin=${isAdmin}`);
-    
+
+    const userCheck = await pool.query(
+      'SELECT 1 FROM users WHERE id = $1',
+      [userId]
+    );
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: "L'utente specificato non esiste"
+      });
+    }
+
     // Prepara le tipologie per il database
     const tipologiePerDB = tipologie.map(tipo => {
       const tipologiaInfo = {
@@ -224,7 +213,6 @@ router.put('/:userId', verifyToken, async (req, res) => {
       [JSON.stringify(tipologiePerDB), userId]
     );
     
-    console.log('✅ Tipologie aggiornate con successo');
     
     res.json({
       success: true,
@@ -233,11 +221,11 @@ router.put('/:userId', verifyToken, async (req, res) => {
         tipologie: result.rows[0].tipologie_attivismo,
         count: tipologie.length
       },
-      message: `Tipologie di attivismo aggiornate per ${user.nome} ${user.cognome}`
+      message: 'Tipologie di attivismo aggiornate'
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento delle tipologie:', error);
+    console.error('ACTIVISM_TYPES_UPDATE_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',

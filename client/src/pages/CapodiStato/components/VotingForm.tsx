@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, CheckCircle2 } from "lucide-react";
+import { Plus, X, CheckCircle2, ThumbsUp, Info } from "lucide-react";
 import { Classifica } from "../types";
 
 interface VotingFormProps {
@@ -31,13 +31,20 @@ export const VotingForm: React.FC<VotingFormProps> = ({
 }) => {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const nomePulito = nomeInput.trim();
     if (!nomePulito) return;
-    
-    onAddNome(nomePulito);
+    // Il voto non crea nuovi candidati: il nome deve già comparire nella lista.
+    const candidate = classifica.find(item => item.nome.toLocaleLowerCase('it') === nomePulito.toLocaleLowerCase('it'));
+    if (!candidate) {
+      setSearchError("Puoi votare soltanto candidati già presenti nella classifica.");
+      return;
+    }
+    setSearchError("");
+    onAddNome(candidate.nome);
     setNomeInput("");
   };
 
@@ -55,10 +62,30 @@ export const VotingForm: React.FC<VotingFormProps> = ({
     <Card className="overflow-hidden rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-sm lg:border-2 lg:shadow-xl lg:h-full lg:min-h-0 lg:flex lg:flex-col">
       <CardHeader className="shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-white lg:px-5 lg:py-3 [@media(max-height:650px)]:py-1">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-bold lg:text-lg">Il tuo voto</h2>
-          <Badge className="rounded-full border border-white/30 bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-white/20" aria-label={`Voti selezionati: ${currentVotes} su ${limit}`}>
-            {currentVotes}/{limit}
-          </Badge>
+          <div className="flex min-w-0 items-start gap-2 lg:items-center lg:gap-3">
+            <div className="hidden shrink-0 rounded-lg bg-white/20 p-2 backdrop-blur-sm lg:block lg:p-1.5">
+              <ThumbsUp className="h-6 w-6 lg:h-4 lg:w-4 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold lg:text-2xl lg:text-lg">Il tuo voto</h2>
+              <CardDescription className="sr-only lg:not-sr-only lg:mt-0.5 lg:text-xs lg:leading-snug lg:text-blue-100">
+                Scegli dalla classifica o cerca un nome già presente. Massimo {limit} voto{limit !== 1 ? 'i' : ''}.
+              </CardDescription>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <Badge 
+              variant={hasReachedLimit ? "destructive" : "secondary"} 
+              className={`flex items-center gap-1 px-2 py-1 text-xs font-semibold lg:gap-1.5 lg:px-3 lg:py-1.5 lg:text-sm ${
+                hasReachedLimit 
+                  ? "bg-red-500 hover:bg-red-600 text-white" 
+                  : "bg-white/20 backdrop-blur-sm text-white border-white/30"
+              }`}
+            >
+              <Info className="h-4 w-4" />
+              <span>{currentVotes}/{limit}</span>
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="px-3 py-2 lg:px-5 lg:py-3 [@media(max-height:650px)]:py-0.5">
@@ -66,10 +93,11 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
               <Input
-                placeholder="Nome del candidato..."
+                placeholder="Cerca tra i candidati..."
                 value={nomeInput}
                 onChange={(e) => { 
-                  setNomeInput(e.target.value); 
+                  setNomeInput(e.target.value);
+                  setSearchError("");
                   setShowSuggestions(true); 
                 }}
                 onFocus={() => setShowSuggestions(true)}
@@ -106,6 +134,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
               <Plus className="h-5 w-5" aria-hidden="true" />
             </Button>
           </div>
+          {searchError && <p role="alert" className="text-xs text-red-700">{searchError}</p>}
         </form>
 
         {selectedVoti.length > 0 ? (

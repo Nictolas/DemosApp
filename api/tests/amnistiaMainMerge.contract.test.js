@@ -1,0 +1,20 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'../..');
+const read=x=>fs.readFileSync(path.join(root,x),'utf8');
+test('Amnistia main compact voting form and DEMOS12 moderation are both preserved',()=>{
+ const page=read('client/src/pages/Amnistia/index.tsx');
+ const form=read('client/src/pages/Amnistia/components/AmnistiaForm.tsx');
+ const types=read('client/src/pages/Amnistia/types/index.ts');
+ assert.match(page,/amnistia-page__fixed-header shrink-0 border-b border-slate-200 bg-white px-4 py-2 sm:px-6 sm:py-3/);
+ assert.match(page,/limit=\{limit\}/);
+ assert.equal((page.match(/<ProposeSubjectButton category="amnistia"/g)||[]).length,1);
+ assert.match(types,/export interface AmnistiaFormProps \{\s*limit: number/);
+ assert.match(form,/Voti selezionati: \$\{mieiVoti\.length\} su \$\{limit\}/);
+ assert.match(form,/Per proporre nuove voci usa il pulsante \+/);
+ assert.match(form,/saranno valutate prima della pubblicazione/);
+ assert.match(form,/disabled=\{isPending \|\| !leggeInput\.trim\(\) \|\| hasReachedLimit\}/);
+ assert.doesNotMatch(form,/apiRequest\(|fetch\(/);
+});

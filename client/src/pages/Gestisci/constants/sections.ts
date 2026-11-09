@@ -1,4 +1,4 @@
-import { Users, BookOpen, BarChart3, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award, ClipboardList } from "lucide-react";
+import { Users, BookOpen, BarChart3, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award, ClipboardCheck, Heart } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -39,12 +39,23 @@ export const gestisciSections: GestisciSection[] = [
     id: "proposte-soggetti",
     category: "amministrazione",
     title: "Proposte soggetti",
-    description: "Stato della moderazione delle nuove proposte (non ancora attiva)",
-    icon: ClipboardList,
-    color: "text-slate-600 group-hover:text-slate-800",
-    buttonColor: "bg-slate-500 hover:bg-slate-600",
+    description: "Approva o rifiuta proposte per quattro categorie; Grazia ha la coda dedicata.",
+    icon: ClipboardCheck,
+    color: "text-emerald-600 group-hover:text-emerald-800",
+    buttonColor: "bg-emerald-500 hover:bg-emerald-600",
     route: "/gestisci/proposte-soggetti",
-    buttonText: "Stato proposte"
+    buttonText: "Modera proposte"
+  },
+  {
+    id: "grazia-proposte",
+    category: "amministrazione",
+    title: "Proposte Grazia",
+    description: "Valuta le richieste nella coda Grazia esistente.",
+    icon: Heart,
+    color: "text-rose-600 group-hover:text-rose-800",
+    buttonColor: "bg-rose-500 hover:bg-rose-600",
+    route: "/gestisci-grazia",
+    buttonText: "Esamina proposte"
   },
   {
     id: "riconoscimenti",

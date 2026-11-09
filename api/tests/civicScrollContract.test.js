@@ -10,7 +10,7 @@ const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 
 test('only the intended civic routes use the bounded scroll shell', () => {
   const layout = read('client/src/components/RobustAppLayout.tsx');
-  const css = read('client/src/robust-layout.css');
+  const css = read('client/src/robust-layout.css').replace(/\r\n/g, '\n');
 
   assert.ok(layout.includes("location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/amnistia' || location === '/capo-stato' || location === '/capo-di-stato'"));
   assert.ok(layout.includes("${isScrollableContentPage ? ' app-main--scroll-content' : ''}"));
@@ -162,5 +162,14 @@ test('sightings header stays visible while all three categories scroll', () => {
   assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('emergencySections.map'));
   for (const section of ['emergenze', 'decoro-urbano', 'sicurezza']) {
     assert.ok(page.includes(`id: "${section}"`));
+  }
+});
+
+test('Capo di Stato voting controls import their rendered symbols', () => {
+  const form = read('client/src/pages/CapodiStato/components/VotingForm.tsx');
+  assert.match(form, /import \{[^}]*CardDescription[^}]*\} from ["']@\/components\/ui\/card["']/);
+  assert.match(form, /import \{[^}]*ThumbsUp[^}]*Info[^}]*\} from ["']lucide-react["']/);
+  for (const item of ['CardDescription', 'ThumbsUp', 'Info']) {
+    assert.match(form, new RegExp('<' + item + '\\b'));
   }
 });

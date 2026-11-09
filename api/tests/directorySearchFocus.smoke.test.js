@@ -29,12 +29,12 @@ for (const [name, relative] of [
   test(name + ': backend search debounced and stale requests aborted on next character', () => {
     const src = fs.readFileSync(path.join(root, relative), 'utf8');
     assert.match(src, /const controller = new AbortController\(\)/);
-    assert.match(src, /fetch\(url, \{ signal: controller\.signal \}\)/);
+    assert.match(src, /fetch\(url, \{ signal: controller\.signal(?:, cache: 'no-store')? \}\)/);
     assert.match(src, /if \(controller\.signal\.aborted\) return;/);
     assert.match(src, /window\.setTimeout\(\(\) => \{/);
     assert.match(src, /searchTerm\.trim\(\) \? 300 : 0/);
     assert.match(src, /window\.clearTimeout\(timer\)/);
     assert.match(src, /controller\.abort\(\)/);
-    assert.match(src, /\[searchTerm, selectedRegione, selectedTipologia\]/);
+    assert.match(src, /\[searchTerm, selectedRegione, selectedTipologia(?:, reset)?\]/);
   });
 }

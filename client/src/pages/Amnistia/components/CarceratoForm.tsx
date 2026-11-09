@@ -37,8 +37,7 @@ export const CarceratoForm: React.FC<CarceratoFormProps> = ({ onSubmit, onCancel
         <Alert className="mb-4 bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-300 shadow-md">
           <AlertTriangle className="h-4 w-4 text-yellow-600" />
           <AlertDescription className="text-yellow-800 font-medium">
-            <strong>ATTENZIONE:</strong> Per proporre un'amnistia, assicurati di avere 
-            informazioni verificate e documentate sul caso.
+            <strong>Proposte sospese:</strong> L'invio verrà riattivato quando sarà pronto il controllo amministrativo. Nel frattempo non raccogliamo nuove richieste.
           </AlertDescription>
         </Alert>
         <Form {...form}>
@@ -100,10 +99,10 @@ export const CarceratoForm: React.FC<CarceratoFormProps> = ({ onSubmit, onCancel
               </Button>
               <Button 
                 type="submit" 
-                disabled={isLoading}
+                disabled={true} aria-disabled="true"
                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
               >
-                {isLoading ? "Invio in corso..." : "Proponi Amnistia"}
+                Proposte temporaneamente sospese
               </Button>
             </div>
           </form>

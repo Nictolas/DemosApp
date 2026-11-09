@@ -186,11 +186,10 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
                         {(() => {
                           if (!watchRegioneResidenza) return null;
 
-                          let regioniFonte:
-                            | typeof ITALY_DATA.Italia.regioni
-                            | typeof ITALY_DATA["San Marino"].regioni
-                            | typeof ITALY_DATA["Svizzera"].regioni
-                            | undefined;
+                          let regioniFonte: Array<{
+                            nome: string;
+                            province: Array<{ nome: string; comuni: string[] }>;
+                          }> | undefined;
 
                           if (watchPaeseResidenza === "Italia") {
                             regioniFonte = ITALY_DATA.Italia.regioni;
@@ -229,11 +228,10 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
                   let comuniDisponibili: string[] = [];
 
                   if (watchRegioneResidenza && watchProvinciaResidenza) {
-                    let regioniFonte:
-                      | typeof ITALY_DATA.Italia.regioni
-                      | typeof ITALY_DATA["San Marino"].regioni
-                      | typeof ITALY_DATA["Svizzera"].regioni
-                      | undefined;
+                    let regioniFonte: Array<{
+                      nome: string;
+                      province: Array<{ nome: string; comuni: string[] }>;
+                    }> | undefined;
 
                     if (watchPaeseResidenza === "Italia") {
                       regioniFonte = ITALY_DATA.Italia.regioni;
@@ -250,13 +248,7 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
                         ?.comuni || [];
                   }
                   
-                  console.log('🔍 Debug comuni:', {
-                    regione: watchRegioneResidenza,
-                    provincia: watchProvinciaResidenza,
-                    comuni: comuniDisponibili,
-                    count: comuniDisponibili.length
-                  });
-                  
+
                   return (
                     <FormItem>
                       <FormLabel>Comune di Residenza *</FormLabel>
@@ -268,8 +260,8 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
                         </FormControl>
                         <SelectContent>
                           {comuniDisponibili.map((comune) => (
-                            <SelectItem key={comune.nome} value={comune.nome}>
-                              {comune.nome}
+                            <SelectItem key={comune} value={comune}>
+                              {comune}
                             </SelectItem>
                           ))}
                         </SelectContent>

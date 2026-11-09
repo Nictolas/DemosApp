@@ -32,6 +32,9 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
         </div>
       </CardHeader>
       <CardContent className="px-3 py-2 lg:px-5 lg:py-3">
+        <p className="mb-2 text-xs text-slate-600">
+          Per proporre nuove voci usa il pulsante +: saranno valutate prima della pubblicazione.
+        </p>
         <form onSubmit={onSubmit} className="space-y-1">
           <div className="flex min-w-0 gap-1 lg:gap-2">
             <div className="relative min-w-0 flex-1">
