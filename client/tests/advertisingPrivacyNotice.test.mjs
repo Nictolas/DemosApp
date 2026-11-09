@@ -59,6 +59,17 @@ test('web/PWA preview is first-party, opt-in and not a real ad request', () => {
   assert.match(settings, /import \{ WebAdvertisingPreview \}/);
   assert.match(settings, /<WebAdvertisingPreview \/>/);
   assert.match(preview, /Capacitor\.isNativePlatform\(\)/);
+  // PWA standalone detection and layout differentiation, including iOS Safari.
+  assert.match(preview, /function isInstalledWebApp\(\)/);
+  assert.match(preview, /\(display-mode: standalone\)/);
+  assert.match(preview, /navigator as Navigator & \{ standalone\?: boolean \}/);
+  assert.match(preview, /function isDesktopBrowser\(\)/);
+  assert.match(preview, /\(min-width: 900px\)/);
+  assert.match(preview, /isInstalledWebApp\(\) \? 'standalone'/);
+  assert.match(preview, /'desktop' : 'mobile-browser'/);
+  assert.match(preview, /Anteprima a schermo intero \(PWA\)/);
+  assert.match(preview, /Anteprima banner web/);
+  assert.match(preview, /non sono\s+garantite esattamente all'apertura/);
   assert.match(preview, /onClick=\{\(\) => setOpen\(true\)\}/);
   assert.match(preview, /<Dialog open=\{open\} onOpenChange=\{setOpen\}>/);
   assert.match(preview, /Non è una pubblicità di Google/);
