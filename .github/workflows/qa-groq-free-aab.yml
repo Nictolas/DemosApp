@@ -1,0 +1,78 @@
+name: QA AAB Groq Free guarded integration
+on:
+  pull_request:
+    branches:
+      - integration/aab-cumulative-qa-20261109
+    paths:
+      - 'api/services/aiExplanationService.js'
+      - 'api/services/leggeAnalysisService.js'
+      - 'api/services/parliamentFree*.js'
+      - 'api/services/parliamentGroundedAnalysis.js'
+      - 'api/services/parliamentAiSingleflight.js'
+      - 'api/services/parliamentActIdentifier.js'
+      - 'api/services/groqFreeSmokeService.js'
+      - 'api/routes/voti-camera.js'
+      - 'api/routes/voti-parlamento-europeo.js'
+      - 'api/sync-voti-openpolis.js'
+      - 'api/tests/parliament*.test.js'
+      - 'api/tests/groq*.test.js'
+      - 'client/src/pages/VotiParlamentoEuropeo.tsx'
+      - '.github/workflows/qa-groq-free-aab.yml'
+permissions:
+  contents: read
+jobs:
+  groq-free-no-secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GROQ_API_KEY: ''
+      OPENAI_API_KEY: ''
+      DEMOS_GROQ_FREE_QA_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned backend dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Static syntax
+        run: |
+          node --check api/services/aiExplanationService.js
+          node --check api/services/leggeAnalysisService.js
+          node --check api/routes/voti-camera.js
+          node --check api/routes/voti-parlamento-europeo.js
+          node --check api/sync-voti-openpolis.js
+          node --check api/tests/parliamentGroqCumulativeQa.test.js
+      - name: Free policy, source grounding, data integrity, frontend integration
+        run: |
+          node --test --test-concurrency=1 \
+            api/tests/parliamentFreeAiPolicy.test.js \
+            api/tests/parliamentFreeGroqBudget.test.js \
+            api/tests/parliamentGroundedAnalysis.test.js \
+            api/tests/parliamentAiSingleflight.test.js \
+            api/tests/parliamentActIdentifier.test.js \
+            api/tests/parliamentRepresentativeExplanationSafety.test.js \
+            api/tests/parliamentLeggeCompletionSafety.test.js \
+            api/tests/parliamentCachedEvidenceRoute.test.js \
+            api/tests/parliamentFinalVotePersistenceSafety.test.js \
+            api/tests/parliamentOpenpolisSyncLifecycle.test.js \
+            api/tests/parliamentVoteTitleSingleflight.test.js \
+            api/tests/parliamentAiRouteLogPrivacy.test.js \
+            api/tests/parliamentGroqCumulativeQa.test.js \
+            api/tests/groqFreeSmokeService.test.js \
+            api/tests/groqFreeStandaloneProbe.test.js \
+            api/tests/groqOfficialCaseQa.test.js
+  frontend-groq-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_ANDROID_NATIVE_PUSH_ENABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Compile cumulative Android-facing client with Groq admin preview
+        run: npm --prefix client run build
