@@ -9,6 +9,7 @@ on:
       - 'api/tests/civicEciDeepLinkArchive.http.test.js'
       - 'api/tests/fcmTokenIntegrity.test.js'
       - 'api/tests/test_sync_eci.py'
+      - 'api/tests/civicEciSchedulerGate.test.js'
       - 'client/src/pages/ECI/index.tsx'
       - 'client/src/pages/IniziativePopolari/components/ViewDialog.tsx'
       - 'client/src/pages/ReferendumAbrogativi/components/ViewDialog.tsx'
@@ -40,7 +41,7 @@ jobs:
         run: |
           node --check api/routes/eci.js
           node --check api/routes/fcm-tokens.js
-          node --test --test-concurrency=1 api/tests/civicEciDeepLinkArchive.http.test.js api/tests/fcmTokenIntegrity.test.js
+          node --test --test-concurrency=1 api/tests/civicEciDeepLinkArchive.http.test.js api/tests/fcmTokenIntegrity.test.js api/tests/civicEciSchedulerGate.test.js
       - name: Validate shared official-information links
         run: node --experimental-strip-types --test client/tests/civicOfficialSources.test.mjs
       - name: Validate ECI synchronization guard
