@@ -4,7 +4,7 @@ const rateLimit = require('express-rate-limit');
 const isProduction = process.env.NODE_ENV === 'production';
 const REDACTED = '[REDACTED]';
 const CONSOLE_REDACTION_FLAG = Symbol.for('demos.productionConsoleRedactionInstalled');
-const SENSITIVE_LOG_KEY = /(?:authorization|cookie|token|secret|password|credential|api[_-]?key|session|jti|sid|email|given_name|family_name|provider_sub|\bsub\b|user[_-]?id)/i;
+const SENSITIVE_LOG_KEY = /(?:authorization|cookie|token|secret|password|credential|app[-_]?check|attestation|api[_-]?key|session|jti|sid|email|given_name|family_name|provider_sub|\bsub\b|user[_-]?id)/i;
 
 const debugLog = (...args) => {
   if (!isProduction) console.log(...args);

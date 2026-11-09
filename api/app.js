@@ -178,7 +178,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma', 'X-Firebase-AppCheck'],
   optionsSuccessStatus: 200
 };
 
@@ -203,7 +203,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma, X-Firebase-AppCheck');
     console.log('âœ… CORS: Header impostati per origin:', origin);
   } else if (origin) {
     console.log('ðŸš¨ CORS: Origin non autorizzato:', origin);
@@ -233,7 +233,7 @@ app.options('*', (req, res) => {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma, X-Firebase-AppCheck');
     console.log('âœ… CORS OPTIONS: Header impostati per origin:', origin);
   } else if (origin) {
     console.log('ðŸš¨ CORS OPTIONS: Origin non autorizzato:', origin);
@@ -328,6 +328,17 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Route di base
 app.use('/api', healthRoutes);
+
+// No new service or public route by default. Diagnostic is mounted only
+// after three explicit gates and still requires an authenticated Admin.
+const { isDiagnosticRouteEnabled } = require('./services/firebaseAppCheckObservation');
+if (isDiagnosticRouteEnabled(process.env)) {
+  app.use(
+    '/api/admin/firebase-app-check',
+    adminLimiter,
+    require('./routes/admin/firebase-app-check-diagnostic')
+  );
+}
 
 // Route per database
 app.use('/api', databaseRoutes);

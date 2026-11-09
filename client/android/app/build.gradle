@@ -6,6 +6,43 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+// Signing credentials are supplied OUTSIDE Git. A signed release must NOT be
+// produced with a missing/wrong google-services.json. GitHub CI intentionally
+// makes only unsigned artifacts and therefore does not require this file.
+// This gate reads PUBLIC Firebase identifiers only and never prints API keys.
+def verifyDemosSignedReleaseFirebaseConfig = {
+    def firebaseFile = file('google-services.json')
+    if (!firebaseFile.isFile()) {
+        throw new GradleException('DEMOS signed release: google-services.json mancante; firma bloccata')
+    }
+    def firebaseConfig
+    try {
+        firebaseConfig = new groovy.json.JsonSlurper().parse(firebaseFile)
+    } catch (Exception ignored) {
+        throw new GradleException('DEMOS signed release: configurazione Firebase non valida')
+    }
+    def approvedClient = firebaseConfig?.client instanceof Collection
+        && firebaseConfig.client.any { client ->
+            client?.client_info?.android_client_info?.package_name == 'community.demos'
+                && client?.client_info?.mobilesdk_app_id
+                    == '1:848085963511:android:8f8047e4c6a38b11d0b9f2'
+        }
+    if (firebaseConfig?.project_info?.project_id != 'demos-finale'
+        || firebaseConfig?.project_info?.project_number?.toString() != '848085963511'
+        || !approvedClient) {
+        throw new GradleException('DEMOS signed release: progetto Firebase o app Android non corrispondente')
+    }
+}
+// Attach only to Android release builds. Debug builds remain usable even if
+// local release signing material exists but Firebase release config is absent.
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
+    doFirst {
+        if (keystorePropertiesFile.exists()) {
+            verifyDemosSignedReleaseFirebaseConfig()
+        }
+    }
+}
+
 android {
     namespace "community.demos"
     compileSdk rootProject.ext.compileSdkVersion
@@ -21,7 +58,16 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
+        // Play Integrity is OFF in all builds until zero-cost use is approved.
+        buildConfigField "boolean", "PLAY_INTEGRITY_ENABLED", "false"
+        // Independent Firebase App Check gate. Remains OFF; no attestation calls by default.
+        buildConfigField "boolean", "FIREBASE_APP_CHECK_ENABLED", "false"
+        buildConfigField "long", "PLAY_INTEGRITY_PROJECT_NUMBER", "0L"
         applicationId "community.demos"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
@@ -57,6 +103,13 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+
+    // SDK Play Integrity: passive until the explicitly disabled compile-time gate is changed.
+    implementation 'com.google.android.play:integrity:1.6.0'
+
+    // App Check only supports the separately gated Android bridge; not enabled at startup.
+    implementation platform('com.google.firebase:firebase-bom:35.1.0')
+    implementation 'com.google.firebase:firebase-appcheck-playintegrity'
 
     // Login Google nativo: Credential Manager restituisce un Google ID token
     // che viene verificato dal backend DEMOS esistente.
