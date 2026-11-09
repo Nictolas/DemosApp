@@ -305,11 +305,13 @@ async function main() {
           if (viewport.mobile) {
             assert.ok(first.pieSectors > 0, 'Consent pie chart missing on Capo di Stato mobile');
           }
-          assert.ok(first.capoHeader && first.capoControls && first.capoRankTitle,
-            'Missing fixed title, vote controls or list heading for Capo di Stato');
+          assert.ok(first.capoHeader && first.capoControls,
+            'Missing fixed title or vote controls for Capo di Stato');
+          assert.equal(first.capoRankTitle, null,
+            'Capo di Stato ranking title must be removed to save space');
           assert.equal(first.capoBackLinkCount, 0,
             'Capo di Stato must not show a back-to-Vota link');
-          for (const key of ['capoHeader', 'capoControls', 'capoRankTitle']) {
+          for (const key of ['capoHeader', 'capoControls']) {
             assert.ok(Math.abs(first[key].top - after[key].top) <= 2 &&
               Math.abs(first[key].bottom - after[key].bottom) <= 2,
               key + ' moved while scrolling the ranking: ' + item.path);

@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trophy, ThumbsUp, Plus } from "lucide-react";
 import { Classifica } from "../types";
@@ -25,15 +25,6 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
   if (!classifica || classifica.length === 0) {
     return (
       <Card className="border-0 bg-transparent shadow-none lg:border lg:bg-white lg:shadow-sm lg:h-full lg:overflow-hidden">
-        <CardHeader className="px-1 pb-1 pt-2 lg:p-6 lg:py-3">
-          <CardTitle className="flex items-center gap-2 text-base lg:text-2xl lg:text-lg">
-            <Trophy className="h-5 w-5 text-yellow-500" />
-            <span>Classifica candidati</span>
-          </CardTitle>
-          <CardDescription className="hidden lg:block">
-            I candidati che hanno ricevuto più voti (0 totali)
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-gray-500">
             <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
@@ -51,15 +42,6 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
 
   return (
     <Card className="flex h-full min-h-0 flex-col overflow-hidden border-0 bg-transparent shadow-none lg:border lg:bg-white lg:shadow-sm">
-      <CardHeader className="shrink-0 px-1 pb-1 pt-2 lg:p-6 lg:py-3">
-        <CardTitle className="flex items-center gap-2 text-base lg:text-2xl lg:text-lg">
-          <Trophy className="h-5 w-5 text-yellow-500" />
-          <span>Classifica candidati</span>
-        </CardTitle>
-        <CardDescription className="hidden lg:block lg:text-xs">
-          I candidati che hanno ricevuto più voti ({classifica.length} totali)
-        </CardDescription>
-      </CardHeader>
       <CardContent
         className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-0 pb-4 pt-0 lg:px-6 lg:pb-6"
         role="region"

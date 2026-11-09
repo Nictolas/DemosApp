@@ -38,9 +38,6 @@ export default function CapodiStato() {
     handleRemoveLocal,
     toggleSelezione,
     votiCambiati,
-    currentVotes,
-    limit,
-    remainingVotes,
     hasReachedLimit,
     showRemoveDialog,
     votoToRemove,
@@ -104,9 +101,6 @@ export default function CapodiStato() {
                   onAddNome={handleAddNomeLocal}
                   onRemoveNome={handleRemoveLocal}
                   hasReachedLimit={hasReachedLimit}
-                  currentVotes={currentVotes}
-                  limit={limit}
-                  remainingVotes={remainingVotes}
                 />
               </>
             )}
