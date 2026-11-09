@@ -12,6 +12,7 @@ const CONSENT_SCOPED_TABLES = Object.freeze([
   'political_selections',
   'voti_elezioni',
   'voti_capo_stato',
+  'capo_stato_scelte',
   'voti_ice',
   'voti_referendum_abrogativi',
   'civic_ballot_positions',

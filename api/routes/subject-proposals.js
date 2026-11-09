@@ -186,6 +186,19 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
+// Grazia is kept in its original, separate private moderation queue.
+router.get('/admin/grazia',verifyToken,requireAdmin,async(_req,res)=>{
+  res.set('Cache-Control','private, no-store');
+  try {
+    const result=await pool.query(
+      "SELECT nome FROM richieste_grazia WHERE status='pending' ORDER BY data_creazione DESC LIMIT 100"
+    );
+    return res.json({success:true,nomi:result.rows.map(item=>item.nome)});
+  } catch (_) {
+    return res.status(503).json({success:false,error:"Coda Grazia non disponibile"});
+  }
+});
+
 router.get('/admin', verifyToken, requireAdmin, async (req, res) => {
   const cursor = parseAdminPageCursor(req.query.cursor);
   if (cursor === false) return res.status(400).json({ success: false, error: 'Cursore non valido' });
@@ -560,6 +573,20 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
           [p.title, p.id]
         );
         publishedRef = String(r.rows[0].id);
+        await client.query(
+          "UPDATE capo_stato_scelte SET tipo='voto' WHERE tipo='proposta' "+
+          "AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = "+
+          "lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g')))",
+          [p.title]
+        );
+        await client.query(
+          "INSERT INTO voti_capo_stato(id,userid,nome,timestamp) "+
+          "SELECT gen_random_uuid(),s.user_id,s.nome,now() FROM capo_stato_scelte s "+
+          "WHERE s.tipo='voto' AND lower(btrim(regexp_replace(normalize(s.nome, NFC), '[[:space:]]+', ' ', 'g'))) = "+
+          "lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) "+
+          "ON CONFLICT (userid,nome) DO NOTHING",
+          [p.title]
+        );
       } else {
         // Public, read-only nomination. This does not invent a user account,
         // grant an organizational role, or allow supporting an unverified profile.

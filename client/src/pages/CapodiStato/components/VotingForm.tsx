@@ -32,12 +32,17 @@ export const VotingForm: React.FC<VotingFormProps> = ({
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  const normalizeLabel = (name: string) =>
+    name.normalize("NFKC").trim().replace(/\s+/gu, " ").toLocaleLowerCase("it");
+  const existingCandidate = classifica.find(c => normalizeLabel(c.nome) === normalizeLabel(nomeInput));
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const nomePulito = nomeInput.trim();
     if (!nomePulito) return;
     
-    onAddNome(nomePulito);
+    if (!existingCandidate) return;
+    onAddNome(existingCandidate.nome);
     setNomeInput("");
   };
 
@@ -101,13 +106,18 @@ export const VotingForm: React.FC<VotingFormProps> = ({
               className="h-11 w-11 shrink-0"
               aria-label="Conferma candidato"
               title="Conferma candidato"
-              disabled={!nomeInput.trim() || isBlocked || hasReachedLimit}
+              disabled={!existingCandidate || isBlocked || hasReachedLimit}
             >
               <Plus className="h-5 w-5" aria-hidden="true" />
             </Button>
           </div>
         </form>
 
+        {nomeInput.trim() && !existingCandidate && (
+          <p className="mb-2 text-xs text-slate-600">
+            Questo nome non è ancora votabile. Per proporlo usa il pulsante Proponi in alto.
+          </p>
+        )}
         {selectedVoti.length > 0 ? (
           <div className="space-y-2 lg:space-y-3">
             <div className="grid gap-2 lg:gap-3">

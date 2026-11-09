@@ -10,7 +10,7 @@ const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 
 test('only the intended civic routes use the bounded scroll shell', () => {
   const layout = read('client/src/components/RobustAppLayout.tsx');
-  const css = read('client/src/robust-layout.css');
+  const css = read('client/src/robust-layout.css').replace(/\r\n/g, "\n");
 
   assert.ok(layout.includes("location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/amnistia' || location === '/capo-stato' || location === '/capo-di-stato'"));
   assert.ok(layout.includes("${isScrollableContentPage ? ' app-main--scroll-content' : ''}"));

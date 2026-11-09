@@ -89,7 +89,7 @@ export default function ProponiSoggetto() {
   const config = getProposalCategory(category);
   const sourceIsValid = isPublicHttpsSourceUrl(sourceUrl.trim());
   const canSubmit = title.trim().length >= 3 &&
-    title.trim().length <= 150 && sourceIsValid && sourceUrl.length <= (category === "grazia" ? 2000 : 2048) &&
+    title.trim().length <= 150 && (category === "capo_stato" || (sourceIsValid && sourceUrl.length <= (category === "grazia" ? 2000 : 2048))) &&
     (category === "grazia" || details.length <= 1000) &&
     !submitting && submitted !== category;
 
@@ -109,6 +109,8 @@ export default function ProponiSoggetto() {
             nome: title.trim(),
             urlProva: sourceUrl.trim(),
           })
+        : category === "capo_stato"
+        ? await apiRequest("POST", "/api/capo-stato/proponi", { nome: title.trim() })
         : await apiRequest("POST", "/api/subject-proposals", {
             category,
             title: title.trim(),
@@ -117,7 +119,9 @@ export default function ProponiSoggetto() {
           });
       const recorded = category === "grazia"
         ? response?.status === 202 && response?.data?.richiesta?.status === "pending"
-        : response?.status === 201 && response?.data?.status === "pending";
+        : category === "capo_stato"
+          ? (response?.status === 200 || response?.status === 201) && response?.data?.status === "pending"
+          : response?.status === 201 && response?.data?.status === "pending";
       if (!response?.data?.success || !recorded) {
         throw new Error("La proposta non è stata registrata.");
       }
@@ -164,6 +168,8 @@ export default function ProponiSoggetto() {
     try {
       const response = requestedCategory === "grazia"
         ? await apiRequest("GET", "/api/grazia/mia-proposta")
+        : requestedCategory === "capo_stato"
+        ? await apiRequest("GET", "/api/capo-stato/mia-scelta")
         : await apiRequest("GET", "/api/subject-proposals/mine?category=" + encodeURIComponent(requestedCategory));
       if (statusRequestVersion.current !== requestVersion || currentOwnerId.current !== requestOwnerId) return;
       if (!response?.data?.success) throw new Error("Impossibile verificare lo stato.");
@@ -267,7 +273,7 @@ export default function ProponiSoggetto() {
                 <p id="subject-title-help" className="text-xs text-slate-500">Da 3 a 150 caratteri.</p>
               </div>
 
-              {category !== "grazia" && (
+              {category !== "grazia" && category !== "capo_stato" && (
                 <div className="space-y-1.5">
                   <label htmlFor="subject-details" className="text-sm font-semibold text-slate-800">
                     Informazioni aggiuntive (facoltative)
@@ -278,7 +284,7 @@ export default function ProponiSoggetto() {
                 </div>
               )}
 
-              <div className="space-y-1.5">
+              {category !== "capo_stato" && <div className="space-y-1.5">
                 <label htmlFor="subject-source" className="text-sm font-semibold text-slate-800">
                   {config.sourceLabel}
                 </label>
@@ -289,12 +295,12 @@ export default function ProponiSoggetto() {
                 <p id="subject-source-help" className="text-xs text-slate-500">
                   Inserisci solo una fonte pubblica accessibile tramite HTTPS. Non allegare documenti personali.
                 </p>
-              </div>
+              </div>}
 
-              <p className="text-xs leading-relaxed text-slate-600">
+              {category !== "capo_stato" && <p className="text-xs leading-relaxed text-slate-600">
                 L'invio non crea account e non rende automaticamente pubblico alcun nominativo.
                 I dati saranno trattati secondo l'informativa privacy di DEMOS.
-              </p>
+              </p>}
 
               {error && <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</p>}
 
