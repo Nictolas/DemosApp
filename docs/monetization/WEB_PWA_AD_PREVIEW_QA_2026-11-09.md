@@ -56,3 +56,39 @@ Documentazione Google verificata il 09/11/2026:
 - https://support.google.com/adsense/answer/16853623?hl=en (trigger aggiuntivi)
 
 **Stato rilascio**: QA branch soltanto, nessun deploy né cambio Google AdSense; codice soggetto a CI e prova visiva su iPhone standalone/desktop prima del GO.
+
+
+## Fondazione AdSense manuale fail-closed — 09/11/2026
+
+**Nuovo codice già integrato solo nella branch QA:**
+- `client/src/lib/web-advertising-policy.ts` classifica browser desktop, browser mobile, PWA standalone (anche iOS `navigator.standalone`), Android nativo. Unità reale bannner solo nella rotta pubblica `/scopri-demos`; esclusi /auth, profilo, votazioni, firme, opinioni, moduli ecc. La PWA è esplicitamente separata: vignettes solo come futura possibilità da verificare, **nessun Auto ads Google iniettato**.
+- `client/src/components/WebAdSenseBanner.tsx` inserito nella pagina informativa `ScopriDemos.tsx`. Il componente contiene la predisposizione per una **unità manuale AdSense** con `data-ad-client`, `data-ad-slot`, script asincrono ufficiale e `requestNonPersonalizedAds = 1` eseguito **prima** del caricamento dello script e della richiesta. Tuttavia **non può caricare lo script né generare richieste** con la configurazione corrente. Solo dopo TUTTI i gate e una fonte CMP verificata si potrà attivare.
+- Test automatici `client/tests/webAdvertisingPolicy.test.mjs` e workflow `.github/workflows/advertising-policy-validation.yml`: test negativo per ogni gate, ID, path, Android, PWA installata, abilitazione default, eventuale banner con condizioni valide, NPA=1, assenza script nel `index.html`.
+- Google account Auto ads deve restare **OFF** per questa fase di banner manuali: lo script di pagina potrebbe altrimenti innescare formati overlay su altre pagine della SPA. Ciò non è certificabile dal solo codice e **va verificato nel pannello AdSense prima dell'attivazione**. Il flag nel frontend non sostituisce la verifica effettiva nel provider.
+
+**Gate espliciti (TUTTI necessari per banner veri):**
+1. `VITE_DEMOS_WEB_ADS_ENABLED=true` (default non impostato => OFF).
+2. `VITE_DEMOS_ADSENSE_SITE_APPROVED=true` dopo effettiva review dominio da AdSense.
+3. `VITE_DEMOS_WEB_ADS_CMP_CERTIFIED=true` solo dopo installazione e test reali di una CMP web certificata e TCF.
+4. `VITE_DEMOS_WEB_ADS_NONPERSONALIZED_ONLY=true`, verifica con DevTools request `npa=1` e politiche/consenso.
+5. `VITE_DEMOS_WEB_ADS_AUTO_ADS_DISABLED=true` **solo** dopo verifica che gli Auto ads siano disattivati in AdSense, così lo script non produce vignette fuori rotta.
+6. `VITE_DEMOS_ADSENSE_CLIENT_ID=ca-pub-<16 cifre>` e `VITE_DEMOS_ADSENSE_BANNER_SLOT=<10 cifre>` ricavati dall'account proprietario approvato (non inventati).
+7. Bridge live `window.__demosWebAdsConsentBridge.canServeNonPersonalizedAds()` implementato dalla CMP verificata, che deve fornire una decisione aggiornata e inviare `demos:web-ad-consent-changed` su cambiamenti. **Questo bridge NON è ancora presente**, quindi gli annunci restano OFF anche forzando i flag in build.
+
+La revoca, quando un banner è stato caricato nella pagina, comporta un reload dell'intero documento per non mantenere uno script pubblicitario attivo. In QA bisogna verificare il comportamento dei form reali, pagina informativa e preferenze persistite CMP, oltre alla corretta gestione su navigazione SPA.
+
+**Sulla PWA installata** non si attiva lo script AdSense Auto ads: senza una separazione documentale sicura è impossibile garantire che vignette caricate in una SPA non appaiano poi su pagine politicamente sensibili. La richiesta «schermata intera come App Open» rimane come obiettivo di interfaccia, NON una feature pubblicitaria implementata. Non caricare annunci inventati o interstitial manuali non conformi alle policy.
+
+**Avvertenze fondamentali:**
+- L'unità pubblicitaria web richiede *un account e un sito AdSense approvati*, non gli identificativi AdMob di Google Play e non la sola presenza di `ads.txt`.
+- Le pubblicità AdSense non personalizzate possono comunque utilizzare cookie tecnici e trattare dati del dispositivo; non dichiarare zero-tracking senza esame effettivo.
+- Prima dell'attivazione live: update informative Privacy/Cookie, verifica contratti/registro GDPR e CMP, consenso/rifiuto/revoca, review DPO e compatibilità iOS PWA, layout pubblicitario e percorsi sensibili.
+- Nessun merge, deploy, ID commerciale usato, script Google richiesto, evento o dispositivo tester effettivamente provato da questa modifica.
+
+**Riferimenti Google ufficiali:**
+- AdSense manual ad units e codice: https://support.google.com/adsense/answer/9274019
+- NPA=1 e richieste differite: https://support.google.com/adsense/answer/7670312
+- CMP certificata e IAB TCF: https://support.google.com/adsense/answer/13554116
+- Auto ads e esclusione pagine: https://support.google.com/adsense/answer/9262311
+- Vignette trigger e frequency cap: https://support.google.com/adsense/answer/16531962
+
