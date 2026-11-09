@@ -57,6 +57,7 @@ const mocks={
   '../middleware/politicalConsent':{requirePoliticalConsent:noop},
   '../middleware/civicIdentity':{requireVerifiedCivicIdentity:noop},
   '../middleware/validation':{validateInput:()=>noop},
+  '../services/politicalConsentService':{getPoliticalConsentState:async()=>({exists:true,granted:true})},
   '../services/preferenceCooldownService':{
     getPreferenceCooldown:()=>null,assertPreferenceChangeAllowed:()=>{},
     recordPreferenceChange:()=>{},sendCooldownError:()=>false,

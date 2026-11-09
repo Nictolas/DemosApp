@@ -40,8 +40,15 @@ on:
       - 'api/migrations/20261031_subject_proposals_review_gate.sql'
       - 'api/routes/subject-proposals.js'
       - 'api/tests/subjectProposalSingleQueue.synthetic.test.js'
+      - 'api/tests/d12NominationProductionGate.synthetic.test.js'
       - 'api/middleware/auth.js'
       - 'api/tests/d12AuthMiddlewarePrivacy.synthetic.test.js'
+      - 'api/tests/d12EditProfileNoPersonalConsole.contract.test.js'
+      - 'client/src/components/profile/EditProfileForm.tsx'
+      - 'client/src/components/profile/useProfileForm.ts'
+      - 'api/routes/users/profile.js'
+      - 'api/routes/attivismo-tipologie.js'
+      - 'api/tests/d12ActivismEditPrivacy.synthetic.test.js'
       - 'api/tests/d12GenericNoStoreAllResponses.synthetic.test.js'
       - 'api/tests/d12GraziaPrivacyContact.contract.test.js'
       - 'api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js'
@@ -52,6 +59,8 @@ on:
       - 'api/routes/organizzazioni.js'
       - 'api/services/publicDirectoryMemberProjection.js'
       - 'api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js'
+      - 'api/tests/publicDirectoryPrivacyHotfix.synthetic.test.js'
+      - 'api/tests/publicDirectoryPrivacyHttp.synthetic.test.js'
       - 'api/tests/registeredDirectoryPagination.pg.integration.test.js'
       - 'api/tests/subjectProposalPublicMinimization.contract.test.js'
       - 'api/tests/publicDirectoryHttp.synthetic.test.js'
@@ -126,6 +135,10 @@ jobs:
         run: node --test api/tests/graziaVoteReadEfficiency.synthetic.test.js api/tests/graziaVoteSchemaCache.synthetic.test.js
       - name: DEMOS12 auth middleware PII/log minimization (synthetic no DB)
         run: node --test api/tests/d12AuthMiddlewarePrivacy.synthetic.test.js
+      - name: DEMOS12 profile editor must not print personal data to browser console
+        run: node --test api/tests/d12EditProfileNoPersonalConsole.contract.test.js
+      - name: DEMOS12 activism profile self-edit authorization and minimization
+        run: node --test api/tests/d12ActivismEditPrivacy.synthetic.test.js
       - name: DEMOS12 DSAR S4 synthetic deadline and delivery contract (no live data)
         run: node --test api/tests/demos12DsarS4.synthetic.test.js
       - name: DEMOS12 legacy GDPR request no false success (synthetic)
@@ -134,6 +147,8 @@ jobs:
         run: node --test api/tests/d12LegacyAccountErasureFailClosed.synthetic.test.js
       - name: Generic nomination queue and hidden-title regressions (synthetic)
         run: node --test api/tests/subjectProposalSingleQueue.synthetic.test.js
+      - name: DEMOS12 nomination production opt-in guard (synthetic)
+        run: node --test api/tests/d12NominationProductionGate.synthetic.test.js
       - name: Synthetic Grazia moderation HTTP checks
         env:
           NODE_PATH: /tmp/demos-http-test/node_modules
@@ -147,6 +162,10 @@ jobs:
         run: node api/tests/civicCatalogueRejectionHttp.synthetic.test.js
       - name: Block unreviewed nested JSONB details in public directory responses
         run: node --test api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js
+      - name: Independent #632 public directory projection and HTTP privacy regressions
+        env:
+          NODE_PATH: /tmp/demos-http-test/node_modules
+        run: node --test api/tests/publicDirectoryPrivacyHotfix.synthetic.test.js api/tests/publicDirectoryPrivacyHttp.synthetic.test.js
       - name: Approved nominations stay unpublished while the legal gate is off (synthetic)
         run: node --test api/tests/publicApprovedSubjectGate.synthetic.test.js
       - name: Public directory privacy data-minimization contract

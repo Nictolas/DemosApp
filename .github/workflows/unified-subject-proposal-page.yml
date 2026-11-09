@@ -36,6 +36,7 @@ on:
       - 'api/tests/graziaAdminPagination.synthetic.test.js'
       - 'scripts/test-grazia-admin-pagination-browser.cjs'
       - 'scripts/test-registered-directory-pagination-browser.cjs'
+      - 'scripts/test-public-directory-privacy-browser.cjs'
       - 'api/services/registeredDirectoryPage.js'
       - 'api/tests/registeredDirectoryPagination.pg.integration.test.js'
       - 'api/services/publicDirectoryMemberProjection.js'
@@ -153,6 +154,7 @@ jobs:
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-mounted-activist-browser.cjs
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-public-approved-pagination-browser.cjs
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-registered-directory-pagination-browser.cjs
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-public-directory-privacy-browser.cjs
           D12_QA_WIDTH=320 NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-grazia-admin-pagination-browser.cjs
           D12_QA_WIDTH=390 NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-grazia-admin-pagination-browser.cjs
       - name: "Browser test: mounted personal status isolated after account switch"
