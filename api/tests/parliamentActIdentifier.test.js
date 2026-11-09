@@ -1,0 +1,157 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { estraiNumeroLegge, canSearchItalianBills, canSearchActTitle, canUseBillTextAsVoteEvidence, estraiTipoAtto } = require('../services/parliamentActIdentifier');
+
+const file = fs.readFileSync(path.join(__dirname, '..', 'services', 'leggeAnalysisService.js'), 'utf8');
+
+test('a generic bill document is never substituted for the actual voted amendment or procedural item', () => {
+  for (const titolo of [
+    'S. 2023 — Emendamento 1.0.6 (Turco e altri)',
+    'S. 2023 — Emendamento 1.13 (Turco e altri)',
+    'S. 2029 — EM 1.0.6 bonus carburante',
+    'C. 2822-B — fiducia sull’articolo 2',
+    'S. 61 — Votazione articolo 9',
+    'S. 61 – Articolo 9 votazione',
+    'C. 2822-B – mozione 1-00553',
+    'S. 61 – ODG 1',
+    'S. 61 – Coord. 1 (De Priamo)',
+    'S. 1971 – questione pregiudiziale'
+  ]) assert.equal(canUseBillTextAsVoteEvidence(titolo), false, titolo);
+  for (const titolo of [
+    'S. 2023 — voto finale',
+    'C. 3131 — votazione finale',
+    'DDL 1718 — voto conclusivo'
+  ]) assert.equal(canUseBillTextAsVoteEvidence(titolo), true, titolo);
+  assert.equal(canUseBillTextAsVoteEvidence(null), false);
+  assert.match(file, /canUseBillTextAsVoteEvidence\(titolo\)/);
+});
+
+test('act classification uses whole terms, not EM buried inside ordinary Italian words', () => {
+  for (const name of [
+    'Sistema nazionale dei servizi',
+    'Il tema delle infrastrutture',
+    'La tutela dei sistemi pubblici',
+    'S. 61 – voto finale'
+  ]) assert.equal(estraiTipoAtto(name), null, name);
+  assert.equal(estraiTipoAtto('Emendamento 1.0.6 (Turco e altri)'), 'Emendamento');
+  assert.equal(estraiTipoAtto('Emendamenti congiunti 2.213 e 2.214'), 'Emendamento');
+  assert.equal(estraiTipoAtto('EM 9.0.3 (Cataldi e altri)'), 'EM');
+  assert.equal(estraiTipoAtto('DDL 123 – voto finale'), 'DDL');
+  assert.equal(estraiTipoAtto('Disegno di legge n. 61'), 'Disegno di legge');
+  assert.equal(estraiTipoAtto('Proposta di legge C. 2822-B'), 'Proposta di legge');
+  assert.equal(estraiTipoAtto('Decreto-legge 154/2026'), 'Decreto');
+  assert.equal(estraiTipoAtto('Mozione n. 567'), 'Mozione');
+  assert.equal(estraiTipoAtto('Ordine del giorno n. 11'), 'ODG');
+  assert.equal(estraiTipoAtto(123), null);
+});
+
+test('explicitly numbered bills may be looked up by matching parliamentary identifier', () => {
+  assert.equal(estraiNumeroLegge('Disegno di legge n. 1718. Votazione questione fiducia'), '1718');
+  assert.equal(estraiNumeroLegge('DDL 1234'), '1234');
+  assert.equal(estraiNumeroLegge('S. 61 - votazione finale'), '61');
+  assert.equal(estraiNumeroLegge('C. 2822-B - fiducia'), '2822');
+  assert.equal(estraiNumeroLegge('2026 - Atto Camera n. 501'), '501');
+  assert.equal(canSearchItalianBills('501', 'Camera'), true);
+  assert.equal(canSearchItalianBills('61', 'Senato'), true);
+});
+
+test('dates, motions, amendments and decrees are never silently interpreted as bill identifiers', () => {
+  for (const title of [
+    '2026 - Mozione n. 567',
+    'Decreto legge n. 175/2025',
+    'Emendamento 9.0.3 sulla fiscalità',
+    '2025/11/21 votazione di fiducia',
+    'Votazione n. 1718',
+    'Legge n. 1718',
+    'Ordine del giorno 9/2750/178',
+    '',
+  ]) {
+    assert.equal(estraiNumeroLegge(title), null, title);
+  }
+});
+
+test('European Parliament and non-numeric IDs must not search Italian bills', () => {
+  assert.equal(canSearchItalianBills('1718', 'Parlamento europeo'), false);
+  assert.equal(canSearchItalianBills('1718', null), false);
+  assert.equal(canSearchItalianBills('1718/2025', 'Senato'), false);
+  assert.equal(canSearchItalianBills('../1718', 'Senato'), false);
+  assert.equal(canSearchItalianBills('', 'Senato'), false);
+});
+
+test('chamber-labelled acts cannot cross-match an identically numbered bill in the other chamber', () => {
+  assert.equal(canSearchActTitle('61', 'S. 61 — voto finale', 'Senato'), true);
+  assert.equal(canSearchActTitle('61', 'S. 61 — voto finale', 'Camera'), false);
+  assert.equal(canSearchActTitle('2822', 'C. 2822-B — fiducia', 'Camera'), true);
+  assert.equal(canSearchActTitle('2822', 'C. 2822-B — fiducia', 'Senato'), false);
+  assert.equal(canSearchActTitle('61', 'S. 61', 'Parlamento europeo'), false);
+  assert.equal(canSearchActTitle('61', 'DDL 61', 'Senato'), true);
+});
+
+test('AI law source discovery must never attach hardcoded decree 175/2025 to DDL 1718', () => {
+  assert.match(file, /canSearchActTitle\(numeroLegge, titolo, camera\)/);
+  assert.doesNotMatch(file, /numeroLegge\s*===\s*['"]1718['"]/);
+  assert.doesNotMatch(file, /DL1752025|21G00217|decreto\.legge:2025-11-21;175/);
+  assert.match(file, /estraiNumeroLegge/);
+  assert.doesNotMatch(file, /urlOpenpolis|Descrizione da Openpolis:/);
+});
+
+test('mixed chamber references must match the requested chamber and act number', () => {
+  // A generic DDL identifier must not cause a false association with an
+  // unrelated explicitly labelled parliamentary act.
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 999', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123, C. 999', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 999', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 123 e C. 456', 'Senato'), true);
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 123 e C. 456', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 999 e C. 123', 'Camera'), true);
+  assert.equal(canSearchActTitle('123', 'DDL 123, S. 999 e C. 123', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'S. 123 e S. 999', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123', 'Senato'), true);
+});
+
+test('spelled-out Atto Senato and Atto Camera references enforce chamber and number', () => {
+  assert.equal(estraiNumeroLegge('Atto Senato n. 501 - votazione finale'), '501');
+  assert.equal(estraiNumeroLegge('Atto Camera n. 501 - votazione finale'), '501');
+  assert.equal(canSearchActTitle('501', 'Atto Senato n. 501', 'Senato'), true);
+  assert.equal(canSearchActTitle('501', 'Atto Senato n. 501', 'Camera'), false);
+  assert.equal(canSearchActTitle('501', 'Atto Camera n. 501', 'Camera'), true);
+  assert.equal(canSearchActTitle('501', 'Atto Camera n. 501', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 - Atto Senato n. 999', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 - Atto Senato n. 999', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 - Atto Camera n. 123', 'Camera'), true);
+  assert.equal(canSearchActTitle('123', 'S. 123 - Atto Senato n. 999', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'S. 123 - Atto Camera n. 456', 'Senato'), true);
+  assert.equal(canSearchActTitle('123', 'Atto Camera n. 123 - Atto Camera n. 999', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123', 'Senato'), true);
+});
+
+test('ambiguous titles with multiple numbered bills never select an arbitrary first act', () => {
+  for (const title of [
+    'DDL 123 e DDL 456 - voto finale',
+    'Disegno di legge n. 123 e proposta di legge n. 456',
+    'Atto Senato n. 123 e Atto Camera n. 456',
+    'S. 123 e C. 456 - discussione congiunta',
+    'DDL 123, S. 999 - voto finale',
+    'Atto Senato n. 456 e DDL 123'
+  ]) assert.equal(estraiNumeroLegge(title), null, title);
+  assert.equal(estraiNumeroLegge('DDL 123 - S. 123'), '123');
+  assert.equal(estraiNumeroLegge('Atto Senato n. 501 e S. 501'), '501');
+  assert.equal(estraiNumeroLegge('DDL 123 e DDL 123'), '123');
+  assert.equal(estraiNumeroLegge('S. 61 - votazione finale'), '61');
+});
+
+test('generic labelled DDL mismatches fail closed before any official source lookup', () => {
+  assert.equal(canSearchActTitle('123', 'DDL 456', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'Disegno di legge n. 456', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 e DDL 456', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 e DDL 456', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 456 e S. 123', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 e S. 123', 'Senato'), true);
+  assert.equal(canSearchActTitle('123', 'DDL 123 e C. 456', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'S. 123 e C. 456', 'Senato'), true);
+  assert.equal(canSearchActTitle('123', 'DDL 123', 'Camera'), true);
+});
