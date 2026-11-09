@@ -14,9 +14,7 @@ export default function ReferendumAbrogativi() {
   const deepLinkHandled = useRef(false);
 
   const { 
-    listaReferendum,
-    referendumUfficiali,
-    mieiVoti, 
+    referendumUfficiali, 
     isLoading, 
     isError
   } = useReferendumData(user);
@@ -32,11 +30,15 @@ export default function ReferendumAbrogativi() {
     if (deepLinkHandled.current || isLoading || isError || !user) return;
     const id = new URLSearchParams(window.location.search).get("initiative");
     if (!id) return;
-    deepLinkHandled.current = true;
     const item = referendumUfficiali.find(
       entry => String(entry.id_ministero ?? entry.id) === id
     );
-    if (item) startEditView(item);
+    if (item) {
+      // Aspetta che il record ufficiale sia disponibile: non consumare il tap
+      // mentre la cache/ricarica contiene temporaneamente una lista vuota.
+      deepLinkHandled.current = true;
+      startEditView(item);
+    }
   }, [referendumUfficiali, isLoading, isError, user]);
 
   // Redirect se non autenticato
@@ -62,7 +64,6 @@ export default function ReferendumAbrogativi() {
           {/* Referendum Ufficiali */}
           <ReferendumTable
             listaReferendum={referendumUfficiali}
-            mieiVoti={mieiVoti}
             isLoading={isLoading}
             isError={isError}
             onView={startEditView}

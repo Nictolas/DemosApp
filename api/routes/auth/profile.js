@@ -5,6 +5,7 @@ const { decompressUserLocation } = require('../../utils/locationUtils');
 const { verifyAccessToken, verifyOAuthPendingToken } = require('../../utils/jwt');
 const { decrypt: decryptEmail } = require('../../utils/emailCrypto');
 const { getAccountSubject } = require('../../services/accountCapabilitiesService');
+const { isConfirmedAdultForAds } = require('../../utils/adsAdultEligibility');
 
 const router = express.Router();
 const isSchemaMigrationError = (error) => (
@@ -148,6 +149,9 @@ router.get('/me', async (req, res) => {
         // Reuse the existing authenticated-session database SELECT to transmit
         // a consent epoch. No new profile endpoint/read is needed.
         // Absence of the column is unknown, not an implicit consent grant.
+        // Derived from already-selected birth year, never an advertising SDK payload.
+        // Conservative: under-18 and unknown/ambiguous 18-year-olds get false.
+        ads_adult_eligible: isConfirmedAdultForAds(user.data_nascita),
         political_consent: typeof user.political_opinions_consent === 'boolean'
           ? {
               granted: user.political_opinions_consent,

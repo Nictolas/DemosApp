@@ -26,10 +26,14 @@ const databaseSsl = buildDatabaseSsl(rawDatabaseUrl, {
   supabaseCa: fs.readFileSync(supabaseCaPath, 'utf8')
 });
 
-const poolMax = Math.max(1, parseInt(process.env.DATABASE_POOL_MAX || '100', 10));
+const isStagingReadOnlyCanary =
+  process.env.NODE_ENV === 'staging' &&
+  process.env.DEMOS_UNIFIED_STAGING_MODE === 'app_canary';
+const poolMax = isStagingReadOnlyCanary ? 2 :
+  Math.max(1, parseInt(process.env.DATABASE_POOL_MAX || '100', 10));
 // Supabase: preferire URI Supavisor (pooler, porta 6543) con ?pgbouncer=true; min basso in produzione.
 const defaultPoolMin = process.env.NODE_ENV === 'production' ? '0' : '2';
-const poolMin = Math.max(
+const poolMin = isStagingReadOnlyCanary ? 0 : Math.max(
   0,
   Math.min(parseInt(process.env.DATABASE_POOL_MIN || defaultPoolMin, 10), poolMax)
 );
@@ -51,7 +55,11 @@ const poolConfig = {
   keepAliveInitialDelayMillis: 10000,
   // Configurazioni per performance
   allowExitOnIdle: false,      // Non chiudere il pool quando idle
-  application_name: 'demos-app-performance-optimized'
+  application_name: isStagingReadOnlyCanary
+    ? 'demos_staging_readonly_canary' : 'demos-app-performance-optimized',
+  // Session-level PostgreSQL safety net in addition to HTTP GET-only ingress.
+  // A provider that rejects this startup parameter must fail closed.
+  ...(isStagingReadOnlyCanary ? {options: '-c default_transaction_read_only=on'} : {})
 };
 
 // Pool singleton per evitare connessioni duplicate

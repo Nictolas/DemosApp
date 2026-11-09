@@ -10,13 +10,32 @@ import { Header } from "./components/Header";
 import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { BlockedWarning } from "./components/BlockedWarning";
 import { GraziaForm } from "./components/GraziaForm";
-import { ClassificaCarcerati } from "./components/ClassificaCarcerati";
+import { ClassificaCarcerati, PrivacyRectificationContact } from "./components/ClassificaCarcerati";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 
 export default function Grazia() {
   const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
 
+  // Never mount private vote hooks while authentication is unresolved.
+  if (!authReady || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (!user) return <Redirect to="/auth" />;
+
+  // A new account must never inherit the prior account's local vote selection,
+  // pending removal dialog or search input (React Query cache keys alone are
+  // insufficient because this form also uses component-local state).
+  return <GraziaAuthenticated key={user.id} user={user} />;
+}
+
+function GraziaAuthenticated({ user }: {
+  user: NonNullable<ReturnType<typeof useAuth>["user"]>
+}) {
   const { data, isLoadingData, error, saveVotiMutation } = useGraziaData(user);
   const { 
     votingState, 
@@ -33,19 +52,6 @@ export default function Grazia() {
     confirmRemove,
     cancelRemove
   } = useGraziaVoting(data, saveVotiMutation);
-
-
-  if (!authReady || isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Redirect to="/auth" />;
-  }
 
 
   return (
@@ -65,8 +71,11 @@ export default function Grazia() {
       <div className="container mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
 
         {error ? (
-          <div className="rounded border-l-4 border-red-500 bg-red-100 p-4 text-red-800">
-            <strong>Errore nel caricamento dei dati:</strong> {error.message}
+          <div role="alert" className="rounded border-l-4 border-red-500 bg-red-100 p-4 text-red-800">
+            <strong>Impossibile caricare la classifica.</strong> Riprova più tardi.
+            <div className="mt-3">
+              <PrivacyRectificationContact />
+            </div>
           </div>
         ) : (
           <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 md:grid-cols-2 md:grid-rows-1 lg:gap-6">

@@ -38,10 +38,13 @@ test('backend rejects fake or malformed FCM tokens before token persistence', ()
   const route = read('api/routes/fcm-tokens.js');
   assert.match(route, /token\.length > 100 && !token\.startsWith\('web_'\)/);
   const validation = route.indexOf('if (!isValidFcmToken(token))');
-  const existingLookup = route.indexOf('const existingTokens = await getLegacyTokens(userId);', validation);
-  const legacyWrite = route.indexOf("await updateLegacyTokens(userId, updatedTokens);", validation);
+  const lock = route.indexOf('const outcome = await withAtomicFcmMutation(', validation);
+  const existingLookup = route.indexOf('const legacyState = await getLegacyTokens(userId, db);', validation);
+  const legacyWrite = route.indexOf("await updateLegacyTokens(userId, updatedTokens, db, legacyState.hasColumn);", validation);
+  assert.match(route, /return await withCivicPushDeliveryLock\(pool, db =>/);
   assert.ok(validation >= 0);
-  assert.ok(existingLookup > validation);
+  assert.ok(lock > validation, "reject invalid tokens before acquiring the civic delivery lock");
+  assert.ok(existingLookup > lock);
   assert.ok(legacyWrite > validation);
   assert.doesNotMatch(route, /Token: \$\{token\.substring/);
 });
@@ -75,7 +78,7 @@ test('native Android channels and legacy tap fallbacks cover current backend pay
   assert.match(nativeHook, /case 'demos_notification':[\s\S]*return '\/comunica'/);
   assert.match(nativeHook, /case 'avvistamento':[\s\S]*return '\/avvistamenti'/);
   assert.match(nativeHook, /case 'operational_alert':[\s\S]*return '\/notifiche'/);
-  assert.match(nativeHook, /getFallbackNotificationTarget\(data\.type\)/);
+  assert.match(nativeHook, /getFallbackNotificationTarget\(data\.type,\s*data\.category,\s*data\.official_id\)/);
 });
 
 test('logout invalidates stored native push token before clearing the session', () => {

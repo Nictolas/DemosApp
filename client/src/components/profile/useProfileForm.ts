@@ -85,9 +85,6 @@ export function useProfileForm(
         }
       });
       
-      console.log('🔍 DEBUG useProfileForm - Dati da inviare:', dataToSend);
-      console.log('🔍 DEBUG useProfileForm - formData completo:', formData);
-      console.log('🔍 DEBUG useProfileForm - currentInitialData completo:', currentInitialData);
       
       // Se non ci sono modifiche, non inviare nulla
       if (Object.keys(dataToSend).length === 0) {
@@ -117,11 +114,11 @@ export function useProfileForm(
           });
           
           if (!activismData.success) {
-            console.warn("Errore nell'aggiornamento delle tipologie di attivismo:", activismData.error || activismData.message);
+            console.warn('PROFILE_ACTIVISM_TYPES_UPDATE_FAILED');
             // Non bloccare il salvataggio del profilo per questo errore
           }
-        } catch (activismError) {
-          console.warn("Errore nell'aggiornamento delle tipologie di attivismo:", activismError);
+        } catch (_activismError) {
+          console.warn('PROFILE_ACTIVISM_TYPES_UPDATE_FAILED');
           // Non bloccare il salvataggio del profilo per questo errore
         }
       }
@@ -136,7 +133,7 @@ export function useProfileForm(
       });
       
     } catch (error) {
-      console.error("Errore durante l'aggiornamento:", error);
+      console.error('PROFILE_UPDATE_FAILED');
       
       toast({
         title: "Errore",

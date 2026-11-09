@@ -22,6 +22,7 @@ export interface Referendum extends ReferendumFormData {
   votiices?: number;
   firme?: number;
   firme_raccolte?: number;
+  signature_threshold?: number | null;
   esito?: string;
   status?: string;
   sitoWeb?: string;
@@ -40,7 +41,6 @@ export interface ReferendumAbrogativiState {
 // Interfaccia per le props dei componenti
 export interface ReferendumTableProps {
   listaReferendum: Referendum[];
-  mieiVoti: string[];
   isLoading: boolean;
   isError: boolean;
   onView?: (referendum: Referendum) => void;

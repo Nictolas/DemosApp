@@ -42,12 +42,14 @@ test('SQL failures omit provider errors and connection strings', async () => {
        !e.message.includes('PRIVATE_TEST_SECRET'));
 });
 
-test('ECI checks DB identity before existing cache deletion, only with event flag', () => {
+test('ECI checks DB identity before cache upsert regardless of collection flag', () => {
   const src=fs.readFileSync(path.resolve(__dirname,'../scripts/sync_eci.py'),'utf8');
   const start=src.indexOf('collection_enabled = os.environ.get(');
   const verify=src.indexOf('_verify_civic_database_identity(',start);
-  const deleteCache=src.indexOf('cur.execute("DELETE FROM eci")',start);
-  assert.ok(start>=0 && verify>start && deleteCache>verify);
+  const cacheUpsert=src.indexOf('INSERT INTO eci',verify);
+  assert.ok(start>=0 && verify>start && cacheUpsert>verify);
+  assert.match(src, /ON CONFLICT \(id\) DO UPDATE SET/);
+  assert.doesNotMatch(src, /cur\.execute\("DELETE FROM eci"\)/);
   const workflow=fs.readFileSync(
     path.resolve(__dirname,'../../.github/workflows/eci_sync.yml'),'utf8');
   assert.match(workflow,/CIVIC_RUNTIME_DATABASE_ID: \$\{\{ secrets\.CIVIC_RUNTIME_DATABASE_ID \}\}/);

@@ -48,6 +48,9 @@ on:
       - 'api/services/civicNewInitiativePushDispatcher.js'
       - 'api/routes/civicPushDispatch.js'
       - 'api/routes/fcm-tokens.js'
+      - 'api/services/civicLegacyFcmStorage.js'
+      - 'api/tests/civicLegacyFcmStorage.test.js'
+      - 'api/tests/civicFcmTokenMutation.http.test.js'
       - 'api/routes/user/delete-account.js'
       - 'api/services/privacyErasureLedgerService.js'
       - 'api/app.js'
@@ -66,9 +69,12 @@ on:
       - 'api/tests/civicMinisteroScheduler.test.js'
       - '.github/workflows/civic-ministero-sync.yml'
       - 'api/scripts/sync_eci.py'
+      - 'api/tests/test_sync_eci.py'
+      - 'api/tests/test_eci_sync_postgres.py'
       - 'api/tests/civicNewInitiativeNotificationPreparation.test.js'
       - 'api/routes/notifiche.js'
       - 'api/tests/civicPreferencesReadOnly.http.test.js'
+      - 'api/tests/civicPreferenceGuardRecovery.http.test.js'
       - 'api/tests/civicRecipientIsolation.http.test.js'
       - 'api/services/notificationSchemaCache.js'
       - 'api/tests/notificationSchemaCache.test.js'
@@ -126,11 +132,15 @@ jobs:
           node --check api/services/civicNewInitiativePushDispatcher.js
           node --check api/routes/civicPushDispatch.js
           node --check api/routes/fcm-tokens.js
+          node --check api/services/civicLegacyFcmStorage.js
+          node --check api/tests/civicLegacyFcmStorage.test.js
+          node --check api/tests/civicFcmTokenMutation.http.test.js
           node --check api/jobs/ministeroSyncJob.js
           node --check api/services/ministeroSync.js
           node --check api/services/ministeroPaginationSafety.js
           node --check api/routes/notifiche.js
           node --check api/tests/civicPreferencesReadOnly.http.test.js
+          node --check api/tests/civicPreferenceGuardRecovery.http.test.js
           node --check api/tests/civicRecipientIsolation.http.test.js
           node --check api/services/notificationSchemaCache.js
           node --check api/tests/notificationSchemaCache.test.js
@@ -138,7 +148,7 @@ jobs:
           node --check api/tests/notificationBadgePrivacy.contract.test.js
           node --check api/tests/notificationAdminReportPrivacy.http.test.js
           node --check api/routes/segnalazioni.js
-          node --test --test-concurrency=1 api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/civicPushDeliveryGuard.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js api/tests/civicSessionAffinityProbe.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/civicRenderBootProbe.test.js api/tests/civicRenderDirectDnsProbe.test.js api/tests/civicPreferencesReadOnly.http.test.js api/tests/notificationSchemaCache.test.js api/tests/notificationFeedSchemaPerf.http.test.js api/tests/notificationBadgePrivacy.contract.test.js api/tests/notificationAdminReportPrivacy.http.test.js
+          node --test --test-concurrency=1 api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/civicPushDeliveryGuard.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js api/tests/civicSessionAffinityProbe.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/civicRenderBootProbe.test.js api/tests/civicRenderDirectDnsProbe.test.js api/tests/civicPreferencesReadOnly.http.test.js api/tests/civicPreferenceGuardRecovery.http.test.js api/tests/civicFcmTokenMutation.http.test.js api/tests/civicLegacyFcmStorage.test.js api/tests/notificationSchemaCache.test.js api/tests/notificationFeedSchemaPerf.http.test.js api/tests/notificationBadgePrivacy.contract.test.js api/tests/notificationAdminReportPrivacy.http.test.js
       - name: Verify private recipients independently without Node runner IPC
         run: node api/tests/civicRecipientIsolation.http.test.js
       - name: Python ECI source tests (no real API, DB or push)
@@ -181,6 +191,8 @@ jobs:
           python -m unittest api.tests.test_civic_staging_existing_devices_postgres -v
           python -m unittest api.tests.test_civic_staging_runtime_access_postgres -v
           python -m unittest api.tests.test_civic_migration_postgres -v
+      - name: ECI overlapping syncs on two real ephemeral PostgreSQL connections
+        run: python -m unittest api.tests.test_eci_sync_postgres -v
       - name: Two real PostgreSQL socket observations, never a session approval
         run: node --test api/tests/civicSessionAffinityPostgres.integration.test.js
   frontend-build:

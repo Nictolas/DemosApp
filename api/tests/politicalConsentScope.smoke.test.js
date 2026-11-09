@@ -113,9 +113,8 @@ test('tutte le scritture cittadino che esprimono preferenze politiche richiedono
     ['routes/amnistia.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/capo-stato.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/capo-stato.js', "router.post('/consenso', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
-    ['routes/grazia.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/grazia.js', "router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/iniziative-popolari.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
-    ['routes/referendum.js', "router.post('/abrogativi/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/opinioni-proposte.js', "router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/opinioni-proposte.js', "router.post('/:id/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/governo.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
@@ -138,7 +137,11 @@ test('rimozione volontaria dei voti resta possibile anche senza consenso attivo'
 
   assert.match(amnistia, /router\.delete\('\/vota', verifyToken,/);
   assert.match(iniziative, /router\.delete\('\/vota', verifyToken,/);
-  assert.match(referendum, /router\.delete\('\/abrogativi\/vota', verifyToken,/);
+  assert.match(referendum, /PRIORITA_REFERENDUM_DISMESSA/);
+  assert.match(referendum, /res\.status\(410\)/);
+  const active=fs.readFileSync(path.join(ROOT, 'routes', 'referendum-vote.js'), 'utf8');
+  assert.match(active, /requireVerifiedCivicIdentity/);
+  assert.match(active, /requirePoliticalConsent/);
   assert.match(proposte, /router\.delete\('\/:id\/vota', verifyToken,/);
 });
 
@@ -202,4 +205,14 @@ test('middleware consenso restituisce 403 stabile senza consenso e lascia passar
     const response = await fetch(`${base}/guard`, { method: 'POST' });
     assert.equal(response.status, 200);
   });
+});
+
+
+test('retired priority remains 410 no-store without weakening real ballot consent', () => {
+  const legacy=fs.readFileSync(path.join(ROOT,'routes','referendum.js'),'utf8');
+  const active=fs.readFileSync(path.join(ROOT,'routes','referendum-vote.js'),'utf8');
+  assert.match(legacy,/res\.set\('Cache-Control', 'private, no-store'\)/);
+  assert.match(legacy,/router\.use\('\/vote-real', referendumVoteRoutes\)/);
+  assert.match(active,/requireVerifiedCivicIdentity/);
+  assert.match(active,/requirePoliticalConsent/);
 });

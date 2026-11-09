@@ -1,0 +1,79 @@
+name: QA cumulative AAB native push plus SAMPLE App Open (unsigned)
+on:
+  pull_request:
+    branches:
+      - integration/aab-cumulative-qa-20261109
+    paths:
+      - '.github/workflows/qa-cumulative-aab-synthetic.yml'
+      - 'client/android/app/build.gradle'
+      - 'client/src/**'
+      - 'client/scripts/**'
+      - 'api/routes/eci.js'
+      - 'api/routes/fcm-tokens.js'
+permissions:
+  contents: read
+jobs:
+  synthetic-aab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install pinned Android client dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Construct deliberately nonfunctional Firebase Android fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -f client/android/app/google-services.json
+          test ! -f client/android/keystore.properties
+          cat > client/android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "demos-finale",
+              "storage_bucket": "synthetic.invalid"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                "android_client_info": {"package_name": "community.demos"}
+              },
+              "api_key": [{"current_key": "SYNTHETIC_CI_NOT_A_VALID_KEY"}]
+            }],
+            "configuration_version": "1"
+          }
+          JSON
+      - name: Build push-enabled Vite and Capacitor, synthetic Firebase only
+        working-directory: client
+        run: npm run android:sync:push
+      - name: Compile Android 1.0.14 (17) with Google SAMPLE App Open opt-in
+        working-directory: client/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew :app:bundleRelease \
+            -PdemosReleaseAppOpenAds=true \
+            -PdemosReleaseAdsTestOnly=true \
+            -PdemosReleaseAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            -PdemosReleaseAdUnitId=ca-app-pub-3940256099942544/9257395921 \
+            --no-daemon --stacktrace
+          test -s app/build/outputs/bundle/release/app-release.aab
+      - name: Confirm only synthetic, UNSIGNED QA bundle was built
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -f client/android/keystore.properties
+          grep -q 'versionCode 17' client/android/app/build.gradle
+          grep -q 'versionName "1.0.14"' client/android/app/build.gradle
+          sha256sum client/android/app/build/outputs/bundle/release/app-release.aab
+          echo 'QA_SYNTHETIC_UNSIGNED_AAB_PASS - never upload this fixture to Google Play'

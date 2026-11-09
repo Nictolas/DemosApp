@@ -15,6 +15,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
+import { CivicOfficialInformation } from "@/components/civic/CivicOfficialInformation";
+import { civicOfficialSourceUrl } from "@/lib/civic-official-sources";
 import {
   Loader2,
   FileSignature,
@@ -34,6 +36,7 @@ interface ECIItem {
   end_date?: string | null;
   obiettivi?: string | null;
   url?: string | null;
+  status?: string | null;
 }
 
 interface ECIDataResponse {
@@ -52,6 +55,11 @@ export default function ECI() {
   const [sortBy, setSortBy] = useState<SortOption>("firme");
   const [viewItem, setViewItem] = useState<ECIItem | null>(null);
   const deepLinkHandled = useRef(false);
+  // The ID is public/official, not a personal token. A deep-linked closed
+  // initiative is fetched individually instead of loading ECI history.
+  const deepLinkId = useMemo(
+    () => new URLSearchParams(window.location.search).get("initiative"), []
+  );
 
   const {
     data: eciData,
@@ -60,9 +68,11 @@ export default function ECI() {
     error,
     refetch,
   } = useQuery<ECIDataResponse>({
-    queryKey: ["eci", "initiatives"],
+    queryKey: ["eci", "initiatives", deepLinkId],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/eci");
+      const query = deepLinkId
+        ? `?initiative=${encodeURIComponent(deepLinkId)}` : "";
+      const response = await apiRequest("GET", `/api/eci${query}`);
       if (!response?.ok || !response?.data) {
         throw new Error(
           response?.data?.error ||
@@ -96,6 +106,7 @@ export default function ECI() {
     end_date: item.end_date ?? null,
     obiettivi: item.obiettivi ?? null,
     url: item.url ?? null,
+    status: item.status ?? null,
   });
 
   const formatScadenza = (d: string | null | undefined): string => {
@@ -140,10 +151,22 @@ export default function ECI() {
     if (deepLinkHandled.current || isLoading || isError || !user) return;
     const id = new URLSearchParams(window.location.search).get("initiative");
     if (!id) return;
-    deepLinkHandled.current = true;
     const item = baseList.find(entry => String(entry.id) === id);
-    if (item) setViewItem(item);
-  }, [baseList, isLoading, isError, user]);
+    if (item) {
+      deepLinkHandled.current = true;
+      setViewItem(item);
+      return;
+    }
+    // An archived official record is returned only for a notification
+    // deep link. No extra SQL call is made on regular ECI navigation.
+    const archived = (eciData?.initiatives || []).find(
+      entry => String(entry.id) === id
+    );
+    if (archived) {
+      deepLinkHandled.current = true;
+      setViewItem(toItem(archived));
+    }
+  }, [baseList, eciData?.initiatives, isLoading, isError, user]);
 
   if (isAuthLoading) {
     return (
@@ -189,7 +212,7 @@ export default function ECI() {
               Le Iniziative dei Cittadini Europei (ECI) sono uno strumento per permettere ai cittadini europei di proporre nuove leggi. Devono essere raccolte un milione di firme, in un anno, in almeno 7 paesi dell'Unione Europea.
             </p>
             <p className="text-gray-500 text-sm max-w-2xl mx-auto mt-2">
-              I numeri delle firme vengono aggiornati ogni 2 ore. Per il dato in tempo reale usa il pulsante &quot;Vai al sito UE&quot; sotto ogni iniziativa.
+              I dati potrebbero non essere aggiornati in tempo reale. Per verificare il numero attuale delle firme consulta il portale ufficiale della Commissione europea.
             </p>
           </div>
 
@@ -310,7 +333,7 @@ export default function ECI() {
                         {item.url && (
                           <div className="mt-4 mt-auto pt-2">
                             <a
-                              href={item.url}
+                              href={civicOfficialSourceUrl("eci", item.id, item.url) || undefined}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
@@ -349,14 +372,18 @@ export default function ECI() {
           </DialogHeader>
           {viewItem && (
             <div className="space-y-4 bg-white overflow-y-auto">
-              {viewItem.obiettivi && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Obiettivi</h4>
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {viewItem.obiettivi}
-                  </p>
-                </div>
+              {viewItem.status === "NOT_ONGOING" && (
+                <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-gray-800">
+                  La raccolta firme non risulta più in corso. Le informazioni riportate sono quelle conservate da DEMOS;
+                  verifica lo stato aggiornato sul registro ufficiale della Commissione europea.
+                </p>
               )}
+              <CivicOfficialInformation
+                category="eci"
+                description={viewItem.obiettivi}
+                officialId={viewItem.id}
+                sourceUrl={viewItem.url}
+              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-1">Firme raccolte</h4>
@@ -373,24 +400,6 @@ export default function ECI() {
                   </div>
                 )}
               </div>
-              {viewItem.url && (
-                <div>
-                  <a
-                    href={viewItem.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="bg-teal-600 hover:bg-teal-700 text-white"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Apri sul portale UE
-                    </Button>
-                  </a>
-                </div>
-              )}
             </div>
           )}
           <div className="flex justify-between mt-4 bg-white">

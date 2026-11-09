@@ -59,7 +59,9 @@ async function requireVerifiedCivicIdentity(req, res, next) {
     req.civicIdentity = identity;
     return next();
   } catch (error) {
-    console.error('Errore verifica identita civica:', error?.message || error);
+    // The provider/SQL error can include identity metadata or request details.
+    // Log only a stable event code; retain the neutral HTTP contract.
+    console.error('CIVIC_IDENTITY_CHECK_UNAVAILABLE');
     return res.status(503).json({
       success: false,
       error: 'Verifica identita temporaneamente non disponibile',

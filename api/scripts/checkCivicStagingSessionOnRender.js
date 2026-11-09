@@ -4,10 +4,13 @@
 // This script never imports the DEMOS API, Firebase or production DB pool.
 // It never changes feature flags, takes advisory locks, reads account records
 // or logs URLs, usernames, tokens, SQL backend PIDs or passwords.
-const { assertCivicStagingSessionEndpoint } =
+const { assertCivicStagingSessionEndpoint,
+  resolveCivicStagingSessionConnectionString } =
   require('../services/civicStagingSessionEndpointSafety');
 const { probeCivicSessionAffinity } =
   require('../services/civicSessionAffinityProbe');
+const { verifyCivicStagingRuntimeIdentity } =
+  require('../services/civicStagingSessionRuntimeIdentity');
 
 async function runCivicStagingSessionCheck(env = process.env, {
   createPool,
@@ -32,8 +35,10 @@ async function runCivicStagingSessionCheck(env = process.env, {
     throw new Error('CIVIC_STAGING_SESSION_APPROVAL_REQUIRED');
   }
 
+  const runtimeConnectionString=resolveCivicStagingSessionConnectionString(
+    env.CIVIC_STAGING_SESSION_DATABASE_URL);
   assertCivicStagingSessionEndpoint({
-    connectionString: env.CIVIC_STAGING_SESSION_DATABASE_URL,
+    connectionString: runtimeConnectionString,
     projectRef: env.CIVIC_STAGING_PROJECT_REF,
     expectedPoolerHost: env.CIVIC_STAGING_EXPECTED_POOLER_HOST,
     env,
@@ -46,7 +51,7 @@ async function runCivicStagingSessionCheck(env = process.env, {
     return new Pool(options);
   });
   const pool = factory({
-    connectionString: env.CIVIC_STAGING_SESSION_DATABASE_URL,
+    connectionString: runtimeConnectionString,
     max: 2,
     min: 0,
     connectionTimeoutMillis: 5000,
@@ -60,9 +65,13 @@ async function runCivicStagingSessionCheck(env = process.env, {
     throw new Error('CIVIC_STAGING_SESSION_POOL_INVALID');
   }
   try {
+    // The role/database identity is verified on the ACTUAL authenticated
+    // PostgreSQL connection, not inferred from a user-supplied URL. Failure
+    // never advances to PID sampling or enables any push.
+    await verifyCivicStagingRuntimeIdentity(pool);
     return await runProbe(pool, {
       apply: true, confirmed: true, environment: 'staging',
-      databaseUrl: env.CIVIC_STAGING_SESSION_DATABASE_URL,
+      databaseUrl: runtimeConnectionString,
       rounds: 6,
     });
   } finally {

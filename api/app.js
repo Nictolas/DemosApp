@@ -1,4 +1,20 @@
+// Staging-only direct-import guard: the full DEMOS route tree can start
+// workers or expose routes before it is safe for shared staging.
+// Only the isolated civic source canary is authorized at this phase.
+if (process.env.NODE_ENV === 'staging') {
+  throw new Error('STAGING_FULL_APP_IMPORT_NOT_AUTHORIZED');
+}
+
 require('dotenv').config();
+// Direct app imports must never bypass the staging-only startup gate.
+const {assertStagingAppCanary,shouldMountDevApiSurface,isReadOnlyCanaryRequest}=
+  require('./staging/unified_staging_app_safety');
+const stagingGuard=assertStagingAppCanary(process.env);
+if (stagingGuard.active &&
+    process.env.DATABASE_URL !== stagingGuard.connectionString) {
+  throw new Error('STAGING_APP_CANARY_ENTRYPOINT_REQUIRED');
+}
+const isStagingApp=process.env.NODE_ENV==='staging';
 const express = require('express');
 require('express-async-errors'); // Cattura errori/rejection da route async e li passa al middleware di errore (evita crash)
 const cors = require('cors');
@@ -41,6 +57,7 @@ try {
 const testDbRoutes = require('./routes/test-db');
 const eventiRoutes = require('./routes/eventi');
 const graziaRoutes = require('./routes/grazia');
+const subjectProposalsRoutes = require('./routes/subject-proposals');
 const amnistiaRoutes = require('./routes/amnistia');
 const capoStatoRoutes = require('./routes/capo-stato');
 const elezioniRoutes = require('./routes/elezioni');
@@ -137,9 +154,26 @@ const {
 
 /** In produzione le route test/migrate/cleanup/debug non sono montate salvo ALLOW_DEV_API_SURFACE=true */
 const isProductionApp = process.env.NODE_ENV === 'production';
-const mountDevApiSurface = !isProductionApp || process.env.ALLOW_DEV_API_SURFACE === 'true';
+const mountDevApiSurface = shouldMountDevApiSurface(process.env);
 
 const app = express();
+// Never expose the full route tree on the first staging application canary.
+if (isStagingApp) {
+  app.use((req,res,next)=>{
+    if (!isReadOnlyCanaryRequest(req.method,req.path)) {
+      return res.status(404).json({error:'not_found'});
+    }
+    if (['/health','/health/live','/api/health','/api/health/live'].includes(req.path)) {
+      return res.status(200).json({status:'app_canary_readonly',
+        app_ready:false,notifications_enabled:false});
+    }
+    if (['/health/ready','/api/health/ready'].includes(req.path)) {
+      return res.status(503).json({status:'not_ready',
+        reason:'application_e2e_not_authorized'});
+    }
+    next();
+  });
+}
 
 // Configurazione per proxy (necessario per rate limiting in produzione)
 // In produzione, fidati solo dei proxy di Render
@@ -244,7 +278,7 @@ app.options('*', (req, res) => {
 app.use(cors(corsOptions));
 
 // DEBUG: Middleware di logging universale - solo in sviluppo (evita accumulo log in produzione)
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
     console.log(`ðŸš¨ UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
     if (req.originalUrl.includes('send-demos-notification')) {
@@ -298,7 +332,7 @@ app.head('/', (req, res) => {
 
 
 // Logging middleware di debug - solo in sviluppo (evita accumulo log in produzione)
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
     console.log(`ðŸ“¡ ${req.method} ${req.path} - ${new Date().toISOString()}`);
     console.log(`ðŸŒ Origin: ${req.headers.origin || 'Nessuna'}`);
@@ -363,6 +397,7 @@ if (mountDevApiSurface) {
   app.use('/api/test-db', publicLimiter, testDbRoutes);
 }
 app.use('/api/eventi', publicLimiter, eventiRoutes);
+app.use('/api/subject-proposals', userLimiter, subjectProposalsRoutes);
 app.use('/api/grazia', publicLimiter, graziaRoutes);
 app.use('/api/amnistia', publicLimiter, amnistiaRoutes);
 app.use('/api/capo-stato', publicLimiter, capoStatoRoutes);
@@ -538,11 +573,11 @@ app.use((error, req, res, next) => {
 });
 
 // Avvia sistema di audit logging
-auditManager.start();
+if (!isStagingApp) auditManager.start();
 
 // Avvia sistema di monitoraggio performance
 const performanceMonitor = require('./services/performanceMonitor');
-const performanceMonitorEnabled = process.env.PERFORMANCE_MONITOR_ENABLED !== 'false';
+const performanceMonitorEnabled = !isStagingApp && process.env.PERFORMANCE_MONITOR_ENABLED !== 'false';
 const defaultPerformanceMonitorIntervalMs = process.env.NODE_ENV === 'production' ? 120000 : 30000;
 const performanceMonitorIntervalMs = Math.max(
   15000,
@@ -556,7 +591,7 @@ if (performanceMonitorEnabled) {
 
 // Avvia sistema di ottimizzazione performance
 const performanceOptimizer = require('./services/performanceOptimizer');
-performanceOptimizer.start();
+if (!isStagingApp) performanceOptimizer.start();
 
 /**
  * Job in background e impatto su Supabase (connessioni, query ripetute):

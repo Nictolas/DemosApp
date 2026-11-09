@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import appIcon from "/icona.png";
+import { WebAdSenseBanner } from "@/components/WebAdSenseBanner";
 
 const benefits = [
   {
@@ -76,6 +77,7 @@ export default function ScopriDemos() {
               Accedi o registrati
             </Link>
           </div>
+          <WebAdSenseBanner />
         </main>
 
         <footer className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-slate-200 py-5 text-xs text-slate-600">

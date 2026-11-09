@@ -241,12 +241,18 @@ test('shared delivery lock protects the entire preference write and all device m
   const unsubscribe = prefs.indexOf('await unsubscribeDisabledCivicTopicsForUser(', lockedSave);
   const dbWrite = prefs.indexOf('INSERT INTO notifiche_preferenze', unsubscribe);
   const reconcile = prefs.indexOf('await reconcileCivicTopicsForUser(db, user_id', dbWrite);
-  const end = prefs.indexOf('}, { enabled: isCivicPushEnabled() });', reconcile);
-  assert.ok(lockedSave >= 0 && unsubscribe > lockedSave &&
-    dbWrite > unsubscribe && reconcile > dbWrite && end > reconcile);
-  assert.equal((tokens.match(/return await withCivicPushDeliveryLock\(pool, async \(db\)/g) || []).length, 4);
+  const transaction = prefs.indexOf('return runCivicPreferenceSaveAtomic(db, async () => {', lockedSave);
+  const innerEnd = prefs.indexOf('}, { enabled: civicPushEnabled });', reconcile);
+  const outerEnd = prefs.indexOf('}, { enabled: civicPushEnabled });', innerEnd + 1);
+  assert.ok(lockedSave >= 0 && transaction > lockedSave &&
+    unsubscribe > transaction && dbWrite > unsubscribe &&
+    reconcile > dbWrite && innerEnd > reconcile && outerEnd > innerEnd);
+  assert.equal((tokens.match(/const outcome = await withAtomicFcmMutation\(async \(db\)/g) || []).length, 4);
+  assert.equal((tokens.match(/return res\.status\(outcome\.status\)\.json\(outcome\.body\)/g) || []).length, 4);
+  assert.match(tokens, /runCivicPreferenceSaveAtomic\(db, \(\) => work\(db\), \{ enabled \}\)/);
+  assert.match(tokens, /await blockCivicDeliveryFromPool\(pool\)/);
   assert.match(tokens, /await unsubscribeCivicTokenOrBlock\(token, db\)/);
-  assert.match(tokens, /await updateLegacyTokens\(userId, updatedTokens, db\)/);
+  assert.match(tokens, /await updateLegacyTokens\(userId, updatedTokens, db, legacyState\.hasColumn\)/);
   assert.match(tokens, /await deactivateUserDeviceToken\(userId, token, db\)/);
 });
 
@@ -470,8 +476,25 @@ test('official initiative deep links reuse existing fetched list', () => {
     const source = read(path);
     assert.match(source, /new URLSearchParams/);
     assert.match(source, /get\("initiative"\)/);
-    assert.match(source, /deepLinkHandled.current = true/);
+    // A missing record must remain retryable after a source refresh.
+    const itemMatch = source.indexOf('const item = ', source.indexOf('get("initiative")'));
+    const handled = source.indexOf('deepLinkHandled.current = true', itemMatch);
+    const foundGuard = source.indexOf('if (item) {', itemMatch);
+    assert.ok(itemMatch >= 0 && foundGuard > itemMatch &&
+      handled > foundGuard, path + ' must mark handled only once the record exists');
   }
+});
+
+test('native FCM action has allowlisted civic fallback when link is omitted', () => {
+  const source = read('client/src/hooks/useNativePush.ts');
+  assert.match(source, /type === 'civic_new_initiative'/);
+  for (const category of ['iniziative_popolari', 'referendum_abrogativi', 'eci']) {
+    assert.match(source, new RegExp(category + ':'));
+  }
+  assert.match(source, /encodeURIComponent\(officialId\)/);
+  assert.match(source, /getFallbackNotificationTarget\(data.type, data.category, data.official_id\)/);
+  assert.match(source, /typeof officialId !== 'string'/);
+  assert.match(source, /!officialId.trim\(\)/);
 });
 
 test('ECI dispatch requires explicitly enabled GitHub Action and two secrets', () => {
@@ -479,4 +502,154 @@ test('ECI dispatch requires explicitly enabled GitHub Action and two secrets', (
   assert.match(workflow, /vars\.CIVIC_NEW_INITIATIVE_PUSH_ENABLED == 'true'/);
   assert.match(workflow, /secrets\.CIVIC_PUSH_DISPATCH_URL/);
   assert.match(workflow, /secrets\.CIVIC_PUSH_DISPATCH_KEY/);
+});
+
+test('failed advisory unlock never returns successful FCM mutation', async () => {
+  const calls=[];
+  const client={
+    query:async (sql)=>{
+      if(sql.includes('FROM civic_runtime_identity'))return {rows:[{db_identity:TEST_DB_ID}]};
+      if(sql.includes('pg_advisory_lock(')){calls.push('lock');return {rows:[]};}
+      if(sql.includes('pg_advisory_unlock(')){calls.push('unlock-unconfirmed');return {rows:[{unlocked:false}]};}
+      return {rows:[]};
+    },
+    release:discard=>calls.push(discard?'discard':'release'),
+  };
+  const pool={connect:async()=>client};
+  await assert.rejects(withCivicPushDeliveryLock(pool, async()=>{
+    calls.push('mutation-completed');
+    return {success:true};
+  },{enabled:true}),/CIVIC_DELIVERY_LOCK_RELEASE_UNCONFIRMED/);
+  assert.deepEqual(calls,['lock','mutation-completed','unlock-unconfirmed','discard']);
+});
+
+test('sender rejects apparently successful FCM delivery if its advisory unlock is unconfirmed',async()=>{
+  const db=eventPool();
+  const raw=await db.connect();
+  let released;
+  const wrapped={
+    query:async(sql,...args)=>{
+      if(sql.includes('pg_advisory_unlock('))return {rows:[{unlocked:false}]};
+      return raw.query(sql,...args);
+    },
+    release:discard=>{released=discard;},
+  };
+  const pool={connect:async()=>wrapped};
+  let sends=0;
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=>{sends++;return 'SYNTHETIC_FCM_ACCEPTED';}},
+  }),/CIVIC_DISPATCH_LOCK_RELEASE_UNCONFIRMED/);
+  assert.equal(sends,1,'an accepted FCM send cannot be recalled by this regression');
+  assert.equal(db.event.status,'sent','never automatically retry accepted FCM message');
+  assert.equal(released,true,'pooled connection with unknown advisory lock must be discarded');
+});
+
+test('sender rejects missing advisory-unlock acknowledgment without provider send',async()=>{
+  const db=eventPool({blocked:true});
+  const original=await db.connect();
+  let released;
+  const pool={connect:async()=>({
+    query:async(sql,...args)=>sql.includes('pg_advisory_unlock(')
+      ? {rows:[]} : original.query(sql,...args),
+    release:discard=>{released=discard;},
+  })};
+  let sends=0;
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=>{sends++;}},
+  }),/CIVIC_DISPATCH_LOCK_RELEASE_UNCONFIRMED/);
+  assert.equal(sends,0);
+  assert.equal(released,true);
+});
+
+test('dispatcher refuses false success when FCM accepted but SQL sent update changed zero rows',async()=>{
+  const db=eventPool();
+  const original=await db.connect();
+  const statements=[];
+  const pool={connect:async()=>({
+    query:async (sql,...args)=>{
+      statements.push(String(sql));
+      if(String(sql).includes("SET status = 'sent'"))return {rowCount:0};
+      return original.query(sql,...args);
+    },
+    release:()=>{},
+  })};
+  let sends=0;
+  await assert.rejects(
+    dispatchCivicNewInitiatives(pool,{enabled:true,messaging:{
+      send:async()=>{sends++;return 'SYNTHETIC_FCM_ACCEPTED';},
+    }}),
+    /CIVIC_SENT_STATE_UNCONFIRMED/
+  );
+  assert.equal(sends,1,'already accepted FCM send must never be retried');
+  assert.equal(db.event.status,'dispatching',
+    'an unacknowledged SQL update is not silently recorded as sent');
+  assert.equal(statements.filter(x=>x.includes("SET status = 'failed'")).length,0,
+    'an uncertain accepted send cannot be relabelled as failed');
+});
+
+test('dispatcher rejects malformed sent acknowledgement even when provider accepted',async()=>{
+  const db=eventPool();
+  const original=await db.connect();
+  const pool={connect:async()=>({
+    query:async(sql,...args)=>String(sql).includes("SET status = 'sent'")
+      ? {rows:[]} : original.query(sql,...args),
+    release:()=>{},
+  })};
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=> 'SYNTHETIC_ACCEPTED'},
+  }),/CIVIC_SENT_STATE_UNCONFIRMED/);
+  assert.equal(db.event.status,'dispatching');
+});
+
+test('dispatcher rejects failed-event update with zero affected rows',async()=>{
+  const db=eventPool();
+  const original=await db.connect();
+  const pool={connect:async()=>({
+    query:async(sql,...args)=>String(sql).includes("SET status = 'failed'")
+      ? {rowCount:0} : original.query(sql,...args),
+    release:()=>{},
+  })};
+  let sends=0;
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=>{sends++;throw Error('PRIVATE_FCM_UNCERTAINTY');}},
+  }),/CIVIC_FAILED_STATE_UNCONFIRMED/);
+  assert.equal(sends,1);
+  assert.equal(db.event.status,'dispatching');
+});
+
+test('dispatcher refuses falsely completed failed-event update without rowCount',async()=>{
+  const db=eventPool();
+  const original=await db.connect();
+  const pool={connect:async()=>({
+    query:async(sql,...args)=>String(sql).includes("SET status = 'failed'")
+      ? {rows:[]} : original.query(sql,...args),
+    release:()=>{},
+  })};
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=>{throw Error('SECRET_PROVIDER_DETAILS');}},
+  }),/CIVIC_FAILED_STATE_UNCONFIRMED/);
+  assert.equal(db.event.status,'dispatching');
+});
+
+test('SQL completion network failure after FCM accept never relabels event failed',async()=>{
+  const db=eventPool();
+  const original=await db.connect();
+  const queries=[];
+  const pool={connect:async()=>({
+    query:async(sql,...args)=>{
+      queries.push(String(sql));
+      if(String(sql).includes("SET status = 'sent'"))
+        throw Error('PRIVATE_SQL_ACK_FAILURE');
+      return original.query(sql,...args);
+    },
+    release:()=>{},
+  })};
+  let sends=0;
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=>{sends++;return 'SYNTHETIC_FCM_ACCEPTED';}},
+  }),/CIVIC_SENT_STATE_UNCONFIRMED/);
+  assert.equal(sends,1);
+  assert.equal(db.event.status,'dispatching');
+  assert.equal(queries.filter(sql=>sql.includes("SET status = 'failed'")).length,0,
+    'provider accepted push must remain a manual-review case');
 });

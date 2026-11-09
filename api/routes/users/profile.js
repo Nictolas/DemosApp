@@ -310,7 +310,6 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         // Normalizza i gradi di elezione e candidatura
         if (key === 'grado_elezione' || key === 'grado_candidatura') {
           filteredData[key] = normalizeGrado(updateData[key]);
-          console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
         }
         // Applica compressione per i campi paese
         else if (key === 'paese_residenza' || key === 'paese_elezione' || key === 'paese_candidatura') {
@@ -396,7 +395,6 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     }
     
     const updatedUser = result.rows[0];
-    console.log('✅ Profilo utente aggiornato:', updatedUser.email);
     
     // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
     let dataNascitaFormattata = null;
@@ -443,7 +441,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    console.error('PROFILE_UPDATE_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

@@ -11,6 +11,7 @@ const {
   getLegacySelectionDescriptors,
 } = require('../services/politicalJurisdictionRegistryService');
 const { loadPoliticalSelections, selectionsByOffice, isPoliticalOfficeVisible } = require('../services/politicalSelectionService');
+const { readVerifiedEuropeanCurrentVote } = require('../services/europeanRepresentativeCurrentVoteReader');
 
 const router = express.Router();
 const REPRESENTATIVE_SELECTION_DESCRIPTORS = Object.freeze(getLegacySelectionDescriptors('representative'));
@@ -204,14 +205,7 @@ router.get('/', verifyToken, async (req, res) => {
     const selectionState = await loadRepresentativeSelectionProjection(userId);
     const user = selectionState.projection;
 
-    console.log('🔍 DEBUG Backend - User data:', {
-      userId,
-      rappresentante_europeo: user.rappresentante_europeo,
-      rappresentante_camera: user.rappresentante_camera,
-      rappresentante_senato: user.rappresentante_senato,
-      rappresentante_regionale: user.rappresentante_regionale,
-      rappresentante_comune: user.rappresentante_comune
-    });
+    // Minimize logs: never print the user's representative selections or UUIDs.
 
     // Ottieni i dettagli dei rappresentanti selezionati
     const rappresentantiSelezionati = {};
@@ -224,7 +218,6 @@ router.get('/', verifyToken, async (req, res) => {
       const rappresentanteId = user[campo];
 
       if (rappresentanteId) {
-        console.log(`🔍 DEBUG Backend - Trovato rappresentante per ${categoria}: ${rappresentanteId}`);
         // Ottieni i dettagli del rappresentante
         const rappresentanteQuery = `
           SELECT
@@ -243,19 +236,23 @@ router.get('/', verifyToken, async (req, res) => {
 
         if (rappresentanteResult.rows.length > 0) {
           const rappresentante = rappresentanteResult.rows[0];
+          if (categoria === 'europeo') {
+            // Single current vote on the already authenticated representative
+            // card; only a verified DEMOS UUID -> MEP ID mapping may populate
+            // the shared writer. Missing migration/source = explicit null.
+            rappresentante.ultimo_voto_nominale =
+              await readVerifiedEuropeanCurrentVote(pool, rappresentante.id);
+          }
           rappresentantiSelezionati[categoria] = [rappresentante];
           idMap[rappresentanteId] = `${rappresentante.nome} ${rappresentante.cognome}`;
-          console.log(`🔍 DEBUG Backend - Rappresentante ${categoria} caricato:`, rappresentante.nome, rappresentante.cognome);
         } else {
-          console.log(`⚠️ DEBUG Backend - Rappresentante ${categoria} con ID ${rappresentanteId} non trovato nel database`);
         }
       } else {
-        console.log(`🔍 DEBUG Backend - Nessun rappresentante per ${categoria}`);
       }
     }
 
-    console.log('🔍 DEBUG Backend - Rappresentanti selezionati finali:', rappresentantiSelezionati);
-    console.log('🔍 DEBUG Backend - idMap finale:', idMap);
+    // Do not log personal selection IDs, names, or current nominal votes.
+    console.log('Rappresentanti selezionati - categorie presenti:', Object.keys(rappresentantiSelezionati));
 
     const responseData = {
       success: true,
@@ -265,7 +262,7 @@ router.get('/', verifyToken, async (req, res) => {
       }
     };
 
-    console.log('🔍 DEBUG Backend - Response data:', JSON.stringify(responseData, null, 2));
+    // Response contains personal selections: never serialize it to logs.
 
     res.json(responseData);
   } catch (error) {

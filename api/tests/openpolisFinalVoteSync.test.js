@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseListaVotazioniFinali } = require('../services/openpolisVotazioniFinaliService');
+const { parseListaVotazioniFinali, fetchVotazioniFinaliPerCamera } = require('../services/openpolisVotazioniFinaliService');
 
 const html = [
 '<html><body><nav><a href="/votazioni?main_vote_type=is_final">Voto finale</a></nav>',
@@ -62,4 +62,84 @@ test('empty or invalid upstream HTML must not silently count as new final votes'
   const ui = fs.readFileSync(path.join(__dirname, '../../client/src/pages/VotiPoliticiFinali.tsx'), 'utf8');
   assert.match(ui, /nessuna nuova votazione finale/i);
   assert.match(ui, /Impossibile sincronizzare Openpolis/);
+});
+
+function syntheticPage(cards) {
+  return '<html><body><div class="vote-list">' + cards.map(({ chamber, id, n }) =>
+    '<article><p>' + chamber + 'Votazione n. ' + n +
+    ' Seduta n. 735 del 28/10/2026 </p>' +
+    '<h3>Votazione finale sintetica ' + n + ' - Votazione finale </h3>' +
+    '<a href="/votazioni/' + id + '">Dettaglio</a>' +
+    '<span>VOTAZIONE FINALEApprovata</span></article>'
+  ).join('') + '</div></body></html>';
+}
+
+test('independent chamber quota: Senate is imported despite surplus Camera final ballots', async () => {
+  const camera = n => ({chamber:'Camera',id:'vs19_735_'+n,n});
+  const senate = n => ({chamber:'Senato',id:'19-469-'+n,n});
+  const pages = [
+    syntheticPage([camera(1),camera(2),camera(3),camera(4)]),
+    syntheticPage([camera(5),camera(6),camera(7)]),
+    syntheticPage([senate(3),senate(4)])
+  ];
+  let calls=0;
+  const items=await fetchVotazioniFinaliPerCamera(3,{
+    fetchPage:async page=>{calls++;return pages[page-1]||syntheticPage([])}
+  });
+  assert.equal(calls,4);
+  assert.equal(items.filter(v=>v.camera==='Camera').length,3);
+  assert.equal(items.filter(v=>v.camera==='Senato').length,2);
+  assert.deepEqual(items.filter(v=>v.camera==='Senato').map(v=>v.openpolis_id),['19-469-3','19-469-4']);
+  assert.equal(new Set(items.map(v=>v.openpolis_id)).size,items.length);
+});
+
+test('balanced importer stops on repeated pages and fails closed on empty first page', async () => {
+  const page=syntheticPage([{chamber:'Camera',id:'vs19_735_1',n:1}]);
+  let calls=0;
+  const items=await fetchVotazioniFinaliPerCamera(3,{fetchPage:async()=>{calls++;return page;}});
+  assert.equal(calls,2);
+  assert.equal(items.length,1);
+  await assert.rejects(fetchVotazioniFinaliPerCamera(3,{fetchPage:async()=>syntheticPage([])}),
+    /OPENPOLIS_FINAL_VOTES_PARSE_EMPTY/);
+});
+
+test('authenticated final-vote feed is read-only, with a fail-closed empty cache', () => {
+  const route = fs.readFileSync(path.join(__dirname, '../routes/voti-politici.js'), 'utf8');
+  const start = route.indexOf("router.get('/votazioni-finali-decisive', verifyToken");
+  const end = route.indexOf("router.post('/sync-votazioni-finali-decisive'", start);
+  assert.ok(start >= 0 && end > start, 'feed and Admin sync routes must be distinct');
+  const feed = route.slice(start, end);
+  assert.match(feed, /loadOpenpolisVotazioniFinali\(pool, limit\)/);
+  assert.match(feed, /rows\.length === 0/);
+  assert.match(feed, /res\.status\(503\)\.json/);
+  assert.doesNotMatch(feed, /fetchVotazioniFinaliDecisive|saveOpenpolisVotazioniFinaliToDb|INSERT INTO|UPDATE /,
+    'authenticated GET must never fetch and persist upstream source data');
+  const sync = route.slice(end, route.indexOf("router.get('/ultime'", end));
+  assert.match(sync, /requireAdmin/);
+  assert.match(sync, /runOpenpolisVotazioniFinaliSync\(\)/);
+});
+
+test('legacy vote detail cannot persist parliamentary nominal-vote history on GET', () => {
+  const route = fs.readFileSync(path.join(__dirname, '../routes/voti-politici.js'), 'utf8');
+  const detailStart = route.indexOf("router.get('/dettagli/:uri', verifyToken");
+  assert.ok(detailStart >= 0, 'the legacy detail endpoint must remain available');
+  const detailRoute = route.slice(detailStart);
+  assert.doesNotMatch(detailRoute, /await saveVotiNominaliToCache\s*\(/,
+    'viewing a parliamentary detail must not append nominal vote snapshots');
+  assert.match(detailRoute, /PROD-041: non leggere la cache nominale storica/,
+    'document policy: nominal-vote history must never be read by GET');
+  assert.doesNotMatch(route, /async function saveVotiNominaliToCache\s*\(/,
+    'remove dead legacy writer, not just its current invocation');
+  assert.doesNotMatch(route, /async function creaNotificheParlamentoDaVotiNominali\s*\(/,
+    'retroactive notifications must not be generated from old nominal cache');
+  assert.doesNotMatch(route, /INSERT INTO parlamento_voti_nominali/,
+    'no historical nominal inserts should exist in the legacy routes');
+  assert.doesNotMatch(route, /queryWithAccountModelFallback/,
+    'unused account-query fallback was solely a dependency of legacy notification writer');
+});
+
+test('scheduled sync uses balanced source importer, not a global 50-ballot quota', () => {
+  const job=fs.readFileSync(path.join(__dirname,'../jobs/openpolisVotazioniFinaliJob.js'),'utf8');
+  assert.match(job,/fetchVotazioniFinaliPerCamera\(50\)/);
+  assert.doesNotMatch(job,/fetchVotazioniFinaliDecisive\(50\)/);
 });

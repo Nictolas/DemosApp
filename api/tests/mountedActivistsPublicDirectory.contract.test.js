@@ -1,0 +1,41 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.join(__dirname,'..','..');
+const src=(p)=>fs.readFileSync(path.join(root,p),'utf8');
+test('mounted /attivisti directory shows reviewed nominations, no hardcoded Render or personal debug logs',()=>{
+  const app=src('client/src/App.tsx');
+  const active=src('client/src/pages/Attivisti.tsx');
+  assert.match(app,/import Attivisti from "\.\/pages\/Attivisti";/);
+  assert.match(active,/approved_subjects/);
+  assert.match(active,/Array\.isArray\(data\.approved_subjects\)/);
+  assert.match(active,/\.map\(item => \(\{ id: item\.id, title: item\.title \}\)\)/);
+  assert.doesNotMatch(active,/setApprovedSubjects\(data\.approved_subjects \|\| \[\]\)/,
+    'never preserve unexpected private source fields in React state');
+  assert.match(active,/Attivisti segnalati e approvati/);
+  assert.match(active,/subject\.title/);
+  assert.match(active,/ProposeSubjectButton category="attivisti"/);
+  assert.equal(active.split('import { ProposeSubjectButton }').length - 1, 1, 'only one mounted import');
+  assert.equal((active.match(/<ProposeSubjectButton category="attivisti"/g)||[]).length, 1, 'only one proposal button');
+  assert.match(active,/useApprovedSubjectResumeRefresh\("attivisti"/);
+  assert.match(active,/getApiUrl\(\`\/api\/attivisti/);
+  assert.match(active,/cache: 'no-store'/);
+  assert.doesNotMatch(active,/demos-c7k0\.onrender\.com|\bAPI_BASE\b|console\.(?:log|debug)\(/);
+  assert.doesNotMatch(active,/subject\.(?:source_url|details|proposer_user_id)/);
+});
+test('the mounted directory has no implicit extra page reads and offers on-demand pagination',()=>{
+ const mounted=src('client/src/pages/Attivisti.tsx');
+ const org=src('client/src/pages/Organizzazioni/index.tsx');
+ const pager=src('client/src/hooks/useApprovedDirectoryPagination.ts');
+ const api=src('api/services/publicApprovedSubjectPage.js');
+ assert.match(mounted,/Carica altri attivisti approvati/);
+ assert.match(org,/Carica altre organizzazioni approvate/);
+ assert.match(mounted,/reset\(data\.approved_next_cursor \?\? null\)/);
+ assert.match(org,/reset\(data\.approved_next_cursor \?\? null\)/);
+ assert.match(pager,/if \(!nextCursor \|\| loadingMore\) return/);
+ assert.match(pager,/controller\.signal/);
+ assert.match(api,/ORDER BY COALESCE\(reviewed_at,created_at\) DESC,id DESC/);
+ assert.match(api,/LIMIT 101/);
+});

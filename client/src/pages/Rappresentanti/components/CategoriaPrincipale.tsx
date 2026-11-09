@@ -43,9 +43,7 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
         rappresentanteData = rappresentantiPerCategoria[0]; // Prendi il primo (e unico) rappresentante
         rappresentanteUid = rappresentanteData.id;
         
-        console.log(`🔍 DEBUG CategoriaPrincipale - Rappresentante trovato per ${categoriaId}:`, rappresentanteData);
       } else {
-        console.log(`🔍 DEBUG CategoriaPrincipale - Nessun rappresentante per ${categoriaId}:`, rappresentantiPerCategoria);
       }
     }
 
@@ -65,9 +63,7 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
           config = rappresentanteData.avatar_config;
         }
         avatarContent = <CustomAvatar config={config} size={64} className="w-full h-full" />;
-        console.log(`🔍 DEBUG CategoriaPrincipale - Avatar config per ${categoriaId}:`, config);
       } catch (e) { 
-        console.log(`⚠️ DEBUG CategoriaPrincipale - Errore parsing avatar per ${categoriaId}:`, e);
       }
     }
 
@@ -78,14 +74,19 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
         </div>
         <div className="text-center">
           {rappresentanteData && rappresentanteData.nome && rappresentanteData.cognome ? (
-            <p className="font-medium text-primary cursor-pointer hover:underline text-sm" onClick={(e) => {
-                e.stopPropagation(); // Previeni l'apertura del modal di cambio
+            <button
+              type="button"
+              data-representative-details
+              className="font-medium text-primary cursor-pointer hover:underline text-sm text-center"
+              onClick={(e) => {
+                e.stopPropagation();
                 if (rappresentanteUid && rappresentanteData) {
                   onOpenOpinioni(rappresentanteUid, rappresentanteData.nome, rappresentanteData.cognome, rappresentanteData.avatar_config, categoriaId);
                 }
-            }}>
+              }}
+            >
               {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
-            </p>
+            </button>
           ) : (
             <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
           )}
@@ -109,28 +110,44 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
   
   const color = colorMap[categoria.color as keyof typeof colorMap] || colorMap.blue;
 
+  // European lead card: use two genuinely separate interactive controls.
+  // The selection surface handles a normal click, while its inner native
+  // button opens the selected representative's profile. Never schedule
+  // delayed navigation from mouseup/touchend: it hides the vote dialog.
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Scegli rappresentante per ${categoria.nome}`}
       className="relative flex w-full h-full min-h-0 items-center justify-center rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      onClick={(e) => {
+        if (e.target instanceof Element && e.target.closest('[data-representative-details]')) return;
+        handleClick();
+      }}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
       onMouseDown={(e) => {
+        if (e.target instanceof Element && e.target.closest('[data-representative-details]')) return;
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
       onMouseUp={(e) => {
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
-        setTimeout(handleClick, 100);
       }}
       onMouseLeave={(e) => {
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
       }}
       onTouchStart={(e) => {
-        e.preventDefault();
+        // Do not preventDefault; a native tap must reach the inner button.
+        if (e.target instanceof Element && e.target.closest('[data-representative-details]')) return;
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
       onTouchEnd={(e) => {
-        e.preventDefault();
         e.currentTarget.classList.remove('scale-95', 'shadow-md');
-        setTimeout(handleClick, 100);
       }}
       onContextMenu={e => e.preventDefault()}
     >
@@ -143,6 +160,6 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
         <div className="text-2xl font-bold mb-2" style={{ color: color.text }}>{categoria.nome}</div>
         {renderRappresentante(categoria.id)}
       </div>
-    </button>
+    </div>
   );
 };

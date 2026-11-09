@@ -14,11 +14,7 @@ interface Organizzazione {
   id: string;
   nome: string;
   cognome?: string; // usato come Codice 5x1000 lato UI
-  email: string;
   ruolo: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
   avatar_config?: string;
   regione_residenza?: string;
   facebook_url?: string;

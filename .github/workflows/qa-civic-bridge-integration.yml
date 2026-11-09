@@ -1,0 +1,52 @@
+name: QA civic bridge integration (no secrets)
+on:
+  pull_request:
+    branches:
+      - integration/aab-cumulative-qa-20261109
+    paths:
+      - 'api/routes/eci.js'
+      - 'api/routes/fcm-tokens.js'
+      - 'api/tests/civicEciDeepLinkArchive.http.test.js'
+      - 'api/tests/fcmTokenIntegrity.test.js'
+      - 'api/tests/test_sync_eci.py'
+      - 'api/tests/civicEciSchedulerGate.test.js'
+      - 'client/src/pages/ECI/index.tsx'
+      - 'client/src/pages/IniziativePopolari/components/ViewDialog.tsx'
+      - 'client/src/pages/ReferendumAbrogativi/components/ViewDialog.tsx'
+      - 'client/src/components/civic/CivicOfficialInformation.tsx'
+      - 'client/src/lib/civic-official-sources.ts'
+      - 'client/tests/civicOfficialSources.test.mjs'
+      - '.github/workflows/eci_sync.yml'
+      - '.github/workflows/qa-civic-bridge-integration.yml'
+permissions:
+  contents: read
+jobs:
+  offline-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install API and client dependencies
+        run: |
+          npm ci --prefix api --ignore-scripts --no-audit --no-fund
+          npm ci --prefix client --ignore-scripts --no-audit --no-fund
+          python -m pip install requests psycopg2-binary
+      - name: Validate archived ECI HTTP route and malformed FCM tokens
+        run: |
+          node --check api/routes/eci.js
+          node --check api/routes/fcm-tokens.js
+          node --test --test-concurrency=1 api/tests/civicEciDeepLinkArchive.http.test.js api/tests/fcmTokenIntegrity.test.js api/tests/civicEciSchedulerGate.test.js
+      - name: Validate shared official-information links
+        run: node --experimental-strip-types --test client/tests/civicOfficialSources.test.mjs
+      - name: Validate ECI synchronization guard
+        run: python -m unittest api.tests.test_sync_eci -q
+      - name: Compile push-enabled Vite app without any live Firebase keys
+        env:
+          VITE_ANDROID_NATIVE_PUSH_ENABLED: 'true'
+        run: npm --prefix client run build

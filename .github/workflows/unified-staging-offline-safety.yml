@@ -1,0 +1,402 @@
+name: Unified Staging Offline Safety
+
+# OPS-STG-001 / PR #565: temporary GitHub runner only, NO shared staging,
+# database, Render deploy, secret access, or new persistent infrastructure.
+on:
+  pull_request:
+    branches:
+      - main
+      - ops/demos-unified-staging-20261102
+      # CI-only integration branch for the dependent atomic-consent PR.
+      - qa/d10-combined-source-fcm-safety-20261105
+      - qa/d10-civic-preferences-atomic-save-20261105
+      - qa/d10-atomic-fcm-device-mutations-20261105
+      - qa/d10-dispatch-bootstrap-lock-confirmation-20261105
+      - qa/d10-dispatch-status-ack-guard-20261105
+      - qa/d10-fcm-cleanup-ownership-no-steal-20261105
+      - qa/d10-fcm-legacy-schema-transaction-safe-20261105
+      - qa/d10-fcm-cleanup-canonical-first-20261105
+    paths:
+      - 'api/config/database.js'
+      - 'api/app.js'
+      - 'api/server.js'
+      - 'api/services/ministeroSync.js'
+      - 'api/services/civicFcmTokenOwnership.js'
+      - 'api/services/civicLegacyFcmStorage.js'
+      - 'api/tests/civicLegacyFcmStorage.test.js'
+      - 'api/tests/civicLegacyFcmStorage.postgres.test.js'
+      - 'api/services/civicPreferenceAtomicSave.js'
+      - 'api/routes/notifiche.js'
+      - 'api/tests/civicPreferenceAtomicSave.test.js'
+      - 'api/tests/civicPreferenceGuardRecovery.http.test.js'
+      - 'api/tests/civicPreferenceAtomicSave.postgres.test.js'
+      - 'api/routes/fcm-tokens.js'
+      - 'api/tests/civicFcmTokenMutation.http.test.js'
+      - 'api/tests/civicFcmTokenOwnership.test.js'
+      - 'api/tests/civicFcmTokenOwnership.postgres.test.js'
+      - 'api/tests/ministeroPkUpsert.test.js'
+      - 'api/services/ministeroPaginationSafety.js'
+      - 'api/tests/ministeroPaginationSafety.test.js'
+      - 'api/routes/eci.js'
+      - 'api/routes/ice.js'
+      - 'api/scripts/sync_eci.py'
+      - 'api/tests/test_sync_eci.py'
+      - 'api/tests/test_eci_runtime_no_delete_postgres.py'
+      - 'api/staging/ministeroStagingSyncOnce.js'
+      - 'api/tests/ministeroStagingSyncOnce.test.js'
+      - 'api/tests/ministeroStagingSyncOnce.postgres.test.js'
+      - 'api/staging/ministeroPublicSnapshotAudit.js'
+      - 'api/tests/ministeroPublicSnapshotAudit.test.js'
+      - 'api/staging/unified_staging_civic_readonly_canary.js'
+      - 'api/tests/unifiedStagingCivicReadOnlyCanary.test.js'
+      - 'api/staging/unified_staging_app_safety.js'
+      - 'api/tests/unifiedStagingAppSafety.test.js'
+      - 'api/staging/unified_staging_bootstrap.js'
+      - 'api/staging/unified_staging_preflight_server.js'
+      - 'api/staging/runtime_staging_lock_audit.js'
+      - 'api/tests/stagingRuntimeLockAudit.test.js'
+      - 'api/scripts/unifiedStagingPreflight.js'
+      - 'api/scripts/unifiedStagingSessionContinuity.js'
+      - 'api/tests/unifiedStagingSessionContinuity.test.js'
+      - 'api/tests/unifiedStagingSessionContinuity.postgres.test.js'
+      - 'api/tests/civicRuntimeAdvisoryLock.postgres.test.js'
+      - 'api/tests/unifiedStagingBootstrap.test.js'
+      - 'api/tests/unifiedStagingPreflightServer.test.js'
+      - 'api/tests/unifiedStagingPreflight.test.js'
+      - 'api/scripts/evaluateLegacyRenderPgRetirement.js'
+      - 'api/tests/legacyRenderPgRetirementGate.test.js'
+      - 'api/tests/unifiedStagingSchemaContract.test.js'
+      - 'api/routes/referendum.js'
+      - 'api/routes/referendum-abrogativi.js'
+      - 'api/routes/referendum-vote.js'
+      - 'api/utils/selectNextOfficialReferendum.js'
+      - 'api/tests/referendumOfficialRoutes.staging.test.js'
+      - 'api/tests/referendumRealVote.smoke.test.js'
+      - 'api/tests/referendumPriorityRetired.smoke.test.js'
+      - 'api/tests/publicRouteHygiene.smoke.test.js'
+      - 'api/database/staging/ops_stg_001_missing_tables.sql'
+      - 'api/database/staging/ops_stg_001_p0_app_routes_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p3_ballots_notifications_segnalazioni_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p3_synthetic_ballot_acl_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p4_preference_cooldowns_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p5_forecast_snapshots_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p5_synthetic_snapshot_acl_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p4_synthetic_cooldown_acl_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p0_runtime_least_privilege_20261103.sql'
+      - 'api/database/staging/ops_stg_001_preflight_role_disabled_20261103.sql'
+      - 'api/tests/test_ops_stg_001_p0_migration_postgres.py'
+      - 'api/tests/test_ops_stg_001_p1_p2_p3_migrations_postgres.py'
+      - 'api/tests/seed_ops_stg_001_snapshot_service_postgres.py'
+      - 'api/tests/referendumForecastSnapshot.postgres16.test.js'
+      - 'api/tests/unifiedStagingPreflight.postgres.test.js'
+      - 'api/services/referendumForecastSnapshotService.js'
+      - 'api/database/staging/ops_stg_001_p1_routes_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p2_opinion_referendum_parliament_20261103.sql'
+      - 'api/services/civicStagingSessionEndpointSafety.js'
+      - 'api/services/civicStagingSessionRuntimeIdentity.js'
+      - 'api/scripts/checkCivicStagingSessionOnRender.js'
+      - 'api/tests/civicStagingSessionOnRender.test.js'
+      - 'docs/operations/DEMOS_UNIFIED_STAGING_2026-11-02.md'
+      - '.github/workflows/unified-staging-offline-safety.yml'
+  push:
+    branches:
+      - ops/demos-unified-staging-20261102
+    paths:
+      - 'api/config/database.js'
+      - 'api/app.js'
+      - 'api/server.js'
+      - 'api/services/ministeroSync.js'
+      - 'api/services/civicFcmTokenOwnership.js'
+      - 'api/services/civicLegacyFcmStorage.js'
+      - 'api/tests/civicLegacyFcmStorage.test.js'
+      - 'api/tests/civicLegacyFcmStorage.postgres.test.js'
+      - 'api/services/civicPreferenceAtomicSave.js'
+      - 'api/routes/notifiche.js'
+      - 'api/tests/civicPreferenceAtomicSave.test.js'
+      - 'api/tests/civicPreferenceGuardRecovery.http.test.js'
+      - 'api/tests/civicPreferenceAtomicSave.postgres.test.js'
+      - 'api/routes/fcm-tokens.js'
+      - 'api/tests/civicFcmTokenMutation.http.test.js'
+      - 'api/tests/civicFcmTokenOwnership.test.js'
+      - 'api/tests/civicFcmTokenOwnership.postgres.test.js'
+      - 'api/tests/ministeroPkUpsert.test.js'
+      - 'api/services/ministeroPaginationSafety.js'
+      - 'api/tests/ministeroPaginationSafety.test.js'
+      - 'api/routes/eci.js'
+      - 'api/routes/ice.js'
+      - 'api/scripts/sync_eci.py'
+      - 'api/tests/test_sync_eci.py'
+      - 'api/tests/test_eci_runtime_no_delete_postgres.py'
+      - 'api/staging/ministeroStagingSyncOnce.js'
+      - 'api/tests/ministeroStagingSyncOnce.test.js'
+      - 'api/tests/ministeroStagingSyncOnce.postgres.test.js'
+      - 'api/staging/ministeroPublicSnapshotAudit.js'
+      - 'api/tests/ministeroPublicSnapshotAudit.test.js'
+      - 'api/staging/unified_staging_civic_readonly_canary.js'
+      - 'api/tests/unifiedStagingCivicReadOnlyCanary.test.js'
+      - 'api/staging/unified_staging_app_safety.js'
+      - 'api/tests/unifiedStagingAppSafety.test.js'
+      - 'api/staging/unified_staging_bootstrap.js'
+      - 'api/staging/unified_staging_preflight_server.js'
+      - 'api/staging/runtime_staging_lock_audit.js'
+      - 'api/tests/stagingRuntimeLockAudit.test.js'
+      - 'api/scripts/unifiedStagingPreflight.js'
+      - 'api/scripts/unifiedStagingSessionContinuity.js'
+      - 'api/tests/unifiedStagingSessionContinuity.test.js'
+      - 'api/tests/unifiedStagingSessionContinuity.postgres.test.js'
+      - 'api/tests/civicRuntimeAdvisoryLock.postgres.test.js'
+      - 'api/tests/unifiedStagingBootstrap.test.js'
+      - 'api/tests/unifiedStagingPreflightServer.test.js'
+      - 'api/tests/unifiedStagingPreflight.test.js'
+      - 'api/scripts/evaluateLegacyRenderPgRetirement.js'
+      - 'api/tests/legacyRenderPgRetirementGate.test.js'
+      - 'api/tests/unifiedStagingSchemaContract.test.js'
+      - 'api/routes/referendum.js'
+      - 'api/routes/referendum-abrogativi.js'
+      - 'api/routes/referendum-vote.js'
+      - 'api/utils/selectNextOfficialReferendum.js'
+      - 'api/tests/referendumOfficialRoutes.staging.test.js'
+      - 'api/tests/referendumRealVote.smoke.test.js'
+      - 'api/tests/referendumPriorityRetired.smoke.test.js'
+      - 'api/tests/publicRouteHygiene.smoke.test.js'
+      - 'api/database/staging/ops_stg_001_missing_tables.sql'
+      - 'api/database/staging/ops_stg_001_p0_app_routes_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p3_ballots_notifications_segnalazioni_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p3_synthetic_ballot_acl_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p4_preference_cooldowns_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p5_forecast_snapshots_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p5_synthetic_snapshot_acl_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p4_synthetic_cooldown_acl_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p0_runtime_least_privilege_20261103.sql'
+      - 'api/database/staging/ops_stg_001_preflight_role_disabled_20261103.sql'
+      - 'api/tests/test_ops_stg_001_p0_migration_postgres.py'
+      - 'api/tests/test_ops_stg_001_p1_p2_p3_migrations_postgres.py'
+      - 'api/tests/seed_ops_stg_001_snapshot_service_postgres.py'
+      - 'api/tests/referendumForecastSnapshot.postgres16.test.js'
+      - 'api/tests/unifiedStagingPreflight.postgres.test.js'
+      - 'api/services/referendumForecastSnapshotService.js'
+      - 'api/database/staging/ops_stg_001_p1_routes_20261103.sql'
+      - 'api/database/staging/ops_stg_001_p2_opinion_referendum_parliament_20261103.sql'
+      - 'api/services/civicStagingSessionEndpointSafety.js'
+      - 'api/services/civicStagingSessionRuntimeIdentity.js'
+      - 'api/scripts/checkCivicStagingSessionOnRender.js'
+      - 'api/tests/civicStagingSessionOnRender.test.js'
+      - '.github/workflows/unified-staging-offline-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      # These tests must never receive credentials or touch cloud staging.
+      NODE_ENV: test
+      DATABASE_URL: ''
+      DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: ''
+      DEMOS_UNIFIED_STAGING_MODE: ''
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks (no dependencies)
+        run: |
+          node --check api/config/database.js
+          node --check api/app.js
+          node --check api/server.js
+          node --check api/staging/unified_staging_app_safety.js
+          node --check api/staging/unified_staging_civic_readonly_canary.js
+          node --check api/staging/ministeroPublicSnapshotAudit.js
+          node --check api/staging/ministeroStagingSyncOnce.js
+          node --check api/services/ministeroPaginationSafety.js
+          node --check api/services/ministeroSync.js
+          node --check api/routes/eci.js
+          node --check api/routes/ice.js
+          node --check api/staging/unified_staging_bootstrap.js
+          node --check api/staging/unified_staging_preflight_server.js
+          node --check api/staging/runtime_staging_lock_audit.js
+          node --check api/scripts/unifiedStagingPreflight.js
+          node --check api/scripts/unifiedStagingSessionContinuity.js
+          node --check api/scripts/evaluateLegacyRenderPgRetirement.js
+          node --check api/routes/referendum.js
+          node --check api/routes/referendum-abrogativi.js
+          node --check api/routes/referendum-vote.js
+          node --check api/utils/selectNextOfficialReferendum.js
+      - name: Python 3.11 for ECI source safety
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: ECI fail-closed identity and baseline regression tests (no network)
+        run: python -m unittest discover -s api/tests -p test_sync_eci.py -v
+      - name: Offline bootstrap and preflight contracts (loopback only)
+        run: |
+          node --test api/tests/unifiedStagingAppSafety.test.js
+          node --test api/tests/unifiedStagingCivicReadOnlyCanary.test.js
+          node --test api/tests/ministeroPaginationSafety.test.js
+          node --test api/tests/ministeroPkUpsert.test.js
+          node --test api/tests/ministeroPublicSnapshotAudit.test.js
+          node --test api/tests/ministeroStagingSyncOnce.test.js
+          node --test api/tests/civicFcmTokenOwnership.test.js
+          node --test api/tests/civicLegacyFcmStorage.test.js
+          node --test api/tests/civicPreferenceAtomicSave.test.js
+          # HTTP recovery suite requires Express; it runs in the civic contracts workflow after npm ci.
+          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/stagingRuntimeLockAudit.test.js api/tests/unifiedStagingPreflightServer.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSessionContinuity.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/legacyRenderPgRetirementGate.test.js
+          node --test api/tests/referendumOfficialRoutes.staging.test.js api/tests/referendumPriorityRetired.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/publicRouteHygiene.smoke.test.js
+
+  p0-schema-postgres16:
+    name: p0-schema-postgres${{ matrix.pg-major }}
+    strategy:
+      fail-fast: false
+      matrix:
+        pg-major: ['16', '17']
+    # Synthetic CI database only, never the shared Render/Supabase staging.
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg-major }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: civic_ci_only
+          POSTGRES_DB: civic_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d civic_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: ''
+      CIVIC_TEST_DATABASE_URL: postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci
+      CIVIC_CI_POSTGRES_MAJOR: ${{ matrix.pg-major }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated PostgreSQL driver
+        run: python -m pip install psycopg2-binary
+      - name: Exercise P0 staging DDL on PostgreSQL ${{ matrix.pg-major }} with synthetic identity and negative gates
+        run: python -m unittest api.tests.test_ops_stg_001_p0_migration_postgres -v
+
+  p1-p3-schema-postgres16:
+    name: p1-p3-schema-postgres${{ matrix.pg-major }}
+    strategy:
+      fail-fast: false
+      matrix:
+        pg-major: ['16', '17']
+    # Disposable PostgreSQL 16/17: never calls Supabase or Render or uses cloud secrets.
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg-major }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: civic_ci_only
+          POSTGRES_DB: civic_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d civic_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: ''
+      CIVIC_TEST_DATABASE_URL: postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci
+      CIVIC_CI_POSTGRES_MAJOR: ${{ matrix.pg-major }}
+      DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: ''
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated PostgreSQL driver
+        run: python -m pip install psycopg2-binary
+      - name: Exercise P1-P5 DDL and synthetic ACL on PostgreSQL ${{ matrix.pg-major }}
+        run: python -m unittest api.tests.test_ops_stg_001_p1_p2_p3_migrations_postgres -v
+
+  snapshot-service-js-postgres16:
+    name: snapshot-service-js-postgres${{ matrix.pg-major }}
+    strategy:
+      fail-fast: false
+      matrix:
+        pg-major: ['16', '17']
+    # Actual Node service + real SQL on disposable CI PostgreSQL only.
+    # Never receives Supabase/Render secrets or makes an app deployment.
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg-major }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: civic_ci_only
+          POSTGRES_DB: civic_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d civic_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: ''
+      CIVIC_TEST_DATABASE_URL: postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci
+      CIVIC_CI_POSTGRES_MAJOR: ${{ matrix.pg-major }}
+      DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: ''
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install locked Node dependencies and isolated Python driver
+        run: |
+          npm ci --prefix api --omit=dev --ignore-scripts --no-audit --no-fund
+          python -m pip install psycopg2-binary
+      - name: Seed empty fixture with real P1 to P5 migrations (fake identity)
+        run: python -m api.tests.seed_ops_stg_001_snapshot_service_postgres
+      - name: Prove ECI sync with no DELETE grant under restricted PostgreSQL ${{ matrix.pg-major }}
+        run: python -m unittest api.tests.test_eci_runtime_no_delete_postgres -v
+      - name: Verify Ministry one-shot SQL on real restricted PostgreSQL ${{ matrix.pg-major }}
+        run: node --test api/tests/ministeroStagingSyncOnce.postgres.test.js
+      - name: Execute actual preflight metadata SQL as passwordless least-privilege role
+        run: node --test api/tests/unifiedStagingPreflight.postgres.test.js
+      - name: Prove real PostgreSQL session continuity su DB CI effimero
+        run: node --test api/tests/unifiedStagingSessionContinuity.postgres.test.js
+      - name: CI-only restricted runtime role session advisory lock on PG16 and PG17
+        run: node --test api/tests/civicRuntimeAdvisoryLock.postgres.test.js
+      - name: Prove active FCM token owner exclusion in disposable PG${{ matrix.pg-major }}
+        run: node --test api/tests/civicFcmTokenOwnership.postgres.test.js
+      - name: Validate optional FCM legacy field on disposable PG${{ matrix.pg-major }}
+        run: node --test api/tests/civicLegacyFcmStorage.postgres.test.js
+      - name: Verify civic preference rollback and durable blocked guard on disposable PG${{ matrix.pg-major }}
+        run: node --test api/tests/civicPreferenceAtomicSave.postgres.test.js
+      - name: Exercise actual JavaScript service on PostgreSQL ${{ matrix.pg-major }} and rollback all 10 synthetic votes
+        run: node --test api/tests/referendumForecastSnapshot.postgres16.test.js

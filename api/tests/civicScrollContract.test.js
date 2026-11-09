@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..', '..');
-const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
+const read = (name) => fs.readFileSync(path.join(root, name), 'utf8').replace(/\r\n?/g, '\n');
 
 test('only the intended civic routes use the bounded scroll shell', () => {
   const layout = read('client/src/components/RobustAppLayout.tsx');
@@ -162,5 +162,18 @@ test('sightings header stays visible while all three categories scroll', () => {
   assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('emergencySections.map'));
   for (const section of ['emergenze', 'decoro-urbano', 'sicurezza']) {
     assert.ok(page.includes(`id: "${section}"`));
+  }
+});
+
+
+test('Capo di Stato voting form does not reference missing JSX components', () => {
+  const voting = read('client/src/pages/CapodiStato/components/VotingForm.tsx');
+  // Vite transpiles TSX without typechecking, so missing symbols can ship
+  // and crash only when the protected voting page is opened in Chrome/Android.
+  for (const component of ['ThumbsUp', 'Info', 'CardDescription']) {
+    assert.match(voting, new RegExp('<' + component + '\\b'),
+      'the voting form must render ' + component);
+    assert.match(voting, new RegExp('import \\{[^}]*\\b' + component + '\\b[^}]*\\} from '),
+      'missing imported JSX component: ' + component);
   }
 });

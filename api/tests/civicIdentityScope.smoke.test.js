@@ -10,7 +10,7 @@ test('political-consent writes retain central server-side civic identity gate', 
   for (const rel of [
     'api/routes/amnistia.js','api/routes/capo-stato.js','api/routes/governo.js',
     'api/routes/grazia.js','api/routes/iniziative-popolari.js',
-    'api/routes/opinioni-proposte.js','api/routes/referendum.js',
+    'api/routes/opinioni-proposte.js',
   ]) {
     const source = read(rel);
     assert.match(source, /requireVerifiedCivicIdentity/);
@@ -31,6 +31,18 @@ test('canonical political selections retain the configurable civic identity gate
 
 test('voluntary preference removal remains outside the new CIE gate', () => {
   assert.match(read('api/routes/amnistia.js'), /router\.delete\('\/vota',\s*verifyToken,/);
-  assert.match(read('api/routes/referendum.js'), /router\.delete\('\/abrogativi\/vota',\s*verifyToken,/);
+  // Priority voting is retired; it cannot write user preferences.
+  assert.match(read('api/routes/referendum.js'), /PRIORITA_REFERENDUM_DISMESSA/);
+  assert.match(read('api/routes/referendum-abrogativi.js'), /router\.delete\('\/vota',\s*verifyToken,/);
   assert.match(read('api/routes/opinioni-proposte.js'), /router\.delete\('\/:id\/vota',\s*verifyToken,/);
+});
+
+test('retired priority returns 410/no-store; real ballots preserve CIE and consent gates', () => {
+  const retired=read('api/routes/referendum.js');
+  assert.match(retired, /router\.use\('\/vote-real', referendumVoteRoutes\)/);
+  assert.match(retired, /res\.set\('Cache-Control', 'private, no-store'\)/);
+  assert.match(retired, /res\.status\(410\)/);
+  const active=read('api/routes/referendum-vote.js');
+  assert.match(active, /requireVerifiedCivicIdentity/);
+  assert.match(active, /requirePoliticalConsent/);
 });
