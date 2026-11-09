@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, CheckCircle2 } from "lucide-react";
+import { Plus, X, CheckCircle2, ThumbsUp, Info } from "lucide-react";
 import { Classifica } from "../types";
 
 interface VotingFormProps {
