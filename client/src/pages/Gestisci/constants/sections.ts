@@ -39,12 +39,12 @@ export const gestisciSections: GestisciSection[] = [
     id: "proposte-soggetti",
     category: "amministrazione",
     title: "Proposte soggetti",
-    description: "Stato della moderazione delle nuove proposte (non ancora attiva)",
+    description: "Esamina proposte, verifica i soggetti e consulta le approvazioni",
     icon: ClipboardList,
     color: "text-slate-600 group-hover:text-slate-800",
     buttonColor: "bg-slate-500 hover:bg-slate-600",
     route: "/gestisci/proposte-soggetti",
-    buttonText: "Stato proposte"
+    buttonText: "Modera proposte"
   },
   {
     id: "riconoscimenti",
