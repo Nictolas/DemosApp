@@ -3,8 +3,8 @@
 ## Esito
 - **Compilazione riuscita**: AAB non firmata Android 1.0.14, versionCode 17.
 - **Percorso**: `client/android/app/build/outputs/bundle/release/app-release.aab` nella presente worktree QA.
-- **Dimensioni**: 9.908.404 byte.
-- **SHA-256**: `3D66B5B8E9B853907F41F28A9F49ABF0C44CDD57F84ACE5D17E42E0942B85B71`.
+- **Dimensioni**: 9.908.369 byte.
+- **SHA-256**: `877EEFF74CBF23F85B2138EC373A1916581AEB81BB0A51F90F68361733327E9D`.
 - Bundle validato: AndroidManifest di bundle conferma `versionCode 17` e `versionName 1.0.14`, Java compilato, 3 DEX e asset Vite inclusi. `jarsigner` conferma **NON FIRMATO**.
 - AdMob: App Open SDK in percorso release con `BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED=true`, **solo Google unit TEST** `ca-app-pub-3940256099942544/9257395921`; nessun ID commerciale in questo build. Non caricare questo AAB su Play closed track.
 - Firebase: `demos-finale`, pacchetto Android `community.demos`; `google-services.json` copiato unicamente dalla configurazione locale verificata, *git-ignored*, non aggiunto a commit o Google Sheet. Plugin Capacitor Push Notifications nativo presente.
@@ -36,3 +36,10 @@
 **Decisione utente:** le tre DOB da correggere NON sono un gate per creare/testare o inviare la prossima AAB. Migrazioni DOB rinviate senza cambiare utenti reali, senza eliminare i controlli sugli identificativi ufficiali.
 
 **Attività vietate/non eseguite**: nessun merge su main, push GitHub dalla QA, deploy Render, migrazione Supabase, nuova staging, invio Firebase reale, firma release, upload Google Play, attivazione annunci commerciali. Non pubblicare questa AAB non firmata.
+## Integrazione e nuova AAB QA verificata 9 novembre 2026
+- PR GitHub cumulativa: **#638 Draft** `integration/aab-cumulative-qa-20261109`, nessun merge su main.
+- Regressioni risolte con test: rotte di priorità referendum dismesse rispondono 410/no-store, mentre le votazioni reali mantengono entrambi i guard CIE/consenso; sorgenti Camera/Senato attribuite in smoke solo con URL ufficiali e ID prova, non in produzione; ECI usa insieme UPSERT senza DELETE e advisory lock transazionale contro sincronizzazioni sovrapposte; fixture ECI PostgreSQL include la colonna reale `updated_at`; test Grazia mock del consenso fail-closed; test Openpolis dell'assenza di storico nominale aggiornato alla policy effettiva.
+- Risolto crash **Capo di Stato** `ReferenceError` su JSX non importati `ThumbsUp`, `Info`, `CardDescription`: import espliciti + regressione automatica, compatibilità CRLF del test statico.
+- Test sul codice cumulativo: **42/42 Node** nei contratti interessati; **23/23 Python ECI**; **30/30 prove Chrome** su 6 rotte/5 viewport con dati completamente sintetici. Il test effettivo di due sincronizzazioni ECI concorrenti resta da confermare sulla CI PostgreSQL GitHub.
+- **AAB ricompilata dopo i fix**, 1.0.14 versionCode 17: file `app-release.aab` di **9.908.369 byte**, SHA256 **`877EEFF74CBF23F85B2138EC373A1916581AEB81BB0A51F90F68361733327E9D`**. `jarsigner -verify`: **unsigned**, Google SAMPLE App Open AdMob, push nativo e Firebase locale validati. Ancora vietata distribuzione Play.
+- Il QA Chrome non equivale a 6/6 consegne Firebase su telefono fisico. Nessun nuovo staging, firma, Firebase reale, SQL produzione, deploy o Play upload.

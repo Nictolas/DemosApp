@@ -365,6 +365,13 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                 _verify_civic_database_identity(
                     cur, os.environ.get("CIVIC_RUNTIME_DATABASE_ID")
                 )
+                # Advisory transaction lock prevents two cron/manual syncs
+                # from reading the same baseline before either upsert commits.
+                # No DELETE: this preserves the safer retained-row ECI cache.
+                cur.execute(
+                    "SELECT pg_advisory_xact_lock("
+                    "hashtextextended('demos:eci:replace_cache', 0))"
+                )
                 previous_ids = set()
                 if collection_enabled:
                     cur.execute("SELECT id FROM eci")

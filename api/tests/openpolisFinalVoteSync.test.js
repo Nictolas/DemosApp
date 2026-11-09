@@ -126,8 +126,8 @@ test('legacy vote detail cannot persist parliamentary nominal-vote history on GE
   const detailRoute = route.slice(detailStart);
   assert.doesNotMatch(detailRoute, /await saveVotiNominaliToCache\s*\(/,
     'viewing a parliamentary detail must not append nominal vote snapshots');
-  assert.match(detailRoute, /Latest-only policy PROD-041/,
-    'document policy intent near the old persistence call');
+  assert.match(detailRoute, /PROD-041: non leggere la cache nominale storica/,
+    'document policy: nominal-vote history must never be read by GET');
   assert.doesNotMatch(route, /async function saveVotiNominaliToCache\s*\(/,
     'remove dead legacy writer, not just its current invocation');
   assert.doesNotMatch(route, /async function creaNotificheParlamentoDaVotiNominali\s*\(/,

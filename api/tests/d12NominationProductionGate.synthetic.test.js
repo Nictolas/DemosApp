@@ -38,6 +38,11 @@ function harness(which,enabled=false,graziaEnabled=enabled) {
     '../config/database':{getPool:()=>pool},
     '../middleware/auth':{verifyToken:pass,requireAdmin:pass,pool},
     '../middleware/politicalConsent':{requirePoliticalConsent:pass},
+    // Grace's real vote route reads this service; synthetic nomination tests
+    // retain a fail-closed default without ever granting political consent.
+    '../services/politicalConsentService':{
+      getPoliticalConsentState:async()=>({exists:false,granted:false}),
+    },
     '../middleware/civicIdentity':{requireVerifiedCivicIdentity:pass},
     '../middleware/validation':{validateInput:()=>pass},
     '../utils/recognitionEvidence':{validateEvidenceUrl:()=> 'https://example.org/fonte'},
