@@ -66,7 +66,8 @@ async function unsubscribeCivicTokenOrBlock(token, lockedClient = null) {
 
 
 function isValidFcmToken(token) {
-  return !!(token && token.trim() && token.length > 100 && !token.startsWith('web_'));
+  return typeof token === 'string' && !!token.trim() &&
+    token.length > 100 && !token.startsWith('web_');
 }
 
 async function upsertUserDeviceToken(userId, token, db = pool) {
