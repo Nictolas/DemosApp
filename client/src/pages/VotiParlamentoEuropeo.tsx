@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { hasAdminCapability } from "@/lib/admin-access";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import { PageContainer } from "@/components/PageContainer";
@@ -159,6 +161,8 @@ function formattaTitoloCompatto(titolo: string): string {
 export default function VotiParlamentoEuropeo() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = hasAdminCapability(user);
   const [votazioneSelezionata, setVotazioneSelezionata] = useState<DettagliVotazione | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -194,7 +198,7 @@ export default function VotiParlamentoEuropeo() {
   });
 
   // Query per recuperare i dettagli di una votazione
-  const { data: dettagliData, isLoading: isLoadingDettagli } = useQuery({
+  const { data: dettagliData, isLoading: isLoadingDettagli, refetch: refetchDettagli } = useQuery({
     queryKey: ['voti-parlamento-europeo-dettagli', votazioneSelezionata?.uri],
     queryFn: async () => {
       if (!votazioneSelezionata?.uri) return null;
@@ -216,7 +220,7 @@ export default function VotiParlamentoEuropeo() {
   };
 
   const handleRigeneraAnalisi = async () => {
-    if (!votazioneSelezionata?.uri) return;
+    if (!isAdmin || !votazioneSelezionata?.uri) return;
     
     try {
         const response = await apiRequest.post<{ success: boolean; data: AnalisiLegge }>(
@@ -229,6 +233,7 @@ export default function VotiParlamentoEuropeo() {
             ...votazioneSelezionata,
             analisi_legge: responseData.data
           });
+          await refetchDettagli();
         toast({
           title: "Analisi rigenerata",
           description: "L'analisi è stata rigenerata con successo.",
@@ -572,6 +577,14 @@ export default function VotiParlamentoEuropeo() {
                     </>
                   )}
 
+                  {/* Test Groq Free: solo Admin; il server richiede anche DEMOS_GROQ_FREE_QA_ENABLED=true. */}
+                  {!dettagliData.analisi_legge && isAdmin && (
+                    <Button variant="outline" size="sm" onClick={handleRigeneraAnalisi}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Genera spiegazione (QA Groq Free)
+                    </Button>
+                  )}
+
                   {/* Analisi Legge */}
                   {dettagliData.analisi_legge && (
                     <>
@@ -583,14 +596,16 @@ export default function VotiParlamentoEuropeo() {
                               <Sparkles className="h-5 w-5" />
                               Analisi AI
                             </CardTitle>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleRigeneraAnalisi}
-                            >
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              Rigenera Analisi
-                            </Button>
+                            {isAdmin && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRigeneraAnalisi}
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Rigenera Analisi
+                              </Button>
+                            )}
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
