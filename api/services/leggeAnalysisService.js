@@ -1,85 +1,38 @@
 // Servizio per generare analisi AI delle leggi votate in Parlamento
 // Genera: spiegazione generale, effetti positivi, effetti negativi
-// Supporta sia Groq (gratuito) che OpenAI (a pagamento)
+// Vincolo DEMOS: nessun fallback a provider a pagamento per le votazioni.
 const Groq = require('groq-sdk');
+const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
+const { buildGroundedAnalysisMessages, parseGroundedAnalysisResponse } = require('./parliamentGroundedAnalysis');
+const { requestFreeGroq, classifyFreeGroqError } = require('./parliamentFreeGroqBudget');
+const { createSingleflight } = require('./parliamentAiSingleflight');
+const { estraiNumeroLegge, canSearchActTitle, canUseBillTextAsVoteEvidence, estraiTipoAtto } = require('./parliamentActIdentifier');
+const singleflightAnalisi = createSingleflight();
 const { getPool } = require('../config/database');
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
-// Inizializza Groq client (gratuito) o OpenAI client (a pagamento)
+// Solo modelli con quota gratuita: nessuna istanziazione di client OpenAI.
 let aiClient = null;
 let aiProvider = null;
+let groqModel = null;
 
-// Priorità: Groq (gratuito) > OpenAI (a pagamento)
-if (process.env.GROQ_API_KEY) {
+if (isGroqConfigured()) {
   try {
-    aiClient = new Groq({
-      apiKey: process.env.GROQ_API_KEY
-    });
+    groqModel = resolveFreeGroqModel(process.env.GROQ_MODEL);
+    aiClient = new Groq({ apiKey: process.env.GROQ_API_KEY, maxRetries: 0 });
     aiProvider = 'groq';
-    console.log('✅ Groq AI configurato per analisi leggi (gratuito)');
-  } catch (error) {
-    console.error('❌ Errore inizializzazione Groq:', error.message);
-  }
-} else if (process.env.OPENAI_API_KEY) {
-  try {
-    const OpenAI = require('openai');
-    aiClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
-    aiProvider = 'openai';
-    console.log('✅ OpenAI configurato per analisi leggi (a pagamento)');
-  } catch (error) {
-    console.error('❌ Errore inizializzazione OpenAI:', error.message);
+    console.log('Groq AI parlamentare pronto (modello Free allowlisted)');
+  } catch (_error) {
+    // Fail closed: a retired / non-allowlisted model must never trigger paid fallback.
+    groqModel = null;
+    aiClient = null;
+    aiProvider = null;
+    console.warn('Groq AI parlamentare disabilitato: modello non consentito nel piano Free');
   }
 } else {
-  console.warn('⚠️ Nessuna API AI configurata per analisi leggi. Configura GROQ_API_KEY (gratuito) o OPENAI_API_KEY (a pagamento).');
-}
-
-/**
- * Estrae il numero della legge dal titolo
- * Esempi:
- * - "Disegno di legge n. 1718" -> "1718"
- * - "DDL 1234" -> "1234"
- * - "Mozione n. 567" -> "567"
- */
-function estraiNumeroLegge(titolo) {
-  if (!titolo) return null;
-  
-  // Pattern: "n. 1718", "n.1718", "DDL 1718", "Mozione 123", ecc.
-  const patterns = [
-    /(?:n\.?\s*|numero\s*)?(\d{3,5})/i, // "n. 1718" o "numero 1718"
-    /(?:DDL|Mozione|Decreto|ODG|EM)\s*(?:n\.?\s*)?(\d{3,5})/i, // "DDL 1718"
-    /legge\s*(?:n\.?\s*)?(\d{3,5})/i // "legge n. 123"
-  ];
-  
-  for (const pattern of patterns) {
-    const match = titolo.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
-  }
-  
-  return null;
-}
-
-/**
- * Estrae il tipo di atto dal titolo
- * Esempi: "DDL", "Mozione", "Decreto", "ODG", ecc.
- */
-function estraiTipoAtto(titolo) {
-  if (!titolo) return null;
-  
-  const tipi = ['DDL', 'Mozione', 'Decreto', 'ODG', 'EM', 'Emendamento', 'Disegno di legge', 'Proposta di legge'];
-  
-  for (const tipo of tipi) {
-    if (titolo.toUpperCase().includes(tipo.toUpperCase())) {
-      return tipo;
-    }
-  }
-  
-  return null;
+  console.warn('Analisi AI parlamentare non disponibile: chiave Groq Free mancante; nessun fallback a pagamento');
 }
 
 /**
@@ -294,7 +247,17 @@ function estraiArticoliETesto($) {
  * Cerca su Openpolis, Senato.it, Normattiva.it
  */
 async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) {
-  if (!numeroLegge) return null;
+  if (!canUseBillTextAsVoteEvidence(titolo)) {
+    // A DDL's general text does not establish what a separately numbered
+    // amendment, confidence motion, article vote or procedural item proposed.
+    // Without exact voted-item evidence, show only the official vote result.
+    return null;
+  }
+  if (!canSearchActTitle(numeroLegge, titolo, camera)) {
+    // Anche il Parlamento europeo non deve essere ricercato per numero sul
+    // catalogo dei DDL italiani: le due numerazioni sono indipendenti.
+    return null;
+  }
 
   try {
     const axios = require('axios');
@@ -309,7 +272,7 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
         // URL pattern: https://www.senato.it/leg/19/BGT/Schede/Ddliter/testi/[numero]/[numero].htm
         const urlSenato = `https://www.senato.it/leg/19/BGT/Schede/Ddliter/testi/${numeroLegge}/${numeroLegge}.htm`;
         
-        console.log(`🔍 Ricerca su Senato.it: ${urlSenato}`);
+        console.log('Consultazione fonte ufficiale Senato.it avviata');
         const response = await axios.get(urlSenato, {
           headers: {
             'Accept': 'text/html',
@@ -336,161 +299,19 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
           }
         }
       } catch (error) {
-        console.warn(`⚠️ Errore ricerca Senato.it per legge n. ${numeroLegge}: ${error.message}`);
+        console.warn('Consultazione fonte ufficiale Senato.it non riuscita');
       }
     }
     
-    // 2. Cerca su Normattiva.it (per decreto-legge convertito)
-    try {
-      // Per legge 1718 che converte il DL 175/2025
-      if (numeroLegge === '1718') {
-        // Prova più URL possibili per Normattiva
-        const urlsNormattiva = [
-          `https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legge:2025-11-21;175`,
-          `https://www.normattiva.it/atto/caricaDettaglioAtto?atto.dataPubblicazioneGazzetta=2025-11-21&atto.codiceRedazionale=DL1752025`,
-          `https://www.normattiva.it/atto/caricaDettaglioAtto?atto.dataPubblicazioneGazzetta=2025-11-21&atto.codiceRedazionale=21G00217`
-        ];
-        
-        for (const urlNormattiva of urlsNormattiva) {
-          try {
-            console.log(`🔍 Ricerca su Normattiva.it: ${urlNormattiva}`);
-            const response = await axios.get(urlNormattiva, {
-              headers: {
-                'Accept': 'text/html',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-              },
-              timeout: 15000,
-              validateStatus: (status) => status < 500
-            });
-            
-            if (response.status === 200) {
-              const $ = cheerio.load(response.data);
-              const { articoli, testo, dettagliNumerici } = estraiArticoliETesto($);
-              
-              if (articoli.length > 0) {
-                infoTrovate.push(`ARTICOLI DEL DECRETO-LEGGE N. 175/2025 (da Normattiva.it):\n${articoli.join('\n\n---\n\n')}`);
-              }
-              
-              if (dettagliNumerici) {
-                infoTrovate.push(`DETTAGLI NUMERICI (da Normattiva.it):\n${dettagliNumerici}`);
-              }
-              
-              if (testo.length > 500) {
-                testoCompleto += `\n\nTESTO DEL DECRETO-LEGGE (da Normattiva.it):\n${testo.substring(0, 8000)}`;
-              }
-              
-              break; // Se trovato, esci dal loop
-            }
-          } catch (err) {
-            console.warn(`⚠️ Errore con URL Normattiva ${urlNormattiva}: ${err.message}`);
-            continue; // Prova il prossimo URL
-          }
-        }
-      }
-    } catch (error) {
-      console.warn(`⚠️ Errore ricerca Normattiva.it per legge n. ${numeroLegge}: ${error.message}`);
-    }
-    
-    // 2b. Cerca su Gazzetta Ufficiale (per DL 175/2025)
-    try {
-      if (numeroLegge === '1718') {
-        const urlGazzetta = `https://www.gazzettaufficiale.it/eli/id/2025/11/21/21G00217/sg`;
-        
-        console.log(`🔍 Ricerca su Gazzetta Ufficiale per DL 175/2025`);
-        const response = await axios.get(urlGazzetta, {
-          headers: {
-            'Accept': 'text/html',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          },
-          timeout: 15000,
-          validateStatus: (status) => status < 500
-        });
-        
-        if (response.status === 200) {
-          const $ = cheerio.load(response.data);
-          const { articoli, testo, dettagliNumerici } = estraiArticoliETesto($);
-          
-          if (articoli.length > 0) {
-            infoTrovate.push(`ARTICOLI DEL DECRETO-LEGGE N. 175/2025 (da Gazzetta Ufficiale):\n${articoli.join('\n\n---\n\n')}`);
-          }
-          
-          if (dettagliNumerici) {
-            infoTrovate.push(`DETTAGLI NUMERICI (da Gazzetta Ufficiale):\n${dettagliNumerici}`);
-          }
-          
-          if (testo.length > 500) {
-            testoCompleto += `\n\nTESTO DEL DECRETO-LEGGE (da Gazzetta Ufficiale):\n${testo.substring(0, 8000)}`;
-          }
-        }
-      }
-    } catch (error) {
-      console.warn(`⚠️ Errore ricerca Gazzetta Ufficiale per legge n. ${numeroLegge}: ${error.message}`);
-    }
-    
-    // 3. Cerca su Openpolis
-    try {
-      const prefissoCamera = camera === 'Senato' ? 'S_' : 'C_';
-      const urlOpenpolis = `https://parlamento19.openpolis.it/attivita_legislativa/disegni_di_legge/${prefissoCamera}${numeroLegge}`;
-      
-      console.log(`🔍 Ricerca su Openpolis: ${urlOpenpolis}`);
-      const response = await axios.get(urlOpenpolis, {
-        headers: {
-          'Accept': 'text/html',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
-        timeout: 10000,
-        validateStatus: (status) => status < 500
-      });
-      
-      if (response.status === 200) {
-        const $ = cheerio.load(response.data);
-        
-        // Estrai descrizione/riassunto
-        const descrizioneSelectors = [
-          '.descrizione-atto',
-          '.descrizione',
-          '.testo-atto',
-          '.testo',
-          'article .content',
-          'main article p',
-          '[class*="desc"]',
-          '[class*="testo"]'
-        ];
-        
-        for (const selector of descrizioneSelectors) {
-          const element = $(selector).first();
-          if (element.length > 0) {
-            const text = element.text().trim();
-            if (text && text.length >= 100 && text.length < 5000) {
-              infoTrovate.push(`Descrizione da Openpolis: ${text.substring(0, 2000)}`);
-              break;
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.warn(`⚠️ Errore ricerca Openpolis per legge n. ${numeroLegge}: ${error.message}`);
-    }
-    
-    // 4. Fallback con informazioni note (se non abbiamo trovato nulla)
-    if (infoTrovate.length === 0 && numeroLegge === '1718') {
-      infoTrovate.push(`INFORMAZIONI SULLA LEGGE N. 1718:
+    // Non associare automaticamente un numero DDL a un decreto Normattiva o
+    // a una Gazzetta Ufficiale: il legame richiede un identificativo ufficiale
+    // verificato, non può essere dedotto dal solo titolo.
 
-Il disegno di legge n. 1718 riguarda la conversione in legge del decreto-legge n. 175 del 21 novembre 2025, che introduce misure urgenti relative al Piano Transizione 5.0 e alla produzione di energia da fonti rinnovabili.
+    // Non usare automaticamente pagine di terze parti come se fossero il
+    // testo dell'atto. Per la Camera, se manca una descrizione documentale
+    // verificata nei dati già acquisiti, preferiamo non generare un'analisi
+    // piuttosto che inferire il contenuto da un sito generico.
 
-PIANO TRANSIZIONE 5.0:
-- Rappresenta un'evoluzione del precedente Piano Transizione 4.0
-- Obiettivo: incentivare ulteriormente la digitalizzazione e l'innovazione tecnologica nel settore industriale italiano
-- Misure previste: agevolazioni fiscali per le imprese che investono in tecnologie avanzate, automazione e sostenibilità ambientale
-- Beneficiari: imprese del settore industriale che investono in innovazione
-
-ENERGIA DA FONTI RINNOVABILI:
-- Introduzione di incentivi per la realizzazione di impianti fotovoltaici
-- Introduzione di incentivi per la realizzazione di impianti eolici
-- Introduzione di incentivi per altre forme di energia pulita
-- Obiettivo: aumentare la quota di energia rinnovabile nel mix energetico nazionale, riducendo la dipendenza dalle fonti fossili`);
-    }
-    
     // Combina tutte le informazioni trovate
     const risultato = infoTrovate.length > 0 
       ? infoTrovate.join('\n\n---\n\n') + testoCompleto
@@ -506,282 +327,8 @@ ENERGIA DA FONTI RINNOVABILI:
     
     return risultato;
   } catch (error) {
-    console.warn(`⚠️ Errore ricerca web per legge n. ${numeroLegge}: ${error.message}`);
+    console.warn('Recupero documentazione ufficiale non riuscito');
     return null;
-  }
-}
-
-/**
- * Genera la spiegazione generale della legge
- */
-async function generaSpiegazioneGenerale(titolo, descrizione, numeroLegge, tipoAtto, camera, dataVotazione) {
-  if (!aiClient) {
-    throw new Error('API AI non configurata');
-  }
-
-  // Cerca informazioni web sulla legge (se disponibile)
-  const infoWeb = await cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera);
-
-  // Costruisci il prompt migliorato
-  let prompt = `IMPORTANTE: Il tuo compito è spiegare COSA È e COSA FA la legge specifica "${numeroLegge ? `n. ${numeroLegge}` : titolo}".
-
-${numeroLegge ? `La legge n. ${numeroLegge}` : 'Questa legge'} è stata votata in ${camera || 'Parlamento'}${dataVotazione ? ` il ${dataVotazione}` : ''}.
-
-Titolo completo: "${titolo || 'N/A'}"
-${descrizione ? `Descrizione: "${descrizione}"` : ''}
-${tipoAtto ? `Tipo atto: ${tipoAtto}` : ''}
-${infoWeb ? `\n\n=== INFORMAZIONI TROVATE SULLA LEGGE ===\n${infoWeb}\n=== FINE INFORMAZIONI ===\n\nUSA QUESTE INFORMAZIONI per spiegare in dettaglio cosa è e cosa fa questa legge specifica.` : ''}
-
-ISTRUZIONI SPECIFICHE (SEGUIRE RIGOROSAMENTE):
-1. NON spiegare cosa sia una "questione di fiducia" o altri meccanismi parlamentari - IGNORA completamente questo aspetto
-2. ${infoWeb ? 'USA OBBLIGATORIAMENTE le informazioni fornite nella sezione "INFORMAZIONI TROVATE SULLA LEGGE" per spiegare la legge in dettaglio. Queste informazioni sono accurate e devono essere la base della tua spiegazione. Se negli articoli trovi percentuali, importi, scadenze o condizioni specifiche, includile nella spiegazione.' : 'Se conosci questa legge specifica, usa le tue conoscenze per spiegarla in dettaglio.'}
-3. Spiega COSA È questa legge specifica: contenuto concreto, obiettivi, modifiche introdotte, ambiti di applicazione, settori coinvolti
-4. Spiega COSA FA questa legge: effetti pratici concreti, cambiamenti normativi specifici, chi ne beneficia, cosa cambia nella pratica
-
-FORMATO RICHIESTO PER LE MISURE (MOLTO IMPORTANTE):
-La spiegazione DEVE includere una sezione "MISURE PREVISTE" con elenco SCHEMATICO e PRECISO:
-- Per ogni misura: descrizione SPECIFICA (non generica come "agevolazioni fiscali", ma dettagliata)
-- OBBLIGATORIO: Se negli articoli o nei dettagli numerici trovi percentuali, importi, date, potenze, includili ESATTAMENTE come scritti
-- Beneficiari specifici (non "le imprese" ma "imprese del settore X con requisiti Y")
-- Organizza per categoria quando possibile (es: "Misure Fiscali", "Misure Energetiche", "Misure Digitali")
-- Usa formato elenco puntato con sottopunti per dettagli
-- Se trovi "DETTAGLI NUMERICI" nella sezione informazioni, USA QUEI NUMERI nella spiegazione
-
-ISTRUZIONI PER L'ESTRAZIONE DEI DETTAGLI:
-1. Cerca nelle informazioni fornite la sezione "DETTAGLI NUMERICI" - contiene percentuali, importi, date, potenze già estratte
-2. Cerca negli articoli pattern come:
-   - "del X%" o "X per cento" → usa quella percentuale esatta
-   - "€X" o "X euro" o "X milioni" → usa quell'importo esatto
-   - "X kW" o "X MW" → usa quella potenza esatta
-   - Date come "31/12/2025" → usa quella data esatta
-3. Se trovi numeri negli articoli ma non sono chiaramente associati a una misura, cerca il contesto (paragrafi precedenti/successivi)
-4. NON scrivere "Dettagli non disponibili" se negli articoli ci sono numeri - cerca di associarli alle misure
-
-ESEMPIO DI FORMATO RICHIESTO:
-"MISURE PREVISTE:
-• Agevolazione fiscale del 50% per investimenti in tecnologie avanzate (se trovi "50%" negli articoli)
-  - Beneficiari: imprese del settore industriale con fatturato superiore a €5 milioni (se trovi questi dettagli)
-  - Condizioni: investimenti minimi di €100.000 in tecnologie 4.0 (se trovi questi dettagli)
-  - Scadenza: 31/12/2026 (se trovi questa data)
-• Incentivo di €500 per kW per impianti fotovoltaici (se trovi questo importo)
-  - Potenza minima: 20 kW (se trovi questa potenza)
-  - Beneficiari: imprese e privati (se specificato)
-..."
-
-5. Se il titolo contiene solo riferimenti generici (es. "Articolo 3"), indica che le informazioni disponibili sono limitate, ma cerca di dedurre il contenuto dal contesto
-6. ${infoWeb ? 'NON inventare informazioni. Usa SOLO le informazioni fornite sopra. Se negli articoli non trovi dettagli specifici, indica "dettagli non disponibili" piuttosto che inventare.' : ''}
-
-REGOLE DI STILE (CRITICO - SEGUIRE RIGOROSAMENTE):
-- Essere ULTRA-CONCISA: massimo 200 parole totali (non 400!)
-- NON specificare "italiano/italiana" quando non necessario
-- Usa abbreviazioni standard: € (non "euro"), % (non "per cento"), n. (non "numero"), art. (non "articolo"), DL (non "decreto-legge"), DDL (non "disegno di legge")
-- ELIMINA frasi introduttive: inizia direttamente con il contenuto
-  ❌ SBAGLIATO: "La legge prevede che...", "È previsto che...", "La legge introduce..."
-  ✅ CORRETTO: "Proroga comunicazioni crediti d'imposta..."
-- Formato STRUTTURATO obbligatorio:
-
-COSA È:
-[1-2 frasi essenziali, massimo 30 parole]
-
-COSA FA:
-• [punto 1 - una riga]
-• [punto 2 - una riga]
-• [punto 3 - una riga]
-
-MISURE PREVISTE:
-• [Nome misura breve]
-  → Scadenza: [data se presente]
-  → Beneficiari: [chi]
-  → Condizioni: [requisiti se presenti]
-• [Prossima misura...]
-
-La spiegazione deve:
-- Essere in italiano, chiara e comprensibile
-- Essere NEUTRALE e OBIETTIVA
-- Focalizzarsi sul CONTENUTO CONCRETO, non sul meccanismo di votazione
-- ${infoWeb ? 'Basarsi sulle informazioni fornite, estraendo dettagli specifici. Usa numeri, percentuali, importi ESATTAMENTE come trovati.' : 'Essere il più specifica possibile'}
-
-Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
-
-  const messages = [
-    {
-      role: 'system',
-      content: 'Sei un esperto in diritto parlamentare italiano. Il tuo compito è spiegare COSA È e COSA FA una legge specifica, non spiegare meccanismi parlamentari come la "questione di fiducia". Fornisci spiegazioni chiare, CONCISE e accessibili sul contenuto concreto delle leggi. NON specificare "italiano/italiana" quando non necessario (es: "imprese" invece di "imprese italiane", "cittadini" invece di "cittadini italiani"). Specifica la nazionalità SOLO quando non è italiana.'
-    },
-    {
-      role: 'user',
-      content: prompt
-    }
-  ];
-
-  try {
-    let completion;
-    const model = aiProvider === 'groq' 
-      ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-      : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
-
-    if (aiProvider === 'groq') {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 800,
-        temperature: 0.7
-      });
-    } else {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 800,
-        temperature: 0.7
-      });
-    }
-
-    return completion.choices[0]?.message?.content?.trim() || null;
-  } catch (error) {
-    console.error(`❌ Errore generazione spiegazione generale: ${error.message}`);
-    throw error;
-  }
-}
-
-/**
- * Genera gli effetti positivi della legge basandosi sulla spiegazione generale
- */
-async function generaEffettiPositivi(titolo, descrizione, numeroLegge, spiegazioneGenerale) {
-  if (!aiClient) {
-    throw new Error('API AI non configurata');
-  }
-
-  const prompt = `Identifica i PRO (effetti positivi) se questa legge viene APPROVATA.
-
-Legge: "${titolo || 'N/A'}"
-${numeroLegge ? `Numero: ${numeroLegge}` : ''}
-
-SPIEGAZIONE:
-${spiegazioneGenerale || 'N/A'}
-
-REGOLE (SEGUIRE RIGOROSAMENTE):
-1. Massimo 5 punti, uno per riga
-2. Formato: "✓ [beneficio concreto - una riga]"
-3. NO introduzioni ("I principali benefici sono...")
-4. NO conclusioni
-5. Inizia direttamente con i benefici
-6. Usa abbreviazioni: €, %, n., art., DL, DDL
-7. Basati sulla spiegazione fornita
-8. Se informazioni insufficienti: "Informazioni insufficienti per identificare benefici specifici"
-
-Rispondi SOLO con elenco puntato, esempio:
-✓ Beneficio 1
-✓ Beneficio 2
-✓ Beneficio 3`;
-
-  const messages = [
-    {
-      role: 'system',
-      content: 'Sei un esperto in diritto parlamentare italiano. Analizza i PRO (effetti positivi) di una legge specifica se viene APPROVATA. Focalizzati sul contenuto concreto della legge e sui suoi effetti pratici, non sui meccanismi parlamentari.'
-    },
-    {
-      role: 'user',
-      content: prompt
-    }
-  ];
-
-  try {
-    let completion;
-    const model = aiProvider === 'groq' 
-      ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-      : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
-
-    if (aiProvider === 'groq') {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 300,
-        temperature: 0.7
-      });
-    } else {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 300,
-        temperature: 0.7
-      });
-    }
-
-    return completion.choices[0]?.message?.content?.trim() || null;
-  } catch (error) {
-    console.error(`❌ Errore generazione effetti positivi: ${error.message}`);
-    throw error;
-  }
-}
-
-/**
- * Genera gli effetti negativi della legge basandosi sulla spiegazione generale
- */
-async function generaEffettiNegativi(titolo, descrizione, numeroLegge, spiegazioneGenerale) {
-  if (!aiClient) {
-    throw new Error('API AI non configurata');
-  }
-
-  const prompt = `Identifica i CONTRO (effetti negativi) se questa legge viene APPROVATA.
-
-Legge: "${titolo || 'N/A'}"
-${numeroLegge ? `Numero: ${numeroLegge}` : ''}
-
-SPIEGAZIONE:
-${spiegazioneGenerale || 'N/A'}
-
-REGOLE (SEGUIRE RIGOROSAMENTE):
-1. Massimo 5 punti, uno per riga
-2. Formato: "✗ [criticità concreta - una riga]"
-3. NO introduzioni ("Le principali criticità sono...")
-4. NO conclusioni
-5. Inizia direttamente con le criticità
-6. Usa abbreviazioni: €, %, n., art., DL, DDL
-7. Basati sulla spiegazione fornita
-8. Se informazioni insufficienti: "Informazioni insufficienti per identificare criticità specifiche"
-
-Rispondi SOLO con elenco puntato, esempio:
-✗ Criticità 1
-✗ Criticità 2
-✗ Criticità 3`;
-
-  const messages = [
-    {
-      role: 'system',
-      content: 'Sei un esperto in diritto parlamentare italiano. Analizza i CONTRO (effetti negativi) di una legge specifica se viene APPROVATA. Focalizzati sul contenuto concreto della legge e sui suoi effetti pratici, non sui meccanismi parlamentari.'
-    },
-    {
-      role: 'user',
-      content: prompt
-    }
-  ];
-
-  try {
-    let completion;
-    const model = aiProvider === 'groq' 
-      ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-      : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
-
-    if (aiProvider === 'groq') {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 300,
-        temperature: 0.7
-      });
-    } else {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 300,
-        temperature: 0.7
-      });
-    }
-
-    return completion.choices[0]?.message?.content?.trim() || null;
-  } catch (error) {
-    console.error(`❌ Errore generazione effetti negativi: ${error.message}`);
-    throw error;
   }
 }
 
@@ -792,6 +339,15 @@ Rispondi SOLO con elenco puntato, esempio:
  * @returns {Promise<object>} Oggetto con spiegazione_generale, effetti_positivi, effetti_negativi
  */
 async function generaAnalisiLegge(uriVotazione, votazioneData) {
+  if (typeof uriVotazione !== 'string' || !uriVotazione.trim() ||
+      !votazioneData || typeof votazioneData !== 'object' || Array.isArray(votazioneData)) {
+    console.warn('Analisi parlamentare non generata: input votazione non valido');
+    return null;
+  }
+  return singleflightAnalisi(uriVotazione, () => generaAnalisiLeggeUnaVolta(uriVotazione, votazioneData));
+}
+
+async function generaAnalisiLeggeUnaVolta(uriVotazione, votazioneData) {
   if (!aiClient) {
     console.warn('⚠️ API AI non configurata, impossibile generare analisi legge');
     return null;
@@ -804,46 +360,74 @@ async function generaAnalisiLegge(uriVotazione, votazioneData) {
     return null;
   }
 
-  console.log(`[DEBUG] Generazione analisi legge per: ${titolo.substring(0, 50)}...`);
-
-  // Estrai numero legge e tipo atto
+  // Una sola chiamata AI per votazione; mai spiegare un mero titolo.
   const numeroLegge = estraiNumeroLegge(titolo);
   const tipoAtto = estraiTipoAtto(titolo);
-
   try {
-    // Genera prima la spiegazione generale
-    console.log(`📝 Generazione spiegazione generale...`);
-    const spiegazioneGenerale = await generaSpiegazioneGenerale(titolo, descrizione, numeroLegge, tipoAtto, camera, data_votazione);
-    
-    // Poi genera effetti positivi e negativi basandosi sulla spiegazione generale
-    console.log(`📝 Generazione effetti positivi e negativi basati sulla spiegazione generale...`);
-    const [effettiPositivi, effettiNegativi] = await Promise.all([
-      generaEffettiPositivi(titolo, descrizione, numeroLegge, spiegazioneGenerale),
-      generaEffettiNegativi(titolo, descrizione, numeroLegge, spiegazioneGenerale)
-    ]);
+    // Usa prima la descrizione presente. Solo quando insufficiente cerca il testo.
+    const documento = typeof descrizione === 'string' && descrizione.trim().length >= 160
+      ? ''
+      : await cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera);
 
-    const modello = aiProvider === 'groq' 
-      ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-      : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
+    const messages = buildGroundedAnalysisMessages({
+      titolo,
+      descrizione,
+      infoFonte: documento,
+      camera,
+      tipoAtto,
+      dataVotazione: data_votazione
+    });
+    if (!messages) {
+      console.warn('Analisi AI parlamentare non eseguita: manca testo documentale sufficiente');
+      return null;
+    }
+
+    const completion = await requestFreeGroq(aiClient, {
+      model: groqModel,
+      messages,
+      max_completion_tokens: 850,
+      temperature: 0,
+      reasoning_effort: 'low',
+      response_format: { type: 'json_object' }
+    });
+    if (!completion) {
+      console.warn('Analisi parlamentare rimandata: quota Groq Free o limite 429');
+      return null;
+    }
+    // A syntactically valid JSON object can still come from a completion
+    // stopped by its token limit. Only a normally finished response is safe to cache.
+    const choice = completion.choices?.[0];
+    if (choice?.finish_reason !== 'stop') {
+      console.warn('Analisi parlamentare scartata: completamento non terminato normalmente');
+      return null;
+    }
+    const parsed = parseGroundedAnalysisResponse(choice.message?.content);
+    if (!parsed) {
+      console.warn('Analisi AI non pubblicata: risposta non conforme allo schema JSON');
+      return null;
+    }
+
+    const modello = groqModel;
 
     const analisi = {
       uri_votazione: uriVotazione,
       numero_legge: numeroLegge,
       tipo_atto: tipoAtto,
-      spiegazione_generale: spiegazioneGenerale,
-      effetti_positivi: effettiPositivi,
-      effetti_negativi: effettiNegativi,
+      spiegazione_generale: parsed.spiegazione_generale,
+      effetti_positivi: parsed.effetti_positivi,
+      effetti_negativi: parsed.effetti_negativi,
       provider_ai: aiProvider,
       modello_ai: modello
     };
 
-    // Salva in cache nel database
-    await salvaAnalisiInCache(analisi);
+    // An analysis is only ready for delivery after its database write succeeds.
+    // Do not report a generated-but-lost response as a persisted explanation.
+    if (!(await salvaAnalisiInCache(analisi))) return null;
 
-    console.log(`✅ Analisi legge generata con successo (${aiProvider})`);
+    console.log('Analisi parlamentare generata e salvata');
     return analisi;
   } catch (error) {
-    console.error(`❌ Errore nella generazione analisi legge: ${error.message}`);
+    console.error('Analisi AI parlamentare non disponibile:', classifyFreeGroqError(error));
     throw error;
   }
 }
@@ -872,7 +456,7 @@ async function salvaAnalisiInCache(analisi) {
         updated_at = CURRENT_TIMESTAMP
     `;
 
-    await pool.query(query, [
+    const result = await pool.query(query, [
       analisi.uri_votazione,
       analisi.numero_legge,
       analisi.tipo_atto,
@@ -882,11 +466,16 @@ async function salvaAnalisiInCache(analisi) {
       analisi.provider_ai,
       analisi.modello_ai
     ]);
+    if (result?.rowCount !== 1) {
+      console.warn('Salvataggio cache analisi parlamentare senza riga confermata');
+      return false;
+    }
 
-    console.log(`✅ Analisi salvata in cache per URI: ${analisi.uri_votazione}`);
-  } catch (error) {
-    console.error(`❌ Errore salvataggio analisi in cache: ${error.message}`);
-    // Non bloccare il processo se il salvataggio fallisce
+    console.log('Analisi parlamentare salvata in cache');
+    return true;
+  } catch (_) {
+    console.error('Salvataggio cache analisi parlamentare non riuscito');
+    return false;
   }
 }
 
@@ -908,13 +497,13 @@ async function recuperaAnalisiDaCache(uriVotazione) {
     const result = await pool.query(query, [uriVotazione]);
     
     if (result.rows.length > 0) {
-      console.log(`✅ Analisi recuperata dalla cache per URI: ${uriVotazione}`);
+      console.log('Analisi parlamentare recuperata dalla cache');
       return result.rows[0];
     }
 
     return null;
   } catch (error) {
-    console.error(`❌ Errore recupero analisi da cache: ${error.message}`);
+    console.error('Lettura cache analisi parlamentare non riuscita');
     return null;
   }
 }
@@ -937,7 +526,7 @@ async function ensureTableExists() {
       console.warn('⚠️ Tabella parlamento_analisi_legge non esiste. Esegui lo script SQL: create-parlamento-analisi-legge-table.sql');
     }
   } catch (error) {
-    console.error(`❌ Errore verifica tabella: ${error.message}`);
+    console.error('Verifica schema analisi parlamentare non riuscita');
   }
 }
 
