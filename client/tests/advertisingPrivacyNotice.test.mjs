@@ -49,3 +49,21 @@ test('app-ads.txt declares only the existing verified-format Google publisher se
   assert.equal(appSellers, webSellers);
   assert.equal(appSellers.split(/\r?\n/).length, 1, 'no undeclared ad sellers');
 });
+
+
+test('web/PWA preview is first-party, opt-in and not a real ad request', () => {
+  const preview = read('../src/pages/Impostazioni/components/WebAdvertisingPreview.tsx');
+  const settings = read('../src/pages/Impostazioni/index.tsx');
+  const html = read('../index.html');
+
+  assert.match(settings, /import \{ WebAdvertisingPreview \}/);
+  assert.match(settings, /<WebAdvertisingPreview \/>/);
+  assert.match(preview, /Capacitor\.isNativePlatform\(\)/);
+  assert.match(preview, /onClick=\{\(\) => setOpen\(true\)\}/);
+  assert.match(preview, /<Dialog open=\{open\} onOpenChange=\{setOpen\}>/);
+  assert.match(preview, /Non è una pubblicità di Google/);
+  assert.match(preview, /Nessuna pubblicità viene scaricata da Internet/);
+  assert.doesNotMatch(preview, /(?:adsbygoogle|pagead2|doubleclick|googlesyndication|ca-app-pub-)/i);
+  assert.doesNotMatch(preview, /(?:fetch\(|XMLHttpRequest|localStorage|sessionStorage|document\.cookie|sendBeacon)/);
+  assert.doesNotMatch(html, /(?:adsbygoogle|pagead2\.googlesyndication)/i);
+});
