@@ -123,9 +123,9 @@ test('Capo di Stato keeps title/consent/voting controls fixed while only ranking
 test('Capo di Stato keeps a compact vote form with direct candidate suggestions', () => {
   const form = read('client/src/pages/CapodiStato/components/VotingForm.tsx');
   assert.doesNotMatch(form, /Il tuo voto|<CardHeader|<Badge|aria-label="Conferma candidato"/);
-  assert.match(form, /placeholder="Nome del candidato\\.\\.\\."/);
-  assert.match(form, /onAddNome\\(suggestion\\.nome\\)/);
-  assert.match(form, /disabled=\\{isBlocked \\|\\| hasReachedLimit\\}/);
+  assert.match(form, /placeholder="Nome del candidato\.\.\."/);
+  assert.match(form, /onAddNome\(suggestion\.nome\)/);
+  assert.match(form, /disabled=\{isBlocked \|\| hasReachedLimit\}/);
 });
 
 
