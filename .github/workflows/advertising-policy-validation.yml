@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'client/src/lib/advertising-policy.ts'
+      - 'client/src/lib/web-advertising-policy.ts'
+      - 'client/src/components/WebAdSenseBanner.tsx'
+      - 'client/src/pages/ScopriDemos.tsx'
+      - 'client/tests/webAdvertisingPolicy.test.mjs'
       - 'client/tests/advertisingPolicy.test.mjs'
       - 'client/tests/appOpenNativeContract.test.mjs'
       - 'api/utils/adsAdultEligibility.js'
@@ -52,7 +56,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Test advertising deny-by-default policy
         working-directory: client
-        run: node --test tests/advertisingPolicy.test.mjs tests/appOpenNativeContract.test.mjs tests/advertisingPrivacyNotice.test.mjs
+        run: node --test tests/advertisingPolicy.test.mjs tests/appOpenNativeContract.test.mjs tests/advertisingPrivacyNotice.test.mjs tests/webAdvertisingPolicy.test.mjs
       - name: Test server-side conservative adult eligibility
         working-directory: client
         run: node --test ../api/tests/ads-adult-eligibility.test.js
