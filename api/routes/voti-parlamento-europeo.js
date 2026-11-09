@@ -1,7 +1,8 @@
 const express = require('express');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getPool } = require('../config/database');
-const { recuperaAnalisiDaCache } = require('../services/leggeAnalysisService');
+const { generaAnalisiLegge, recuperaAnalisiDaCache } = require('../services/leggeAnalysisService');
+const { hasDocumentaryContext } = require('../services/parliamentGroundedAnalysis');
 
 const router = express.Router();
 const pool = getPool();
@@ -137,7 +138,9 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
     let analisiLegge = null;
     if (isVotazioneRecente) {
       try {
-        analisiLegge = await recuperaAnalisiDaCache(decodedUri);
+        analisiLegge = hasDocumentaryContext(votazione.descrizione)
+          ? await recuperaAnalisiDaCache(decodedUri)
+          : null;
         
         // Nessuna AI generata su GET: lettura della sola cache già validata.
       } catch (analisiError) {
@@ -196,11 +199,62 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
 });
 
 // POST /api/voti-parlamento-europeo/rigenera-analisi/:uri - Rigenera l'analisi AI
-router.post('/rigenera-analisi/:uri', verifyToken, (_req, res) => {
-  return res.status(409).json({
-    success: false,
-    message: 'Analisi AI legacy sospesa: nessuna generazione su voti europei non verificati.'
-  });
+router.post('/rigenera-analisi/:uri', verifyToken, requireAdmin, async (req, res) => {
+  // QA remains opt-in even after this branch is compiled. No automatic AI on GET.
+  // Never restore the legacy historical MEP vote importer or per-vote nominal tables.
+  if (process.env.DEMOS_GROQ_FREE_QA_ENABLED !== 'true') {
+    return res.status(409).json({
+      success: false,
+      message: 'Analisi Groq Free disattivata: abilitare soltanto nel collaudo autorizzato.'
+    });
+  }
+  try {
+    const uri = req.params.uri;
+    if (typeof uri !== 'string' || uri.length > 512 || !uri.trim()) {
+      return res.status(400).json({ success: false, message: 'Identificativo non valido' });
+    }
+    const votazione = await readEuropeanAggregateByUri(uri);
+    if (!votazione) {
+      return res.status(404).json({ success: false, message: 'Votazione non trovata' });
+    }
+    if (!hasDocumentaryContext(votazione.descrizione)) {
+      return res.status(503).json({
+        success: false,
+        message: 'Testo documentale insufficiente per una spiegazione verificabile.'
+      });
+    }
+    const analisi = await generaAnalisiLegge(uri, {
+      titolo: votazione.titolo,
+      descrizione: votazione.descrizione,
+      camera: 'Parlamento europeo',
+      data_votazione: votazione.data_votazione
+    });
+    if (!analisi) {
+      return res.status(503).json({
+        success: false,
+        message: 'Spiegazione non disponibile: fonte insufficiente o quota Groq Free raggiunta.'
+      });
+    }
+    return res.json({
+      success: true,
+      data: {
+        spiegazione_generale: analisi.spiegazione_generale,
+        effetti_positivi: analisi.effetti_positivi,
+        effetti_negativi: analisi.effetti_negativi,
+        numero_legge: analisi.numero_legge,
+        tipo_atto: analisi.tipo_atto,
+        provider_ai: analisi.provider_ai,
+        modello_ai: analisi.modello_ai,
+        data_generazione: analisi.data_generazione
+      }
+    });
+  } catch (_error) {
+    console.warn('Analisi Groq Free PE temporaneamente non disponibile');
+    return res.status(503).json({
+      success: false,
+      message: 'Analisi AI temporaneamente non disponibile, dati istituzionali invariati.'
+    });
+  }
 });
 
 // POST /api/voti-parlamento-europeo/sincronizza - Sincronizza le votazioni dal PE
