@@ -23,6 +23,8 @@ on:
       - 'client/src/pages/Opinioni*.tsx'
       - 'api/config/publicCachePolicy.js'
       - 'client/src/pages/GestisciOpinioni/**'
+      - 'client/src/pages/Gestisci/ProposteSoggetti.tsx' # Admin real-data contract required
+      - 'api/tests/d12AdminRealRecords.contract.test.js'
       - 'client/src/pages/VotiPolitici.tsx' # required catalog-contract for UI-only fix
       - 'client/src/pages/VotiPoliticiFinali.tsx'
       - 'client/src/pages/VotiParlamento.tsx' # required catalog-contract on parliament feed UI
