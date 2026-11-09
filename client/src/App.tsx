@@ -58,7 +58,7 @@ import NotificheTotali from "./pages/NotificheTotali";
 import Vota from "./pages/Vota";
 import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
-import ProposteSoggettiStato from "./pages/Gestisci/ProposteSoggettiStato";
+import ProposteSoggetti from "./pages/Gestisci/ProposteSoggetti";
 import Strumenti from "./pages/Strumenti";
 import Sondaggi from "./pages/Sondaggi";
 import Proponi from "./pages/Proponi";
@@ -751,7 +751,7 @@ export default function App() {
 
               {/* Coda proposte ancora non attiva: landing Admin sicura e senza API. */}
               <Route path="/gestisci/proposte-soggetti">
-                <ProtectedRoute path="/gestisci/proposte-soggetti" component={ProposteSoggettiStato} />
+                <ProtectedRoute path="/gestisci/proposte-soggetti" component={ProposteSoggetti} />
               </Route>
 
               {/* Route riconoscimenti (admin) */}
