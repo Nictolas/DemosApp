@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2 } from "lucide-react";
 import { ViewDialogProps } from "../types";
+import { CivicOfficialInformation } from "@/components/civic/CivicOfficialInformation";
 
 export const ViewDialog: React.FC<ViewDialogProps> = ({ referendum, onClose, onEdit, onDelete, deleteMutation }) => {
   if (!referendum) return null;
@@ -20,12 +21,11 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ referendum, onClose, onE
         </DialogHeader>
         
         <div className="space-y-4 bg-white overflow-y-auto">
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-2">Descrizione</h4>
-            <p className="text-gray-700 whitespace-pre-wrap">
-              {referendum.descrizione}
-            </p>
-          </div>
+          <CivicOfficialInformation
+            category="referendum_abrogativi"
+            description={referendum.descrizione}
+            officialId={referendum.id_ministero}
+          />
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {referendum.dataInizio && (
