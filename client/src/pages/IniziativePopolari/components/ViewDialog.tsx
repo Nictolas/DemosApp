@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Trash2 } from "lucide-react";
 import { ViewDialogProps } from "../types";
 import { getDisplayableDate } from "@/utils/dateUtils";
+import { CivicOfficialInformation } from "@/components/civic/CivicOfficialInformation";
 
 export const ViewDialog: React.FC<ViewDialogProps> = ({ iniziativa, onClose, onEdit, onDelete, deleteMutation }) => {
   if (!iniziativa) return null;
@@ -24,12 +25,11 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ iniziativa, onClose, onE
         </DialogHeader>
         
         <div className="space-y-4 bg-white overflow-y-auto">
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-2">Descrizione</h4>
-            <p className="text-gray-700 whitespace-pre-wrap">
-              {iniziativa.descrizione}
-            </p>
-          </div>
+          <CivicOfficialInformation
+            category="iniziative_popolari"
+            description={iniziativa.descrizione}
+            officialId={iniziativa.id_ministero}
+          />
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {dataInizio && (

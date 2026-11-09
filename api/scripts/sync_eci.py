@@ -365,6 +365,13 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                 _verify_civic_database_identity(
                     cur, os.environ.get("CIVIC_RUNTIME_DATABASE_ID")
                 )
+                # Two official source synchronizations may overlap. Serialize
+                # the identity-verified snapshot and UPSERT in one PostgreSQL
+                # transaction so stale jobs cannot undo newer official data.
+                # No session lock or DELETE grant is necessary.
+                cur.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended('demos:eci:replace_cache', 0))"
+                )
                 previous_ids = set()
                 if collection_enabled:
                     cur.execute("SELECT id FROM eci")

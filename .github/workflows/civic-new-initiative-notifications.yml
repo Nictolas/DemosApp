@@ -69,6 +69,20 @@ on:
       - 'api/tests/civicMinisteroScheduler.test.js'
       - '.github/workflows/civic-ministero-sync.yml'
       - 'api/scripts/sync_eci.py'
+      - 'api/routes/eci.js'
+      - 'api/tests/civicEciDeepLinkArchive.http.test.js'
+      - 'api/tests/civicNotificationDeepLinkContract.test.js'
+      - 'api/staging/civic_d6_contract_canary.js'
+      - 'api/tests/civicD6ContractCanary.test.js'
+      - 'api/tests/test_sync_eci.py'
+      - 'api/tests/test_eci_sync_postgres.py'
+      - 'api/tests/civicEciSchedulerGate.test.js'
+      - 'api/staging/unified_staging_app_safety.js'
+      - 'api/staging/unified_staging_civic_readonly_canary.js'
+      - 'api/staging/unified_staging_preflight_server.js'
+      - 'api/tests/unifiedStagingAppSafety.test.js'
+      - 'api/tests/unifiedStagingCivicReadOnlyCanary.test.js'
+      - 'api/tests/unifiedStagingPreflightServer.test.js'
       - 'api/tests/civicNewInitiativeNotificationPreparation.test.js'
       - 'api/routes/notifiche.js'
       - 'api/tests/civicPreferencesReadOnly.http.test.js'
@@ -91,6 +105,11 @@ on:
       - 'client/src/pages/IniziativePopolari/index.tsx'
       - 'client/src/pages/ReferendumAbrogativi/index.tsx'
       - 'client/src/pages/ReferendumAbrogativi/types/index.ts'
+      - 'client/src/pages/IniziativePopolari/components/ViewDialog.tsx'
+      - 'client/src/pages/ReferendumAbrogativi/components/ViewDialog.tsx'
+      - 'client/src/components/civic/CivicOfficialInformation.tsx'
+      - 'client/src/lib/civic-official-sources.ts'
+      - 'client/tests/civicOfficialSources.test.mjs'
       - '.github/workflows/eci_sync.yml'
       - '.github/workflows/civic-new-initiative-notifications.yml'
   workflow_dispatch:
@@ -147,6 +166,12 @@ jobs:
           node --check api/tests/notificationAdminReportPrivacy.http.test.js
           node --check api/routes/segnalazioni.js
           node --test --test-concurrency=1 api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/civicPushDeliveryGuard.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js api/tests/civicSessionAffinityProbe.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/civicRenderBootProbe.test.js api/tests/civicRenderDirectDnsProbe.test.js api/tests/civicPreferencesReadOnly.http.test.js api/tests/civicPreferenceGuardRecovery.http.test.js api/tests/civicFcmTokenMutation.http.test.js api/tests/civicLegacyFcmStorage.test.js api/tests/notificationSchemaCache.test.js api/tests/notificationFeedSchemaPerf.http.test.js api/tests/notificationBadgePrivacy.contract.test.js api/tests/notificationAdminReportPrivacy.http.test.js
+      - name: Archived ECI deep link and native route HTTP contracts (mock DB)
+        run: node --test api/tests/civicEciDeepLinkArchive.http.test.js api/tests/civicNotificationDeepLinkContract.test.js
+      - name: Independent D6 Render contract canary, no database or Firebase
+        run: node --test api/tests/civicD6ContractCanary.test.js
+      - name: Isolated unified-staging preflight/canary safety contracts, no cloud
+        run: node --test api/tests/unifiedStagingAppSafety.test.js api/tests/unifiedStagingCivicReadOnlyCanary.test.js api/tests/unifiedStagingPreflightServer.test.js
       - name: Verify private recipients independently without Node runner IPC
         run: node api/tests/civicRecipientIsolation.http.test.js
       - name: Python ECI source tests (no real API, DB or push)
@@ -189,6 +214,8 @@ jobs:
           python -m unittest api.tests.test_civic_staging_existing_devices_postgres -v
           python -m unittest api.tests.test_civic_staging_runtime_access_postgres -v
           python -m unittest api.tests.test_civic_migration_postgres -v
+      - name: ECI overlapping syncs on two real ephemeral PostgreSQL connections
+        run: python -m unittest api.tests.test_eci_sync_postgres -v
       - name: Two real PostgreSQL socket observations, never a session approval
         run: node --test api/tests/civicSessionAffinityPostgres.integration.test.js
   frontend-build:
@@ -202,5 +229,9 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - name: Install pinned frontend dependencies
         run: npm ci --prefix client --no-audit --no-fund
+      - name: Civic official-source links and shared expandable detail contracts
+        run: node --experimental-strip-types --test client/tests/civicOfficialSources.test.mjs
+      - name: Validate disabled-by-default ECI scheduled workflow
+        run: node --test api/tests/civicEciSchedulerGate.test.js
       - name: Compile DEMOS frontend without deployment
         run: npm run build --prefix client

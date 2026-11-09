@@ -6,9 +6,20 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
+# Do not overlap writes or outbox reconciliation for the same source.
+concurrency:
+  group: demos-civic-eci-scheduler
+  cancel-in-progress: false
+
 jobs:
   sync-eci:
+    # Schedules can be present on main without connecting to ANY database.
+    # This separate opt-in must be reviewed only after the release gates pass.
+    if: ${{ vars.CIVIC_ECI_SCHEDULER_ENABLED == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,7 +34,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests psycopg2-binary
 
-      - name: Sincronizza ECI su Neon
+      - name: Sincronizza ECI solo su target autorizzato
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CIVIC_NEW_INITIATIVE_EVENTS_ENABLED: ${{ vars.CIVIC_NEW_INITIATIVE_EVENTS_ENABLED }}
