@@ -86,14 +86,22 @@ function dateKey(event: EventRecord): string {
   return day + "T" + String(event.orario_inizio || "00:00").slice(0, 5);
 }
 
+// La data prevale sulla priorità del feed: l'evento più vicino è sempre in cima.
+export function sortEventsByStartDate(events: EventRecord[]): EventRecord[] {
+  return [...events].sort((a, b) => dateKey(a).localeCompare(dateKey(b)) ||
+    String(a.id).localeCompare(String(b.id)));
+}
+
 export function composeTerritorialEvents(
   personal: EventRecord[],
   publicApproved: EventRecord[],
   territory: EventTerritory,
   view: "personal" | "regional" | "global",
 ): EventRecord[] {
-  if (view === "global") return [...publicApproved];
-  if (view === "regional") return publicApproved.filter((event) => isInEventRegion(event, territory));
+  if (view === "global") return sortEventsByStartDate(publicApproved);
+  if (view === "regional") return sortEventsByStartDate(
+    publicApproved.filter((event) => isInEventRegion(event, territory))
+  );
 
   // Mantiene gli eventi dei soggetti seguiti e le elezioni pertinenti del feed
   // personale; aggiunge TUTTI gli eventi pubblici della provincia, non solo del comune.
@@ -104,9 +112,5 @@ export function composeTerritorialEvents(
       byId.set(String(event.id), { ...event, feed_reason: "TERRITORY", feed_priority: 1 });
     }
   }
-  return [...byId.values()].sort((a, b) => {
-    const priority = (a.feed_priority ?? 1) - (b.feed_priority ?? 1);
-    return priority || dateKey(a).localeCompare(dateKey(b)) ||
-      String(a.id).localeCompare(String(b.id));
-  });
+  return sortEventsByStartDate([...byId.values()]);
 }

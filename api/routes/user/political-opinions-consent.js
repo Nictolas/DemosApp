@@ -11,15 +11,14 @@ const { cleanupConsentScopedPoliticalData } = require('../../services/politicalC
  * Verifica lo stato del consenso alle opinioni politiche
  */
 router.get('/', verifyToken, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     const userId = req.userId;
     
     const query = `
       SELECT 
         COALESCE(uc.political_opinions_consent, u.political_opinions_consent) AS political_opinions_consent,
-        COALESCE(uc.political_opinions_consent_timestamp, u.political_opinions_consent_timestamp) AS political_opinions_consent_timestamp,
-        COALESCE(uc.political_opinions_consent_ip_address, u.political_opinions_consent_ip_address) AS political_opinions_consent_ip_address,
-        COALESCE(uc.political_opinions_consent_user_agent, u.political_opinions_consent_user_agent) AS political_opinions_consent_user_agent
+        COALESCE(uc.political_opinions_consent_timestamp, u.political_opinions_consent_timestamp) AS political_opinions_consent_timestamp
       FROM users u
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE u.id = $1
@@ -41,13 +40,15 @@ router.get('/', verifyToken, async (req, res) => {
       consent: {
         granted: userData.political_opinions_consent || false,
         timestamp: userData.political_opinions_consent_timestamp,
-        ipAddress: userData.political_opinions_consent_ip_address,
-        userAgent: userData.political_opinions_consent_user_agent
+        // Preserve response shape; audit metadata stays on the server for
+        // accountable GDPR records and is not needed for UI consent status.
+        ipAddress: null,
+        userAgent: null
       }
     });
     
   } catch (error) {
-    console.error('❌ Errore nella verifica consenso opinioni politiche:', error);
+    console.error('POLITICAL_CONSENT_READ_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -160,7 +161,7 @@ router.post('/', verifyToken, async (req, res) => {
       success: true
     });
     
-    console.log(`✅ Consenso opinioni politiche concesso per utente: ${userId}`);
+    // Consent outcome is stored in the structured audit, not app stdout.
     
     res.json({
       success: true,
@@ -172,7 +173,7 @@ router.post('/', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel salvataggio consenso opinioni politiche:', error);
+    console.error('POLITICAL_CONSENT_GRANT_FAILED');
     
     // Log dell'errore
     await AuditService.logAction({
@@ -183,7 +184,7 @@ router.post('/', verifyToken, async (req, res) => {
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       success: false,
-      errorMessage: error.message
+      errorMessage: 'POLITICAL_CONSENT_GRANT_FAILED'
     });
     
     res.status(500).json({
@@ -270,12 +271,8 @@ router.put('/revoke', verifyToken, async (req, res) => {
       });
     }
 
-    if (cleanupResult.totalDeleted > 0) {
-      console.log(`✅ ${cleanupResult.totalDeleted} record politici generati dall'utente eliminati durante la revoca`);
-    } else {
-      console.log('ℹ️ Nessun dato politico generato dall\'utente da eliminare durante la revoca');
-    }
-    
+    // Keep cleanup counts in the structured audit, not per-user application logs.
+
     // Log dell'azione
     await AuditService.logAction({
       userId,
@@ -295,7 +292,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
       success: true
     });
     
-    console.log(`✅ Consenso opinioni politiche revocato per utente: ${userId}`);
+    // Consent revocation is stored in the structured audit, not app stdout.
     
     res.json({
       success: true,
@@ -307,7 +304,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella revoca consenso opinioni politiche:', error);
+    console.error('POLITICAL_CONSENT_REVOKE_FAILED');
     
     // Log dell'errore
     await AuditService.logAction({
@@ -318,7 +315,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       success: false,
-      errorMessage: error.message
+      errorMessage: 'POLITICAL_CONSENT_REVOKE_FAILED'
     });
     
     res.status(500).json({

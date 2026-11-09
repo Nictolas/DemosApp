@@ -1,24 +1,25 @@
+import { createElement } from "react";
 import { Crown, BarChart3, MessageCircle, Users } from "lucide-react";
 import { PremiumBenefit, AccountType } from "./types";
 
 export const premiumBenefits: PremiumBenefit[] = [
   {
-    icon: <Crown className="h-5 w-5 text-yellow-500" />,
+    icon: createElement(Crown, { className: "h-5 w-5 text-yellow-500" }),
     title: "Badge verificato",
     description: "Riconoscimento ufficiale del tuo ruolo istituzionale"
   },
   {
-    icon: <BarChart3 className="h-5 w-5 text-blue-500" />,
+    icon: createElement(BarChart3, { className: "h-5 w-5 text-blue-500" }),
     title: "Dashboard elettorale",
     description: "Analisi e report costanti delle preferenze in tempo reale"
   },
   {
-    icon: <MessageCircle className="h-5 w-5 text-green-500" />,
+    icon: createElement(MessageCircle, { className: "h-5 w-5 text-green-500" }),
     title: "Canale diretto",
     description: "Notifiche push e comunicazioni personalizzate ai tuoi sostenitori"
   },
   {
-    icon: <Users className="h-5 w-5 text-purple-500" />,
+    icon: createElement(Users, { className: "h-5 w-5 text-purple-500" }),
     title: "Strumenti di engagement",
     description: "Statistiche e sondaggi per coinvolgere il tuo elettorato"
   }

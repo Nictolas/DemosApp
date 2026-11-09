@@ -79,3 +79,207 @@ test('generic endpoint can remove a US House selection without any Italian legac
   assert.match(sql, /DELETE FROM political_selections/);
   assert.doesNotMatch(sql, /candidato_|rappresentante_|user_representatives|UPDATE users/);
 });
+
+
+test('unreleased provincial choices are rejected before territory queries or persistence', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  const pool = makePool();
+  try {
+    await withProfile(pool, async (base) => {
+      for (const officeId of ['it.provincial.trento', 'it.provincial.bolzano']) {
+        for (const kind of ['representative', 'candidate']) {
+          const res = await fetch(`${base}/api/users/u1/political-selection`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ kind, officeId, selectedUserId: 'synthetic-subject' }),
+          });
+          assert.equal(res.status, 409);
+          assert.equal((await res.json()).error, 'PROVINCIAL_SELECTION_NOT_RELEASED');
+        }
+      }
+    });
+    assert.deepEqual(pool.calls, [], 'no SQL is executed for denied provincial writes');
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
+});
+
+test('unreleased provincial choices can be removed but never create a users column', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  const pool = makePool();
+  try {
+    await withProfile(pool, async (base) => {
+      const res = await fetch(`${base}/api/users/u1/political-selection`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'representative',
+          officeId: 'it.provincial.trento',
+          selectedUserId: null,
+        }),
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.selection.officeId, 'it.provincial.trento');
+      assert.equal(data.selection.storage, 'CANONICAL');
+    });
+    const statements = pool.calls.map((call) => call.sql).join('\n');
+    assert.match(statements, /DELETE FROM political_selections/);
+    assert.doesNotMatch(statements, /UPDATE users|user_representatives|rappresentante_provinciale/);
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
+});
+
+test('provincial selection cannot bypass six-opinion completion by spoofing Podio source', async () => {
+  const previous = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+  const calls = [];
+  const pool = {
+    connect: async () => { throw new Error('Incomplete provincial opinions must not reach storage'); },
+    async query(sql) {
+      calls.push(String(sql));
+      // The consent precheck and grade-only answers query both join consents.
+      // Do not mistake a consent-filtered answers SELECT for the precheck.
+      if (String(sql).includes('FROM opinioni_risposte r')) {
+        assert.match(String(sql), /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
+        assert.match(String(sql), /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
+        return { rows: [] };
+      }
+      if (String(sql).includes('LEFT JOIN user_consents')) {
+        assert.match(String(sql), /u\.political_opinions_consent IS TRUE/);
+        return { rows: [{ id: 'u1', granted: true }] };
+      }
+      throw new Error('Unexpected SQL in provincial completion test');
+    },
+  };
+  try {
+    await withProfile(pool, async (base) => {
+      for (const source of ['podio', 'matching']) {
+        const res = await fetch(`${base}/api/users/u1/political-selection`, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            kind: 'representative', officeId: 'it.provincial.trento',
+            selectedUserId: 'synthetic-person', source,
+          }),
+        });
+        assert.equal(res.status, 409);
+        const body = await res.json();
+        assert.equal(body.error, 'OPINIONI_INCOMPLETE');
+        assert.equal(body.data.totalOpinions, 6);
+        assert.equal(body.data.missingOpinions, 6);
+      }
+    });
+    assert.equal(calls.length, 4, 'consent + one personal-answers read per request');
+  } finally {
+    if (previous === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = previous;
+  }
+});
+
+test('provincial selection read only exposes the authenticated account and remains closed before GO', async () => {
+  const previous = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  const queries = [];
+  const pool = {
+    async query(sql, params) {
+      queries.push({ sql: String(sql), params });
+      if (!String(sql).includes('LEFT JOIN user_consents uc') ||
+          !String(sql).includes('LEFT JOIN political_selections ps')) {
+        throw new Error('Consent and canonical choice must be read in one statement');
+      }
+      return { rows: [{ id: 'u1', consent_granted: true, selected_user_id: 'official-1' }] };
+    },
+  };
+  try {
+    delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    await withProfile(pool, async (base) => {
+      const url = '/api/users/u1/provincial-selection?kind=representative&officeId=it.provincial.trento';
+      const unreleased = await fetch(base + url);
+      assert.equal(unreleased.status, 409);
+      assert.equal(unreleased.headers.get('cache-control'), 'private, no-store, max-age=0');
+      assert.equal((await unreleased.json()).error, 'PROVINCIAL_SELECTION_NOT_RELEASED');
+      assert.equal(queries.length, 0);
+
+      process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+      const other = await fetch(base + url.replace('/u1/', '/another-user/'));
+      assert.equal(other.status, 403);
+      assert.equal(other.headers.get('cache-control'), 'private, no-store, max-age=0');
+      assert.equal(queries.length, 0);
+
+      const invalidOffice = await fetch(base + url.replace('it.provincial.trento', 'it.camera'));
+      assert.equal(invalidOffice.status, 400);
+      assert.equal(invalidOffice.headers.get('cache-control'), 'private, no-store, max-age=0');
+      assert.equal(queries.length, 0);
+
+      const current = await fetch(base + url);
+      assert.equal(current.status, 200);
+      assert.equal(current.headers.get('cache-control'), 'private, no-store, max-age=0');
+      assert.deepEqual((await current.json()).selection, {
+        kind: 'representative', officeId: 'it.provincial.trento',
+        selectedUserId: 'official-1',
+      });
+      assert.equal(queries.length, 1, 'one SQL snapshot for consent and selection');
+      assert.deepEqual(queries[0].params, ['u1', 'representative', 'it.provincial.trento']);
+      assert.match(queries[0].sql, /LEFT JOIN user_consents uc/);
+      assert.match(queries[0].sql, /LEFT JOIN political_selections ps/);
+      assert.match(queries[0].sql, /ps\.user_id = u\.id/);
+      assert.match(queries[0].sql, /ps\.political_office_id = \$3/);
+      // A stale canonical consent row cannot override a revoked users flag.
+      assert.match(queries[0].sql, /u\.political_opinions_consent IS TRUE/);
+      assert.match(queries[0].sql, /AND COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
+    });
+  } finally {
+    if (previous === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = previous;
+  }
+});
+
+test('revoked consent blocks provincial read and new write before any selection read/write', async () => {
+  const previous = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+  const calls = [];
+  const pool = {
+    async query(sql) {
+      calls.push(String(sql));
+      if (String(sql).includes('LEFT JOIN political_selections ps')) {
+        // Even if a synthetic stale choice exists, revoked consent prevents
+        // its identity from being returned to the caller.
+        return { rows: [{ id: 'u1', consent_granted: false, selected_user_id: 'stale-subject' }] };
+      }
+      if (String(sql).includes('LEFT JOIN user_consents')) {
+        return { rows: [{ id: 'u1', granted: false }] };
+      }
+      throw new Error('Selection SQL must never run after revoked consent');
+    },
+    connect: async () => { throw new Error('No selection writes after revoked consent'); },
+  };
+  try {
+    await withProfile(pool, async (base) => {
+      const read = await fetch(base + '/api/users/u1/provincial-selection?kind=candidate&officeId=it.provincial.trento');
+      assert.equal(read.status, 403);
+      assert.equal(read.headers.get('cache-control'), 'private, no-store, max-age=0');
+      assert.equal((await read.json()).code, 'POLITICAL_CONSENT_REQUIRED');
+      const write = await fetch(base + '/api/users/u1/political-selection', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'candidate', officeId: 'it.provincial.trento', selectedUserId: 'subject',
+        }),
+      });
+      assert.equal(write.status, 403);
+      assert.equal(write.headers.get('cache-control'), 'private, no-store, max-age=0');
+      assert.equal((await write.json()).code, 'POLITICAL_CONSENT_REQUIRED');
+    });
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every((sql) => sql.includes('LEFT JOIN user_consents')));
+    assert.equal(calls.filter((sql) => sql.includes('LEFT JOIN political_selections ps')).length, 1);
+    assert.equal(calls.filter((sql) => sql.includes('INSERT INTO political_selections')).length, 0);
+  } finally {
+    if (previous === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = previous;
+  }
+});

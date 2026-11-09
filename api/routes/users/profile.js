@@ -7,6 +7,7 @@ const { compressUserLocation, decompressUserLocation } = require('../../utils/lo
 const { decompressGender } = require('../../utils/genderUtils');
 const { getAccountSubject } = require('../../services/accountCapabilitiesService');
 const { getUserOpinionCompletion } = require('../../services/politicalMatchingService');
+const { getPoliticalConsentState, getLockedPoliticalConsentForWrite } = require('../../services/politicalConsentService');
 const { normalizeOpinionAnswer } = require('../../utils/politicalMatching');
 const { isCandidateSelectionEligible, isRepresentativeSelectionEligible } = require('../../services/politicalEligibilityService');
 const {
@@ -15,6 +16,9 @@ const {
 } = require('../../services/politicalJurisdictionRegistryService');
 const {
   resolveSelectionContract,
+  isPoliticalSelectionWriteReleased,
+  isPoliticalOfficeVisible,
+  loadPoliticalSelections,
   setPoliticalSelection,
 } = require('../../services/politicalSelectionService');
 
@@ -306,7 +310,6 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         // Normalizza i gradi di elezione e candidatura
         if (key === 'grado_elezione' || key === 'grado_candidatura') {
           filteredData[key] = normalizeGrado(updateData[key]);
-          console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
         }
         // Applica compressione per i campi paese
         else if (key === 'paese_residenza' || key === 'paese_elezione' || key === 'paese_candidatura') {
@@ -392,7 +395,6 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     }
     
     const updatedUser = result.rows[0];
-    console.log('✅ Profilo utente aggiornato:', updatedUser.email);
     
     // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
     let dataNascitaFormattata = null;
@@ -439,7 +441,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    console.error('PROFILE_UPDATE_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -577,8 +579,76 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivi
 });
 
 
+// Read the account owner's selected provincial office only. This is not an
+// unrestricted profile endpoint and never publishes other users' preferences.
+router.get('/:userId/provincial-selection', (_req, res, next) => {
+  // Provincial political preferences must never be cached, even when an
+  // authorization, consent or release gate rejects the request.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (String(req.userId) !== String(userId)) {
+      return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    }
+    const { kind, officeId } = req.query || {};
+    const contract = resolveSelectionContract({ kind, officeValue: officeId });
+    if (!contract?.office?.eligibleProvinceCodes?.length) {
+      return res.status(400).json({ success: false, error: 'Selezione provinciale non valida' });
+    }
+    if (!isPoliticalOfficeVisible(contract.office)) {
+      return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
+    }
+    // Consent and the selected identity must be read in ONE PostgreSQL
+    // statement. A separate precheck followed by loadPoliticalSelections
+    // could expose a choice after concurrent consent revocation (TOCTOU).
+    // The join is conditional on current consent, and no legacy selection
+    // table/column is read if the canonical table is absent.
+    const result = await pool.query(
+      `SELECT
+         u.id,
+         (u.political_opinions_consent IS TRUE
+          AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE) AS consent_granted,
+         ps.selected_user_id::text AS selected_user_id
+       FROM users u
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
+       LEFT JOIN political_selections ps
+         ON ps.user_id = u.id
+        AND ps.selection_kind = $2
+        AND ps.political_office_id = $3
+        AND u.political_opinions_consent IS TRUE
+        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
+       WHERE u.id = $1
+       LIMIT 1`,
+      [userId, contract.kind, contract.officeId],
+    );
+    const owner = result.rows[0];
+    if (!owner) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    if (owner.consent_granted !== true) {
+      return res.status(403).json({
+        success: false, code: 'POLITICAL_CONSENT_REQUIRED', error: 'Consenso richiesto'
+      });
+    }
+    return res.json({
+      success: true,
+      selection: {
+        kind: contract.kind,
+        officeId: contract.officeId,
+        selectedUserId: owner.selected_user_id || null,
+      }
+    });
+  } catch {
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
 // PUT /api/users/:userId/political-selection - Canonical jurisdiction-aware political selection
-router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
+router.put('/:userId/political-selection', (_req, res, next) => {
+  // No cacheable response may expose the success or failure of a political choice.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   let client = null;
   try {
     const { userId } = req.params;
@@ -593,13 +663,26 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
     if (!contract) {
       return res.status(400).json({ success: false, error: 'Selezione politica non valida' });
     }
+    if (!isPoliticalSelectionWriteReleased(contract.office, selectedUserId)) {
+      return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
+    }
+    // Revoked consent must not permit creation of a new provincial preference.
+    // Clearing an existing preference remains possible without consent.
+    if (contract.office.eligibleProvinceCodes?.length && selectedUserId) {
+      const consentState = await getPoliticalConsentState(pool, userId);
+      if (!consentState.exists) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+      if (!consentState.granted) {
+        return res.status(403).json({ success: false, code: 'POLITICAL_CONSENT_REQUIRED', error: 'Consenso richiesto' });
+      }
+    }
 
     let selectedCandidacyId = null;
     let selectedMandateId = null;
     if (selectedUserId) {
-      const podiumDirect = source === 'podio' && contract.kind === 'representative';
-      if (!podiumDirect && contract.office.opinionGrade) {
-        const completion = await getUserOpinionCompletion(pool, userId, contract.office.opinionGrade);
+      const podiumDirect = source === 'podio' && contract.kind === 'representative' && Boolean(contract.office.podiumLevel);
+      const matchingGrade = contract.office.matchingOpinionGrade || contract.office.opinionGrade;
+      if (!podiumDirect && matchingGrade) {
+        const completion = await getUserOpinionCompletion(pool, userId, matchingGrade);
         if (!completion.isComplete) {
           return res.status(409).json({
             success: false, error: 'OPINIONI_INCOMPLETE',
@@ -625,6 +708,19 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
 
     client = await pool.connect();
     await client.query('BEGIN');
+    if (contract.office.eligibleProvinceCodes?.length && selectedUserId) {
+      // Check again under the SAME users row lock held by consent revocation.
+      // Its cleanup and this choice now serialize rather than racing.
+      const lockedConsent = await getLockedPoliticalConsentForWrite(client, userId);
+      if (!lockedConsent.exists || !lockedConsent.granted) {
+        await client.query('ROLLBACK');
+        return res.status(lockedConsent.exists ? 403 : 404).json({
+          success: false,
+          code: lockedConsent.exists ? 'POLITICAL_CONSENT_REQUIRED' : 'USER_NOT_FOUND',
+          error: lockedConsent.exists ? 'Consenso richiesto' : 'Utente non trovato',
+        });
+      }
+    }
     const stored = await setPoliticalSelection(client, {
       userId, kind: contract.kind, officeValue: contract.officeId,
       selectedUserId, selectedCandidacyId, selectedMandateId, source,
@@ -650,7 +746,10 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
 
 
 // GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
-router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+router.get('/:userId/opinioni', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
     console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
     
@@ -687,8 +786,15 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     // and personal answer retrieval below remain intact.
     const opinioni = sortOpinionsByText(grado ? getOpinionsForGrade(grado) : getAllOpinions());
 
+    // Load answers and source JSONB only with the CURRENT subject consent.
+    // The predicate is inside the same SELECT to avoid a stale precheck.
     const userAnswersResult = await pool.query(
-      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      `SELECT r.*
+       FROM opinioni_risposte r
+       JOIN users u ON u.id = r.user_id
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
+       WHERE r.user_id = $1
+         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`,
       [userId]
     );
     const userAnswers = userAnswersResult.rows[0] || {};

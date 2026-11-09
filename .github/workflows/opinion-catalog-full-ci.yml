@@ -9,8 +9,36 @@ on:
       - 'api/routes/**'
       - 'api/services/**'
       - 'api/tests/opinionCatalog*.test.js'
+      - 'api/tests/opinionTopics.contract.test.js'
+      - 'api/tests/opinionTopicsBrowser.e2e.test.js'
+      - 'api/tests/opinionTopicsAccountIsolation.e2e.test.js'
+      - 'api/qa/opinionCatalogQaServer.js'
+      - 'client/src/lib/opinionTopics.ts'
+      - 'client/src/lib/opinionProvincialIds.ts'
+      - 'client/src/lib/opinionTopicProgress.ts'
+      - 'client/src/components/OpinioniTopicsMenu.tsx'
+      - 'client/tests/opinionTopicProgress.test.mjs'
+      - 'client/tests/opinionTopicDrafts.test.mjs'
+      - 'client/src/lib/opinionTopicDrafts.ts'
+      - 'client/src/pages/Opinioni*.tsx'
       - 'api/config/publicCachePolicy.js'
       - 'client/src/pages/GestisciOpinioni/**'
+      - 'client/src/pages/VotiPolitici.tsx' # required catalog-contract for UI-only fix
+      - 'client/src/pages/VotiPoliticiFinali.tsx'
+      - 'client/src/pages/VotiParlamento.tsx' # required catalog-contract on parliament feed UI
+      - 'client/src/components/VotazioniFinaliOpenpolis.tsx'
+      - 'client/tests/parliamentFinalSourceFeed.test.mjs'
+      - 'client/src/pages/Profilo/components/PoliticalCompassPreview.tsx' # required catalog-contract for compass UI changes
+      - 'client/src/App.tsx' # required contract for front routing change
+      - 'client/public/app-ads.txt'
+      - 'client/android/app/build.gradle' # Android version bump must satisfy required catalog-contract on PRs
+      - '.github/workflows/android-alpha-validation.yml' # CI guard PRs must satisfy required catalog-contract
+      - '.github/workflows/android-app-open-qa-manual.yml' # QA workflow changes must satisfy required catalog-contract
+      - 'scripts/check-ads-free-aab.py'
+      - 'scripts/test_ads_free_aab_guard.py'
+      - 'client/src/pages/PrivacyPolicy.tsx'
+      - 'client/src/pages/CookiePolicy.tsx'
+      - 'client/tests/privacyDisclosureIntegrity.test.mjs'
       - '.github/workflows/opinion-catalog-full-ci.yml'
 permissions:
   contents: read
@@ -48,6 +76,8 @@ jobs:
           done
       - name: Catalog integrity and zero-DB-metadata contract
         run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js
+      - name: Validate thematic mapping against all published opinion IDs
+        run: node --test api/tests/opinionTopics.contract.test.js
       - name: Install backend dependencies for isolated HTTP regression
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Validate read-only cutover parity and answer-column schema regression
@@ -58,6 +88,10 @@ jobs:
         run: node --test api/tests/opinionCatalogQaServer.smoke.test.js
       - name: Install frontend without lifecycle scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Verify thematic completion and owner-consent cache behavior
+        run: node --test client/tests/opinionTopicProgress.test.mjs
+      - name: Verify thematic draft rebase and cross-account discard
+        run: node --test client/tests/opinionTopicDrafts.test.mjs
       - name: Exercise real PostgreSQL API and production client save/readback (synthetic DB only)
         env:
           OPINION_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_opinion_ci
@@ -75,3 +109,123 @@ jobs:
           CI: 'true'
           NODE_ENV: production
         run: node --test api/tests/opinionCatalogBrowser.e2e.test.js
+      - name: Chrome thematic Opinions, mobile, save, failed POST and revocation (synthetic only)
+        env:
+          DEMOS_PLAYWRIGHT_MODULE: /tmp/demos-opinion-browser/node_modules/playwright
+          CI: 'true'
+          NODE_ENV: production
+        run: node --test api/tests/opinionTopicsBrowser.e2e.test.js
+      - name: Chrome two-account ownership and independent consent revocation (synthetic only)
+        env:
+          DEMOS_PLAYWRIGHT_MODULE: /tmp/demos-opinion-browser/node_modules/playwright
+          CI: 'true'
+          NODE_ENV: production
+        run: node --test api/tests/opinionTopicsAccountIsolation.e2e.test.js
+
+  # Temporary, explicit source overlay; no branch merge, release or external DB.
+  # This proves the exact pinned P0 read-guard code + thematic UI can coexist.
+  # It does NOT show the guard has landed on main or authorize production.
+  consent-topic-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: demos_ci
+          POSTGRES_PASSWORD: synthetic_only
+          POSTGRES_DB: demos_political_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U demos_ci -d demos_political_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - name: Checkout thematic branch under test
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Fail closed when P0 branch has advanced
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_P0_SHA: 4c979159839ecf58ecd2258f065c9a2cdf9b3911
+        run: |
+          set -eu
+          actual="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/fix/p0-political-consent-read-main-20261102" --jq '.object.sha')"
+          if [ "$actual" != "$EXPECTED_P0_SHA" ]; then
+            echo "::error::PR #557 moved. Update the pinned P0 revision, review the diff and rerun this integration before considering it green."
+            exit 1
+          fi
+          echo 'P0 branch HEAD matches pinned integration test.'
+      - name: Checkout pinned P0 consent fix (PR 557) for isolated overlay
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: 4c979159839ecf58ecd2258f065c9a2cdf9b3911
+          path: consent-guard
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Assemble temporary P0 guard + topic editor (no git merge)
+        run: |
+          set -eu
+          for file in \
+            api/routes/compatibility.js \
+            api/routes/users/profile.js \
+            api/services/politicalMatchingService.js \
+            api/qa/opinionCatalogQaServer.js \
+            api/tests/opinionCatalogAndroid110.contract.test.js \
+            api/tests/opinionCatalogQaServer.smoke.test.js \
+            api/tests/politicalConsentMainRead.synthetic.test.js \
+            api/tests/politicalConsentMainRead.pg.integration.test.js \
+            api/tests/politicalMatchingService.test.js; do
+            cp "consent-guard/$file" "$file"
+          done
+          rm -rf consent-guard
+          grep -Fq 'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE' api/routes/compatibility.js
+          grep -Fq 'SECOND_USER_ID' api/qa/opinionCatalogQaServer.js
+          grep -Fq 'retainedResidualRow' api/qa/opinionCatalogQaServer.js
+          node --check api/routes/compatibility.js
+          node --check api/routes/users/profile.js
+          node --check api/services/politicalMatchingService.js
+          node --check api/qa/opinionCatalogQaServer.js
+          echo 'Combined pinned worktree validated; main remains unchanged.'
+      - name: Install isolated test dependencies
+        run: |
+          npm ci --prefix api --ignore-scripts --no-audit --no-fund
+          npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Combined P0, Android, thematic mapping and owner isolation Node tests
+        run: |
+          node --test \
+            api/tests/politicalConsentMainRead.synthetic.test.js \
+            api/tests/opinionCatalogAndroid110.contract.test.js \
+            api/tests/opinionCatalogQaServer.smoke.test.js \
+            api/tests/opinionCatalogConsentRace.contract.test.js \
+            api/tests/opinionTopics.contract.test.js
+          node --test client/tests/opinionTopicProgress.test.mjs client/tests/opinionTopicDrafts.test.mjs
+      - name: PostgreSQL 17 consent-revocation integration on pinned P0 + thematic code
+        env:
+          CIVIC_TEST_MODE: isolated-synthetic
+          CIVIC_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_political_ci
+        run: |
+          node --test api/tests/politicalConsentMainRead.pg.integration.test.js
+      - name: Combined frontend production build (no deploy)
+        run: npm run build --prefix client
+      - name: Install Chrome-only browser tester
+        run: |
+          command -v google-chrome
+          mkdir -p /tmp/demos-opinion-browser
+          npm install --prefix /tmp/demos-opinion-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+      - name: Three combined isolated Chrome regressions
+        env:
+          DEMOS_PLAYWRIGHT_MODULE: /tmp/demos-opinion-browser/node_modules/playwright
+          NODE_ENV: production
+          CI: 'true'
+        run: |
+          node --test api/tests/opinionCatalogBrowser.e2e.test.js
+          node --test api/tests/opinionTopicsBrowser.e2e.test.js
+          node --test api/tests/opinionTopicsAccountIsolation.e2e.test.js

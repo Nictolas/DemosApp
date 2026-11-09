@@ -11,7 +11,22 @@ const {
 } = require('./politicalJurisdictionRegistryService');
 
 const SCHEMA_COMPAT_ERROR_CODES = new Set(['42P01', '42703']);
+// PostgreSQL 42P10: canonical ON CONFLICT target is absent during a phased schema upgrade.
+// Treat it as unavailable only on canonical writes; keep unrelated SQL errors strict.
+const CANONICAL_WRITE_SCHEMA_ERROR_CODES = new Set([...SCHEMA_COMPAT_ERROR_CODES, '42P10']);
 const SELECTION_KINDS = new Set(['candidate', 'representative']);
+
+// Explicit release GO is required before a provincial choice can be written.
+// Removals remain permitted to support correction and erasure requests.
+function isPoliticalOfficeVisible(office) {
+  if (!office?.eligibleProvinceCodes?.length) return true;
+  return process.env.DEMOS_PROVINCIAL_SELECTIONS_GO === 'true';
+}
+
+function isPoliticalSelectionWriteReleased(office, selectedUserId) {
+  if (selectedUserId === null || selectedUserId === undefined || selectedUserId === '') return true;
+  return isPoliticalOfficeVisible(office);
+}
 
 function isPoliticalSelectionSchemaError(error) {
   return SCHEMA_COMPAT_ERROR_CODES.has(error?.code);
@@ -92,7 +107,7 @@ async function writeCanonicalSelection(db, {
     );
     return { available: true, written: true, removed: false };
   } catch (error) {
-    if (!isPoliticalSelectionSchemaError(error)) throw error;
+    if (!CANONICAL_WRITE_SCHEMA_ERROR_CODES.has(error?.code)) throw error;
     return { available: false, written: false, removed: false };
   }
 }
@@ -147,6 +162,11 @@ async function setPoliticalSelection(db, {
   if (!contract) {
     const error = new Error('Invalid political selection contract');
     error.code = 'POLITICAL_SELECTION_CONTRACT_INVALID';
+    throw error;
+  }
+  if (!isPoliticalSelectionWriteReleased(contract.office, selectedUserId)) {
+    const error = new Error('Provincial political selections are not released');
+    error.code = 'PROVINCIAL_SELECTION_NOT_RELEASED';
     throw error;
   }
 
@@ -224,7 +244,9 @@ async function loadPoliticalSelections(db, {
   if (kind != null && !normalizedKind) return { source: 'CANONICAL', strict: true, selections: [] };
 
   const params = [userId];
-  const where = ['ps.user_id = $1'];
+  // Records imported from the three-column legacy schema have no verified office.
+  // Retain them for audited remediation, but never present them as a choice.
+  const where = ['ps.user_id = $1', 'ps.political_office_id IS NOT NULL'];
   if (normalizedKind) {
     params.push(normalizedKind);
     where.push(`ps.selection_kind = $${params.length}`);
@@ -284,6 +306,12 @@ function selectionsByOffice(selectionState) {
   return new Map((selectionState?.selections || []).map((selection) => [selection.officeId, selection]));
 }
 
+// A supporter who chooses the same politician for multiple offices must be
+// counted once in combined supporter totals, including provincial/regional.
+function uniqueSupporterUserIds(rows = []) {
+  return [...new Set(rows.map((row) => row.id).filter(Boolean).map(String))];
+}
+
 async function loadSupporterUserIds(db, {
   selectedUserId,
   kind = null,
@@ -292,30 +320,54 @@ async function loadSupporterUserIds(db, {
   if (!selectedUserId) return { source: 'CANONICAL', strict: true, userIds: [] };
 
   const normalizedKind = kind == null ? null : normalizeSelectionKind(kind);
+  const requestedOffice = officeId ? resolvePoliticalOffice(officeId) : null;
+  if (officeId && !requestedOffice) return { source: 'CANONICAL', strict: true, userIds: [] };
+  // This shared lookup also feeds push and opinion-change notifications.
+  // No provincial audience may be resolved before its explicit GO, including
+  // when a caller asks for all supporters rather than a particular office.
+  const provincialReleased = isPoliticalOfficeVisible(resolvePoliticalOffice('it.provincial.trento'));
+  if (requestedOffice?.eligibleProvinceCodes?.length && !isPoliticalOfficeVisible(requestedOffice)) {
+    return { source: 'CAPABILITY', strict: true, userIds: [] };
+  }
   try {
     const params = [selectedUserId];
-    const where = ['ps.selected_user_id = $1', `u.status = 'a'`];
+    // Consent may be stored in user_consents while the legacy users flag is
+    // false. The authoritative COALESCE must be the only consent predicate.
+    const where = [
+      'ps.selected_user_id = $1',
+      // Never notify people based on historic rows without a verified office.
+      'ps.political_office_id IS NOT NULL',
+      "u.status = 'a'",
+      'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
+    ];
+    if (!provincialReleased) {
+      where.push("ps.political_office_id NOT IN ('it.provincial.trento', 'it.provincial.bolzano')");
+    }
     if (normalizedKind) {
       params.push(normalizedKind);
       where.push(`ps.selection_kind = $${params.length}`);
     }
-    if (officeId) {
-      const office = resolvePoliticalOffice(officeId);
-      if (!office) return { source: 'CANONICAL', strict: true, userIds: [] };
-      params.push(office.id);
+    if (requestedOffice) {
+      params.push(requestedOffice.id);
       where.push(`ps.political_office_id = $${params.length}`);
     }
     const result = await db.query(
       `SELECT DISTINCT u.id::text AS id
        FROM political_selections ps
        JOIN users u ON u.id = ps.user_id
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
        WHERE ${where.join(' AND ')}
        ORDER BY u.id::text`,
       params,
     );
-    return { source: 'CANONICAL', strict: true, userIds: result.rows.map((row) => row.id) };
+    return { source: 'CANONICAL', strict: true, userIds: uniqueSupporterUserIds(result.rows) };
   } catch (error) {
     if (!isPoliticalSelectionSchemaError(error)) throw error;
+    // An absent canonical schema must not fall back to a provincial legacy
+    // column (none is authorized) or resurrect an unreleased audience.
+    if (requestedOffice?.eligibleProvinceCodes?.length) {
+      return { source: 'CAPABILITY', strict: true, userIds: [] };
+    }
   }
 
   const candidateFields = kind === 'representative' ? [] : getLegacySelectionDescriptors('candidate').map((item) => item.field);
@@ -337,12 +389,14 @@ async function loadSupporterUserIds(db, {
   const result = await db.query(
     `SELECT DISTINCT u.id::text AS id
      FROM users u
+     LEFT JOIN user_consents uc ON uc.user_id = u.id
      WHERE u.status = 'a'
+       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
        AND (${predicate})
      ORDER BY u.id::text`,
     [selectedUserId],
   );
-  return { source: 'LEGACY', strict: false, userIds: result.rows.map((row) => row.id) };
+  return { source: 'LEGACY', strict: false, userIds: uniqueSupporterUserIds(result.rows) };
 }
 
 module.exports = {
@@ -350,6 +404,8 @@ module.exports = {
   isPoliticalSelectionSchemaError,
   normalizeSelectionKind,
   resolveSelectionContract,
+  isPoliticalOfficeVisible,
+  isPoliticalSelectionWriteReleased,
   setPoliticalSelection,
   loadPoliticalSelections,
   selectionsByOffice,

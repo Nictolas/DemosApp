@@ -21,14 +21,25 @@ async function main() {
       const context=await browser.newContext({viewport,serviceWorkers:'block',reducedMotion:'reduce'});
       await context.addInitScript(token=>localStorage.setItem('auth_token',token),TOKEN);
       const page=await context.newPage();
-      const posts=[], graziaPosts=[], proposalReads=[];
+      const posts=[], graziaPosts=[], proposalReads=[], graziaReads=[];
+      let authReads=0;
+      let unblockOldStatus;
+      let notifyOldStatusStarted;
+      const oldStatusStarted=new Promise(resolve=>{notifyOldStatusStarted=resolve;});
       await page.route('**/*',route=>{
         const url=new URL(route.request().url());
         if(url.origin!==BASE)return route.abort();
         if(!url.pathname.startsWith('/api/'))return route.continue();
-        if(url.pathname==='/api/auth/me')return response(route,200,{
+        if(url.pathname==='/api/auth/me'){
+          authReads++;
+          return response(route,200,{
           success:true,user:{id:ID,email:'',status:'a',ruolo:'E',role:'E',account_type:'E',
           political_consent:{granted:true,timestamp:'2026-10-01T00:00:00Z'}}});
+        }
+        if(url.pathname==='/api/grazia/mia-proposta'&&route.request().method()==='GET'){
+          graziaReads.push(url.pathname);
+          return response(route,200,{success:true,richiesta:{id:'grazia-synthetic',status:'pending'}});
+        }
         if(url.pathname==='/api/grazia'&&route.request().method()==='POST'){
           const data=route.request().postDataJSON();
           graziaPosts.push(data);
@@ -37,11 +48,24 @@ async function main() {
         if(url.pathname.startsWith('/api/subject-proposals')){
           if(route.request().method()==='GET'){
             proposalReads.push(url.pathname);
-            return response(route,500,{success:false,error:'No GET should be needed'});
+            if(url.pathname==='/api/subject-proposals/mine'&&url.searchParams.get('category')==='capo_stato'){
+              return new Promise((resolve,reject)=>{
+                unblockOldStatus=()=>response(route,200,{success:true,latest:{id:'stale-capo',status:'pending'}}).then(resolve,reject);
+                notifyOldStatusStarted();
+              });
+            }
+            if(url.pathname==='/api/subject-proposals/mine'&&url.searchParams.get('category')==='organizzazioni'){
+              return response(route,200,{success:true,pending:null,latest:{id:'org-synthetic',status:'approved'}});
+            }
+            return response(route,500,{success:false,error:'No unsolicited GET should be needed'});
           }
           if(route.request().method()==='POST'&&url.pathname==='/api/subject-proposals'){
             const data=route.request().postDataJSON();
             posts.push(data);
+            if(data.title==='Errore sintetico') return response(route,500,{
+              success:false,error:'PRIVATE_SQL_DIAGNOSTIC_SYNTHETIC',
+              message:'PRIVATE_PERSON_TITLE_SYNTHETIC',
+            });
             return response(route,201,{success:true,status:'pending',proposal:{id:'synthetic-'+posts.length}});
           }
         }
@@ -70,6 +94,10 @@ async function main() {
       assert.equal(Object.keys(graziaPosts[0]).length,2,'no judicial details in Grazia');
       assert.equal(posts.length,0,'Grazia never writes the generic subject proposals queue');
       assert.equal(proposalReads.length,0,'no proposal query after submission');
+      assert.equal(graziaReads.length,0,'no Grazia status query until an explicit click');
+      await page.getByRole('button',{name:'Verifica stato della mia proposta'}).click();
+      await page.getByText('La proposta è in attesa di valutazione.').waitFor({timeout:15000});
+      assert.equal(graziaReads.length,1,'Grazia status reads only on user action');
 
       await select.selectOption('organizzazioni');
       assert.equal(await page.locator('#subject-details').count(),1,'other categories may add public details');
@@ -82,6 +110,48 @@ async function main() {
       assert.equal(posts[0].category,'organizzazioni');
       assert.equal(posts[0].details,'Fonte pubblica, senza dati privati');
       assert.equal(proposalReads.length,0,'category switches do not hit proposal API');
+      await page.getByRole('button',{name:'Verifica stato della mia proposta'}).click();
+      await page.getByText('La proposta è stata approvata.').waitFor({timeout:15000});
+      assert.equal(proposalReads.length,1,'generic status reads only after explicit click');
+
+      // A stale response must never appear under the next selected category.
+      await select.selectOption('capo_stato');
+      await page.getByRole('button',{name:'Verifica stato della mia proposta'}).click();
+      await oldStatusStarted;
+      await select.selectOption('organizzazioni');
+      const statusCheck=page.getByRole('button',{name:'Verifica stato della mia proposta'});
+      assert.equal(await statusCheck.isDisabled(),false,
+        'switching categories unlocks the check for the new category');
+      await statusCheck.click();
+      await page.getByText('La proposta è stata approvata.').waitFor({timeout:15000});
+      assert.ok(unblockOldStatus,'old request must be pending for this race');
+      unblockOldStatus();
+      await page.waitForTimeout(80);
+      assert.equal(await page.getByText('La proposta è stata approvata.').count(),1,
+        'the old Capo status must not overwrite the Organizzazioni status');
+      assert.equal(await page.getByText('La proposta è in attesa di valutazione.').count(),0,
+        'the outdated status must not appear under the new category');
+      assert.equal(proposalReads.length,3,'only the three explicitly requested status GETs');
+
+       // Unexpected raw server diagnostic strings must never reach screen.
+       await select.selectOption('attivisti');
+       await page.locator('#subject-title').fill('Errore sintetico');
+       await page.locator('#subject-source').fill('https://example.org/fonte');
+       await submit.click();
+       await page.getByRole('alert').filter({hasText:'Non è stato possibile registrare la proposta. Riprova più tardi.'})
+         .waitFor({timeout:15000});
+       assert.equal(await page.getByText('PRIVATE_SQL_DIAGNOSTIC_SYNTHETIC').count(),0);
+       assert.equal(await page.getByText('PRIVATE_PERSON_TITLE_SYNTHETIC').count(),0);
+       assert.equal(posts.length,2,'one controlled synthetic failed POST following success');
+       assert.equal(proposalReads.length,3,'failed POST must not auto-read private status');
+       await select.selectOption('organizzazioni');
+
+      // Same-mounted account changes are covered separately by
+      // test-proposal-owner-isolation-browser.cjs on a Vite dev server,
+      // using a real React Query cache identity switch. A synthetic browser
+      // focus event is not a reliable trigger for /auth/me revalidation.
+      assert.ok(authReads>=1,'synthetic auth session must have been validated');
+      assert.equal(proposalReads.length,3,'navigation must not auto-read personal status');
       const metrics=await page.evaluate(()=>({
         total:document.documentElement.scrollWidth,
         viewport:window.innerWidth,
@@ -97,10 +167,10 @@ async function main() {
       await page.getByRole('heading',{name:'Proponi',exact:true}).waitFor({timeout:30000});
       await page.getByRole('button',{name:'Torna alla sezione'}).click();
       await page.waitForURL('**/firma',{timeout:15000});
-      assert.equal(proposalReads.length,0,'navigation to source remains GET-free for proposals');
+      assert.equal(proposalReads.length,3,'navigation never performs additional proposal reads');
       await context.close();
       console.log('UNIFIED PROPOSALS browser PASS '+viewport.width+'x'+viewport.height+
-        ': one Grazia POST + one generic POST; no proposal-specific GET');
+        ': one Grazia POST + one generic POST; status GETs only after explicit clicks');
     }
   }finally{await browser.close();}
 }

@@ -177,6 +177,7 @@ export function PoliticalOpinionsConsentModal({
               <li>Permettere l'espressione della tua opinione su temi politici</li>
               <li>Generare statistiche aggregate e anonime sull'opinione pubblica</li>
               <li>Confrontare le tue opinioni con quelle dei rappresentanti politici</li>
+              <li>Mostrarti, se apri il Compasso politico personale, cinque indicatori tematici calcolati sul dispositivo dalle risposte già espresse, senza salvare i punteggi sul server</li>
               <li>Migliorare la piattaforma di democrazia partecipativa</li>
             </ul>
           </div>

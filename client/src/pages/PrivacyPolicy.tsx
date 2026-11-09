@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
             Informativa sulla Privacy
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>DemosApp</strong> - Ultima modifica del testo: 30/10/2026
+            <strong>DemosApp</strong> - Ultima modifica del testo: 08/11/2026
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -37,7 +37,7 @@ export default function PrivacyPolicy() {
             
             <h3 className="text-xl font-medium mb-2">2.1 Dati di Registrazione</h3>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li><strong>Dati anagrafici:</strong> Nome, cognome, anno di nascita, genere</li>
+              <li><strong>Dati anagrafici:</strong> Anno di nascita e sesso; nome e cognome non sono richiesti agli utenti ordinari, ma possono essere trattati per candidati e rappresentanti quando pertinenti</li>
               <li><strong>Dati di contatto:</strong> Indirizzo email</li>
               <li><strong>Dati di residenza:</strong> Paese, regione, provincia, comune di residenza</li>
               <li><strong>Dati di cittadinanza:</strong> Cittadinanza, paese di elezione</li>
@@ -85,7 +85,7 @@ export default function PrivacyPolicy() {
               <li><strong>Obbligo legale (Art. 6.1.c GDPR):</strong> Per adempimenti normativi</li>
             </ul>
             
-            <h3 className="text-xl font-medium mb-2 mt-4">4.1 Trattamento di Dati Particolari - Opinioni Politiche (GDPR Art. 9)</h3>
+            <h3 id="4.1" className="scroll-mt-24 text-xl font-medium mb-2 mt-4">4.1 Trattamento di Dati Particolari - Opinioni Politiche (GDPR Art. 9)</h3>
             <p className="text-gray-700 mb-3">
               Le <strong>opinioni politiche</strong> sono considerate "dati particolari" secondo il GDPR Art. 9 
               e richiedono un <strong>consenso esplicito separato</strong>.
@@ -107,6 +107,7 @@ export default function PrivacyPolicy() {
               <li>Permettere l'espressione della tua opinione su temi politici</li>
               <li>Generare statistiche aggregate e anonime sull'opinione pubblica</li>
               <li>Confrontare le tue opinioni con quelle dei rappresentanti politici</li>
+              <li>Mostrare, soltanto su tua richiesta nella pagina personale del Compasso politico, indicatori esplorativi dei tuoi orientamenti ricavati dalle Opinioni già espresse</li>
               <li>Migliorare la piattaforma di democrazia partecipativa</li>
               <li>Condividere statistiche aggregate e anonime con giornalisti, ricercatori e organizzazioni per ricerca, analisi e informazione pubblica (solo dati aggregati, non identificabili)</li>
             </ul>
@@ -116,10 +117,47 @@ export default function PrivacyPolicy() {
               informazione pubblica. I dati individuali non vengono mai condivisi.
             </p>
             <p className="text-gray-700">
-              <strong>Nessuna profilazione o vendita dati individuali:</strong> Le tue opinioni politiche individuali 
+              <strong>Nessuna profilazione commerciale o vendita dei dati individuali:</strong> Le tue opinioni politiche individuali 
               non vengono utilizzate per creare profili utente per scopi commerciali, non vengono vendute o condivise 
               con partiti politici, e non vengono utilizzate per targeting pubblicitario politico. Solo statistiche 
               aggregate e anonime (non identificabili) possono essere condivise con giornalisti, ricercatori e organizzazioni.
+            </p>
+          </section>
+
+          {/* Indicazioni specifiche sulle inferenze politiche locali */}
+          <section aria-labelledby="compasso-privacy-heading">
+            <h2 id="compasso-privacy-heading" className="text-2xl font-semibold mb-3">
+              4.2 Compasso politico e indicatori tematici
+            </h2>
+            <p className="text-gray-700 mb-3">
+              Se scegli di aprire la pagina personale del Compasso politico e il consenso
+              alle Opinioni politiche è valido, DEMOS utilizza un sottoinsieme delle risposte
+              già fornite per stimare la tua posizione su due dimensioni e mostrare cinque
+              indicatori tematici: economia, Stato, costumi, ambiente e immigrazione.
+              I risultati sono inferenze sulle opinioni politiche e possono costituire
+              profilazione ai sensi del GDPR, anche se il calcolo viene effettuato
+              sul tuo dispositivo.
+            </p>
+            <p className="text-gray-700 mb-3">
+              Il calcolo viene eseguito nel browser o nell'app sul dispositivo, al momento
+              della visualizzazione, senza salvare i punteggi nel database, inviarli al server
+              o renderli pubblici sul profilo. Non vengono aggiunte nuove domande obbligatorie,
+              né raccolta l'appartenenza religiosa. Le Opinioni di partenza mantengono invece
+              il trattamento e la conservazione già descritti in questa informativa.
+            </p>
+            <p className="text-gray-700 mb-3">
+              Il Compasso e le cinque barre sono strumenti esplorativi e non scientificamente
+              validati: non identificano con certezza un'ideologia e non vengono utilizzati
+              per decisioni automatizzate con effetti giuridici o analogamente significativi,
+              né per pubblicità politica personalizzata. Se mancano risposte sufficienti,
+              può comparire «Dati insufficienti» al posto di un punteggio.
+            </p>
+            <p className="text-gray-700">
+              L'uso della pagina è facoltativo. Senza consenso alle Opinioni politiche
+              attivo il Compasso non mostra risultati; puoi revocare il consenso con le
+              modalità descritte sopra. Le percentuali rappresentano un punteggio
+              trasformato delle risposte selezionate, non probabilità né dati
+              rappresentativi della popolazione.
             </p>
           </section>
 
@@ -275,7 +313,7 @@ export default function PrivacyPolicy() {
 
             <h3 id="eliminazione-account" className="text-xl font-medium mb-2 mt-6">5.5 Come richiedere l'eliminazione dell'account (DemosApp)</h3>
             <p className="text-gray-700 mb-3">
-              Se utilizzi l'app <strong>DemosApp</strong> (sviluppata da Demos / DemosApp Team) e desideri eliminare il tuo account e i dati associati, puoi farlo nel seguente modo.
+              Se utilizzi l'app <strong>DemosApp</strong> (gestita nell'ambito del progetto DEMOS) e desideri eliminare il tuo account e i dati associati, puoi farlo nel seguente modo.
             </p>
             <p className="text-gray-700 font-medium mb-2">Passaggi per richiedere l'eliminazione:</p>
             <ol className="list-decimal pl-6 mb-4 text-gray-700 space-y-2">
@@ -370,15 +408,17 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">8. Utilizzo di Dati Aggregati per Pubblicazione</h2>
             <p className="text-gray-700 mb-3">
-              Utilizziamo i dati aggregati e anonimi derivanti dai sondaggi e dalle votazioni 
-              della piattaforma per divulgare i risultati e promuovere la partecipazione democratica.
+              Quando appropriato, diffondiamo statistiche derivate da opinioni e scelte raccolte
+              sulla piattaforma per divulgare risultati e promuovere la partecipazione democratica.
+              Il trattamento delle risposte personali sottostanti è distinto dalla pubblicazione
+              dei risultati e resta soggetto ai consensi e alle altre condizioni applicabili.
             </p>
             
             <h3 className="text-xl font-medium mb-2">8.1 Pubblicazione sui Social Media</h3>
             <p className="text-gray-700 mb-3">
-              Pubbliciamo sui nostri canali social media (inclusi ma non limitati a Facebook, 
-              Instagram, Twitter, LinkedIn, TikTok e altre piattaforme digitali) dati statistici 
-              aggregati e anonimi per:
+              Possiamo pubblicare sui canali social e su altre piattaforme dati statistici
+              sufficientemente aggregati oppure effettivamente anonimi, con adeguate misure
+              di minimizzazione del rischio di identificazione, per:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li>Divulgare i risultati dei sondaggi e delle votazioni in forma aggregata</li>
@@ -387,27 +427,33 @@ export default function PrivacyPolicy() {
               <li>Incrementare la consapevolezza sui temi trattati dalla piattaforma</li>
             </ul>
             
-            <h3 className="text-xl font-medium mb-2">8.2 Garanzie di Anonimato</h3>
+            <h3 className="text-xl font-medium mb-2">8.2 Salvaguardie contro la Reidentificazione</h3>
             <p className="text-gray-700 mb-3">
-              I dati pubblicati sui social media e altre piattaforme contengono <strong>esclusivamente</strong>:
+              Prima di pubblicare statistiche sui social media e sulle altre piattaforme,
+              verifichiamo il rischio che dati anche aggregati consentano di identificare
+              indirettamente le persone. Le pubblicazioni possono comprendere:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li>Statistiche aggregate (percentuali, totali, medie, distribuzioni)</li>
-              <li>Dati anonimi che non permettono l'identificazione di singoli utenti</li>
+              <li>Risultati effettivamente anonimizzati, quando possibile e verificato</li>
               <li>Statistiche geografiche (nazionali, regionali, provinciali, comunali) solo quando 
-                  il campione è sufficientemente ampio da garantire l'anonimato</li>
+                  il campione e gli altri fattori di rischio consentono una diffusione adeguatamente protetta</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              <strong>Non pubblichiamo mai:</strong> nomi, email, dati anagrafici, codici fiscali, 
-              o qualsiasi altra informazione che permetta l'identificazione di singoli utenti.
+              <strong>Non includiamo intenzionalmente:</strong> nomi, email, dati anagrafici
+              o altre informazioni direttamente identificative nelle statistiche pubblicate.
+              I risultati su gruppi piccoli o facilmente riconoscibili non devono essere diffusi
+              senza adeguate protezioni.
             </p>
             
             <h3 className="text-xl font-medium mb-2">8.3 Base Giuridica</h3>
             <p className="text-gray-700 mb-3">
-              L'utilizzo di dati aggregati e anonimi per la pubblicazione si basa sull'
-              <strong>interesse legittimo</strong> (Art. 6.1.f GDPR) di promuovere la partecipazione 
-              democratica e divulgare informazioni di interesse pubblico. I dati sono sempre 
-              aggregati e anonimi, pertanto non richiedono consenso specifico.
+              Le opinioni e le scelte politiche riferibili a persone identificabili sono dati
+              personali che richiedono una base giuridica valida e una condizione applicabile
+              ai sensi dell'art. 9 GDPR, in particolare il consenso esplicito quando previsto.
+              Anche le operazioni necessarie a produrre statistiche devono essere lecite.
+              I risultati realmente anonimi non costituiscono più dati personali, mentre
+              semplici aggregazioni o pseudonimizzazioni non assicurano da sole l'anonimato.
             </p>
             <p className="text-gray-700 mb-3">
               Per ulteriori dettagli sull'utilizzo dei dati aggregati, consulta la sezione 
@@ -433,7 +479,7 @@ export default function PrivacyPolicy() {
                 dalla pagina <a href="/gdpr" className="text-blue-600 hover:text-blue-800 underline">Diritti GDPR</a> 
                 in formato <strong>JSON</strong> (formato standard, leggibile automaticamente) o <strong>CSV</strong> 
                 (formato tabellare, compatibile con Excel e altri software). I dati esportati includono: 
-                profilo utente, opinioni politiche, attività di voto (in forma aggregata per garantire l'anonimato), 
+                profilo utente, opinioni politiche, attività di voto nei limiti dei dati personali esportabili, 
                 comunicazioni, notifiche, consensi e log di audit. I dati sono esportati conformemente al GDPR Art. 20.1, 
                 in formato strutturato e comunemente usato. <strong>Nota:</strong> Il trasferimento diretto dei dati 
                 a un altro fornitore di servizi richiede standard tecnici comuni tra i fornitori; attualmente non è 
@@ -463,13 +509,97 @@ export default function PrivacyPolicy() {
               <li><strong>Cookie di preferenze:</strong> Per memorizzare le impostazioni dell'utente (es. stato sidebar)</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              <strong>Non utilizziamo cookie di marketing o di profilazione</strong> che richiederebbero il tuo consenso. 
-              I cookie tecnici utilizzati non richiedono consenso secondo la direttiva ePrivacy.
+              Sul sito web DEMOS, allo stato attuale, non utilizziamo cookie pubblicitari
+              di Google AdMob o Google AdSense. I cookie e gli strumenti strettamente necessari
+              al funzionamento del servizio sono trattati secondo le norme applicabili.
+              L'eventuale pubblicità nativa Android è distinta dai cookie del sito.
             </p>
             <p className="text-gray-700">
               Per maggiori dettagli, consulta la nostra{" "}
               <a href="/cookie-policy" className="text-blue-600 hover:text-blue-800 underline">
                 Cookie Policy
+              </a>.
+            </p>
+          </section>
+
+          {/* Preparazione trasparente, non attivazione di nuovi SDK nelle release */}
+          <section>
+            <h2 className="text-2xl font-semibold mb-3">
+              10.1 Pubblicità nell'app Android: integrazione prevista, non ancora attiva
+            </h2>
+            <p className="text-gray-700 mb-3">
+              DEMOS sta predisponendo unicamente annunci di tipo <strong>App Open</strong>
+              (all'apertura dell'app Android) tramite Google AdMob. <strong>Nelle versioni
+              Android attualmente distribuite questa integrazione pubblicitaria non è
+              attiva e gli SDK AdMob e UMP non sono inclusi nella variante di rilascio.</strong>
+              L'eventuale attivazione richiederà una nuova versione dell'app, la verifica
+              della conformità e l'aggiornamento delle informazioni nello store.
+              Non è prevista pubblicità sul sito web.
+            </p>
+            <p className="text-gray-700 mb-3">
+              Se l'integrazione verrà attivata, DEMOS intende richiedere soltanto
+              <strong> annunci non personalizzati</strong>. Questo non significa che gli
+              annunci siano privi di trattamento di dati personali: Google Mobile Ads
+              può raccogliere e condividere dati tecnici per la fornitura degli annunci,
+              la misurazione, la diagnostica e la prevenzione delle frodi.
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>
+                <strong>Dati tecnici potenzialmente trattati da Google:</strong> indirizzo IP
+                (anche per stimare la posizione approssimativa), interazioni con annunci e app,
+                informazioni diagnostiche e identificatori del dispositivo o pubblicitari,
+                secondo le impostazioni effettive e le condizioni dei servizi.
+              </li>
+              <li>
+                <strong>Nessun trasferimento intenzionale delle scelte civiche:</strong> DEMOS
+                non utilizzerà opinioni politiche, voti, firme, affinità politiche, dati del
+                profilo o identificativi dell'account per creare segmenti pubblicitari
+                o inviarli a Google AdMob. I dati tecnici raccolti autonomamente dagli SDK
+                devono comunque essere valutati separatamente.
+              </li>
+              <li>
+                <strong>Fornitori:</strong> Google e, se effettivamente coinvolti, i partner
+                pubblicitari indicati nel messaggio di consenso e nel relativo elenco
+                aggiornato. L'inclusione nell'elenco non implica che ogni partner riceva
+                dati da ogni utente.
+              </li>
+              <li>
+                <strong>Scelte dell'utente:</strong> prima di richiedere annunci laddove
+                richiesto verrà presentato il messaggio Google UMP, con le possibilità
+                di accettare, negare il consenso o gestire le opzioni. L'eventuale
+                interesse legittimo, ove applicabile, resta distinto dal consenso e
+                può essere oggetto di opposizione. Le opzioni privacy saranno
+                nuovamente accessibili nell'app quando richiesto dalle regole UMP.
+                Rifiutare il consenso pubblicitario non impedisce di usare DEMOS.
+              </li>
+              <li>
+                <strong>Informazioni e diritti:</strong> basi giuridiche, periodi di
+                conservazione, eventuali trasferimenti extra SEE e impostazioni
+                definitive dovranno essere verificati prima dell'attivazione,
+                assieme al Registro dei trattamenti e alla dichiarazione
+                Sicurezza dei dati di Google Play. Puoi contattare
+                <strong> privacy@demos.community</strong> per esercitare i tuoi diritti.
+              </li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              Per ulteriori informazioni sui trattamenti relativi ai servizi
+              pubblicitari Google, consulta la{' '}
+              <a
+                href="https://developers.google.com/admob/android/next-gen/privacy/play-data-disclosure"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                documentazione sui dati trattati da Google Mobile Ads
+              </a>
+              {' '}e le{' '}
+              <a
+                href="https://policies.google.com/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                norme sulla privacy di Google
               </a>.
             </p>
           </section>
@@ -598,7 +728,7 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-none text-gray-700">
               <li><strong>Email:</strong> privacy@demos.community</li>
-              <li><strong>Responsabile del trattamento:</strong> DemosApp Team</li>
+              <li><strong>Titolare del trattamento:</strong> Nicolas Micheletti (progetto DEMOS)</li>
               <li><strong>Autorità di controllo:</strong> Garante per la Protezione dei Dati Personali</li>
             </ul>
           </section>

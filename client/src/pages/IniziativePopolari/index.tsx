@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/PageContainer";
 import { Header } from "./components/Header";
 import { IniziativeTable } from "./components/IniziativeTable";
 import { ViewDialog } from "./components/ViewDialog";
@@ -17,6 +18,7 @@ export default function IniziativePopolari() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("firme");
+  const deepLinkHandled = useRef(false);
 
   const { 
     listaIniziative, 
@@ -81,6 +83,16 @@ export default function IniziativePopolari() {
     return filtered;
   }, [iniziativeUfficiali, searchQuery, sortBy]);
 
+  useEffect(() => {
+    if (deepLinkHandled.current || isLoading || isError || !user) return;
+    const id = new URLSearchParams(window.location.search).get("initiative");
+    if (!id) return;
+    deepLinkHandled.current = true;
+    const item = filteredAndSortedIniziative.find(
+      entry => String(entry.id_ministero ?? entry.id) === id
+    );
+    if (item) startEditView(item);
+  }, [filteredAndSortedIniziative, isLoading, isError, user]);
 
   // Redirect se non autenticato
   if (isAuthLoading) {
@@ -96,7 +108,8 @@ export default function IniziativePopolari() {
   }
 
   return (
-    <div className="iniziative-popolari-page container mx-auto px-4 py-8">
+    <PageContainer className="overflow-hidden">
+    <div className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain iniziative-popolari-page container mx-auto px-4 py-8" role="region" aria-label="Elenco iniziative popolari" tabIndex={0}>
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           <Header />
@@ -125,5 +138,6 @@ export default function IniziativePopolari() {
         onClose={closeView}
       />
     </div>
+    </PageContainer>
   );
 }

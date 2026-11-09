@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Loader2, Users, User, Search, X, Filter, ChevronDown } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
@@ -13,6 +13,9 @@ import OrganizzazioneModal from "@/components/OrganizzazioneModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiUrl } from "@/lib/api-config";
+import { useApprovedSubjectResumeRefresh } from "@/hooks/useApprovedSubjectResumeRefresh";
+import { useApprovedDirectoryPagination } from "@/hooks/useApprovedDirectoryPagination";
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -26,19 +29,9 @@ interface organizzazione {
   id: string;
   nome: string;
   cognome: string;
-  email: string;
   ruolo: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
   avatar_config?: string;
-  genere?: string;
-  data_nascita?: string;
-  cittadinanza?: string;
-  paese_residenza?: string;
   regione_residenza?: string;
-  provincia_residenza?: string;
-  comune_residenza?: string;
   facebook_url?: string;
   twitter_url?: string;
   instagram_url?: string;
@@ -54,7 +47,9 @@ interface organizzazione {
 interface OrganizzazioniResponse {
   success: boolean;
   data: organizzazione[];
-  approved_subjects?: Array<{ id: string; title: string; details: string; source_url: string | null }>;
+  approved_subjects?: Array<{ id: string; title: string }>;
+  approved_next_cursor?: string | null;
+  members_next_cursor?: string | null;
   count: number;
   message: string;
 }
@@ -62,9 +57,15 @@ interface OrganizzazioniResponse {
 export default function Organizzazioni() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const API_BASE = 'https://demos-c7k0.onrender.com';
   const [organizzazioni, setOrganizzazioni] = useState<organizzazione[]>([]);
-  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string; details: string; source_url: string | null }>>([]);
+  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string }>>([]);
+  const [membersNextCursor,setMembersNextCursor]=useState<string|null>(null);
+  const [membersLoadingMore,setMembersLoadingMore]=useState(false);
+  const [membersPageError,setMembersPageError]=useState(false);
+  const membersRequestVersion=useRef(0);
+  const membersMoreController=useRef<AbortController|null>(null);
+  const { nextCursor, loadingMore, pageError, reset, loadMore } =
+    useApprovedDirectoryPagination("organizzazioni", setApprovedSubjects);
   const [filteredOrganizzazioni, setFilteredOrganizzazioni] = useState<organizzazione[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegione, setSelectedRegione] = useState("all");
@@ -80,11 +81,14 @@ export default function Organizzazioni() {
   const [supportersCount, setSupportersCount] = useState<Record<string, number>>({});
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
+  // No initial extra read or polling. On foreground resume, discard stale nominations.
+  useApprovedSubjectResumeRefresh("organizzazioni", setApprovedSubjects, !isLoading && !isError, reset);
+
   // Carica filtri disponibili e stato following
   useEffect(() => {
     const fetchFiltri = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/organizzazioni/filtri`);
+        const response = await fetch(getApiUrl('/api/organizzazioni/filtri'));
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
@@ -93,7 +97,7 @@ export default function Organizzazioni() {
           }
         }
       } catch (error) {
-        console.error('Errore nel caricamento dei filtri:', error);
+        console.warn('ORG_FILTER_LOAD_FAILED');
       }
     };
 
@@ -110,7 +114,7 @@ export default function Organizzazioni() {
           setFollowingUsers(new Set());
         }
       } catch (error) {
-        console.error('Errore nel caricamento stato voto organizzazione:', error);
+        console.warn('ORG_FOLLOW_STATUS_FAILED');
       }
     };
 
@@ -121,60 +125,94 @@ export default function Organizzazioni() {
   // Carica gli organizzazioni
   useEffect(() => {
     const controller = new AbortController();
-    console.log('🚀 Organizzazioni useEffect - Inizio');
+    ++membersRequestVersion.current;
+    membersMoreController.current?.abort();
+    membersMoreController.current=null;
+    setMembersNextCursor(null);
+    setMembersPageError(false);
+    setMembersLoadingMore(false);
     const fetchOrganizzazioni = async () => {
       try {
-        console.log('🔄 fetchOrganizzazioni - Inizio caricamento');
         setIsLoading(true);
         setIsError(false);
+        // Clear stale approved names whenever filters or queries restart.
+        setApprovedSubjects([]);
+        reset(null);
         
         // Costruisci URL con parametri di ricerca
         const params = new URLSearchParams();
         if (searchTerm.trim()) params.append('search', searchTerm.trim());
         if (selectedRegione && selectedRegione !== 'all') params.append('regione', selectedRegione);
         if (selectedTipologia && selectedTipologia !== 'all') params.append('tipologia', selectedTipologia);
+        params.set('members_paged', '1');
         
-        const url = `${API_BASE}/api/organizzazioni${params.toString() ? '?' + params.toString() : ''}`;
-        console.log('📡 fetchOrganizzazioni - Chiamata API:', url);
+        const url = getApiUrl(`/api/organizzazioni${params.toString() ? '?' + params.toString() : ''}`);
         
-        const response = await fetch(url, { signal: controller.signal });
-        console.log('📡 fetchOrganizzazioni - Response status:', response.status);
+        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
         
         if (!response.ok) {
-          throw new Error(`Errore ${response.status}: ${response.statusText}`);
+          throw new Error('DIRECTORY_LOAD_FAILED');
         }
         
-        console.log('📡 fetchOrganizzazioni - Parsing JSON...');
         const data: OrganizzazioniResponse = await response.json();
         // Una ricerca precedente non deve sovrascrivere i risultati dell'ultima digitazione.
         if (controller.signal.aborted) return;
-        console.log('📊 fetchOrganizzazioni - Data ricevuta:', data);
         
               if (data.success) {
-                console.log('✅ fetchOrganizzazioni - Successo, organizzazioni:', data.data.length);
-                console.log('📊 fetchOrganizzazioni - Dati organizzazioni:', data.data);
                 
                 // I dati arrivano già ordinati per supporters_count DESC
-                setOrganizzazioni(data.data as any);
-                setApprovedSubjects(data.approved_subjects || []);
-                setFilteredOrganizzazioni(data.data as any);
+                // Defense in depth: never retain unexpected private account
+                // attributes if a future API response expands its payload.
+                const publicRows = Array.isArray(data.data)
+                  ? data.data
+                      .filter(item => item && typeof item.id === 'string' &&
+                        typeof item.nome === 'string' && typeof item.cognome === 'string' &&
+                        typeof item.ruolo === 'string')
+                      .map(item => ({
+                        id: item.id,
+                        nome: item.nome,
+                        cognome: item.cognome,
+                        ruolo: item.ruolo,
+                        avatar_config: item.avatar_config,
+                        regione_residenza: item.regione_residenza,
+                        facebook_url: item.facebook_url,
+                        twitter_url: item.twitter_url,
+                        instagram_url: item.instagram_url,
+                        linkedin_url: item.linkedin_url,
+                        telegram_url: item.telegram_url,
+                        website_url: item.website_url,
+                        twitch_url: item.twitch_url,
+                        youtube_url: item.youtube_url,
+                        tipologie_attivismo: item.tipologie_attivismo,
+                        supporters_count: item.supporters_count,
+                      }))
+                  : [];
+                setOrganizzazioni(publicRows);
+                setMembersNextCursor(data.members_next_cursor ?? null);
+                setApprovedSubjects(
+                  Array.isArray(data.approved_subjects)
+                    ? data.approved_subjects
+                        .filter(item => item && typeof item.id === "string" && typeof item.title === "string")
+                        .map(item => ({ id: item.id, title: item.title }))
+                    : [],
+                );
+                reset(data.approved_next_cursor ?? null);
+                setFilteredOrganizzazioni(publicRows);
                 const next: Record<string, number> = {};
-                (data.data as any[]).forEach((a) => { 
-                  console.log(`📊 organizzazione ${a.nome} ${a.cognome}: supporters_count = ${a.supporters_count}`);
+                publicRows.forEach((a) => { 
                   next[a.id] = (a as any).supporters_count ?? 0; 
                 });
-                console.log('📊 supportersCount finale:', next);
                 setSupportersCount(next);
               } else {
-          throw new Error(data.message || 'Errore nel caricamento degli organizzazioni');
+          throw new Error('DIRECTORY_RESPONSE_INVALID');
         }
       } catch (error) {
         if (controller.signal.aborted) return;
-        console.error('❌ fetchOrganizzazioni - Errore:', error);
+        setApprovedSubjects([]);
+        console.warn('ORG_DIRECTORY_LOAD_FAILED');
         setIsError(true);
-        setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
+        setErrorMessage('Non è stato possibile caricare le organizzazioni. Riprova più tardi.');
       } finally {
-        console.log('🏁 fetchOrganizzazioni - Completato, setIsLoading(false)');
         if (!controller.signal.aborted) setIsLoading(false);
       }
     };
@@ -187,8 +225,69 @@ export default function Organizzazioni() {
     return () => {
       window.clearTimeout(timer);
       controller.abort();
+      ++membersRequestVersion.current;
+      membersMoreController.current?.abort();
     };
-  }, [searchTerm, selectedRegione, selectedTipologia]);
+  }, [searchTerm, selectedRegione, selectedTipologia, reset]);
+
+  // Additional registered profiles are read only on explicit user action.
+  // A filter change aborts the request so stale results cannot reappear.
+  const loadMoreRegistered = async () => {
+    if (!membersNextCursor || membersLoadingMore || membersMoreController.current) return;
+    const version = membersRequestVersion.current;
+    const controller = new AbortController();
+    membersMoreController.current = controller;
+    setMembersLoadingMore(true);
+    setMembersPageError(false);
+    const params = new URLSearchParams();
+    if (searchTerm.trim()) params.set("search", searchTerm.trim());
+    if (selectedRegione && selectedRegione !== "all") params.set("regione", selectedRegione);
+    if (selectedTipologia && selectedTipologia !== "all") params.set("tipologia", selectedTipologia);
+    params.set("members_paged", "1");
+    params.set("members_cursor", membersNextCursor);
+    try {
+      const response = await fetch(getApiUrl("/api/organizzazioni?" + params.toString()), {
+        signal: controller.signal, cache: "no-store"
+      });
+      if (!response.ok) throw new Error("DIRECTORY_PAGE_FAILED");
+      const data: OrganizzazioniResponse = await response.json();
+      if (controller.signal.aborted || version !== membersRequestVersion.current) return;
+      if (!data.success || !Array.isArray(data.data)) throw new Error("DIRECTORY_PAGE_INVALID");
+      // The same explicit public-fields whitelist is applied to every page.
+      const nextRows = data.data
+        .filter(item => item && typeof item.id === "string" &&
+          typeof item.nome === "string" && typeof item.cognome === "string" &&
+          typeof item.ruolo === "string")
+        .map(item => ({
+          id: item.id, nome: item.nome, cognome: item.cognome, ruolo: item.ruolo,
+          avatar_config: item.avatar_config, regione_residenza: item.regione_residenza,
+          facebook_url: item.facebook_url, twitter_url: item.twitter_url,
+          instagram_url: item.instagram_url, linkedin_url: item.linkedin_url,
+          telegram_url: item.telegram_url, website_url: item.website_url,
+          twitch_url: item.twitch_url, youtube_url: item.youtube_url,
+          tipologie_attivismo: item.tipologie_attivismo,
+          supporters_count: item.supporters_count
+        }));
+      const appendUnique = (previous: typeof nextRows) => {
+        const ids = new Set(previous.map(item => item.id));
+        return [...previous, ...nextRows.filter(item => !ids.has(item.id))];
+      };
+      setOrganizzazioni(appendUnique);
+      setFilteredOrganizzazioni(appendUnique);
+      setSupportersCount(previous => {
+        const next = {...previous};
+        nextRows.forEach(item => {if (!(item.id in next)) next[item.id] = item.supporters_count ?? 0;});
+        return next;
+      });
+      setMembersNextCursor(data.members_next_cursor ?? null);
+    } catch (_) {
+      if (!controller.signal.aborted && version === membersRequestVersion.current)
+        setMembersPageError(true);
+    } finally {
+      if (membersMoreController.current === controller) membersMoreController.current = null;
+      if (version === membersRequestVersion.current) setMembersLoadingMore(false);
+    }
+  };
 
   // I filtri sono ora gestiti lato server, non serve più filtrare lato client
 
@@ -414,7 +513,7 @@ export default function Organizzazioni() {
       } else {
         toast({
           title: "Errore",
-          description: data.error || "Impossibile votare questo organizzazione",
+          description: "Impossibile votare questa organizzazione",
           variant: "destructive"
         });
       }
@@ -427,10 +526,10 @@ export default function Organizzazioni() {
         setFollowingUsers(new Set([organizzazioneId]));
         return;
       }
-      console.error('Errore nel votare organizzazione:', error);
+      console.warn('ORG_SUPPORT_ACTION_FAILED');
       toast({
         title: "Errore",
-        description: error?.message || "Errore di connessione",
+        description: "Errore di connessione",
         variant: "destructive"
       });
     }
@@ -452,12 +551,6 @@ export default function Organizzazioni() {
     return tipologie.map(t => `${t.emoji} ${t.nome}`).join(', ');
   };
 
-  console.log('🎨 Organizzazioni render - isLoading:', isLoading, 'isError:', isError, 'organizzazioni.length:', organizzazioni.length, 'filteredOrganizzazioni.length:', filteredOrganizzazioni.length);
-  console.log('🎨 Organizzazioni render - organizzazioni data:', organizzazioni);
-  console.log('🎨 Organizzazioni render - filteredOrganizzazioni data:', filteredOrganizzazioni);
-  console.log('🎨 Organizzazioni render - searchTerm:', searchTerm);
-  console.log('🎨 Organizzazioni render - should show table:', !isLoading && !isError && filteredOrganizzazioni.length > 0);
-  console.log('🎨 Organizzazioni render - RENDERING PAGE NOW!');
   
   return (
     <PageContainer className="directory-organizzazioni-page overflow-hidden bg-gray-50">
@@ -770,9 +863,18 @@ export default function Organizzazioni() {
                 </div>
               </div>
             )}
-            {approvedSubjects.filter(s => !searchTerm.trim() || s.title.toLowerCase().includes(searchTerm.trim().toLowerCase())).length > 0 && (
+            {!isLoading && !isError && membersNextCursor && (
+              <div className="mt-4 flex justify-center">
+                <Button type="button" variant="outline" onClick={() => { void loadMoreRegistered(); }} disabled={membersLoadingMore}>
+                  {membersLoadingMore ? "Caricamento..." : "Carica altre organizzazioni registrate"}
+                </Button>
+              </div>
+            )}
+            {membersPageError && <p role="alert" className="mt-2 text-center text-sm text-red-600">Impossibile caricare altri profili. Riprova.</p>}
+            {approvedSubjects.length > 0 && (
               <section className="mt-5 space-y-3" aria-label="Organizzazioni segnalate e approvate">
                 <h2 className="text-lg font-semibold">Organizzazioni segnalate e approvate</h2>
+                <p className="text-xs text-slate-600">Per contestare una segnalazione che ti riguarda o chiedere una rettifica, contatta <a className="underline underline-offset-2" href="mailto:privacy@demos.community">privacy@demos.community</a>. Non inviare documenti sensibili senza istruzioni.</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {approvedSubjects.filter(s => !searchTerm.trim() || s.title.toLowerCase().includes(searchTerm.trim().toLowerCase())).map(subject => (
                     <Card key={subject.id} className="bg-white">
@@ -780,15 +882,15 @@ export default function Organizzazioni() {
                         <CardTitle className="break-words text-base">{subject.title}</CardTitle>
                         <p className="text-xs text-slate-600">Soggetto pubblico approvato, non un account DEMOS verificato.</p>
                       </CardHeader>
-                      {(subject.details || subject.source_url) && (
-                        <CardContent className="space-y-2 px-3 pb-3 text-sm">
-                          {subject.details && <p className="break-words">{subject.details}</p>}
-                          {subject.source_url?.startsWith("https://") && <a href={subject.source_url} rel="noopener noreferrer" target="_blank" className="text-blue-700 underline">Fonte pubblica</a>}
-                        </CardContent>
-                      )}
                     </Card>
                   ))}
                 </div>
+                {nextCursor && (
+                  <Button type="button" variant="outline" onClick={loadMore} disabled={loadingMore}>
+                    {loadingMore ? "Caricamento..." : "Carica altre organizzazioni approvate"}
+                  </Button>
+                )}
+                {pageError && <p role="alert" className="text-sm text-red-600">Impossibile caricare altri soggetti. Riprova.</p>}
               </section>
             )}
           </div>

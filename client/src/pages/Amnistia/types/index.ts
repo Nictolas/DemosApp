@@ -38,6 +38,7 @@ export interface LeggeItemProps {
 }
 
 export interface AmnistiaFormProps {
+  limit: number;
   leggeInput: string;
   showSuggestions: boolean;
   mieiVoti: string[];

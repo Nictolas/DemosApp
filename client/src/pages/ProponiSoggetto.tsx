@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation, Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { isPublicHttpsSourceUrl } from "@/lib/publicHttpsSourceUrl";
 import { ArrowLeft, CheckCircle2, Loader2, Send } from "lucide-react";
 import {
   SUBJECT_PROPOSAL_CATEGORIES,
@@ -35,10 +36,28 @@ export default function ProponiSoggetto() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<ProposalCategory | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [myStatus, setMyStatus] = useState<string | null>(null);
+  const [statusOwnerId, setStatusOwnerId] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  // Invalidate an in-flight personal status read whenever its category changes.
+  // Older results must never be shown under a different proposal category.
+  const statusRequestVersion = useRef(0);
+  // Prevent late POST completion from changing a newer category/owner form.
+  const submitRequestVersion = useRef(0);
+  // The owner is tracked on every render, before effects, so another
+  // account cannot see or complete an earlier account's private request.
+  const currentOwnerId = useRef<string | null>(user?.id ?? null);
+  currentOwnerId.current = user?.id ?? null;
 
   // Contextual + from any of the five sections preselects a category.
   // No GET request is made on opening this page or changing the category.
   useEffect(() => {
+    statusRequestVersion.current += 1;
+    submitRequestVersion.current += 1;
+    setCheckingStatus(false);
+    setSubmitting(false);
+    setStatusOwnerId(null);
     const fromUrl = typeof window === "undefined" ? DEFAULT_SUBJECT_CATEGORY : categoryFromSearch(window.location.search);
     setCategory(fromUrl);
     setReturnPath(proposalReturnPathFromSearch(window.location.search));
@@ -47,26 +66,28 @@ export default function ProponiSoggetto() {
     setSourceUrl("");
     setSubmitted(null);
     setError(null);
-  }, [location]);
+    setMyStatus(null);
+    setStatusError(null);
+  }, [location, user?.id]);
 
   const chooseCategory = (next: ProposalCategory) => {
+    if (submitting) return;
+    statusRequestVersion.current += 1;
+    submitRequestVersion.current += 1;
+    setCheckingStatus(false);
     setCategory(next);
     setTitle("");
     setDetails("");
     setSourceUrl("");
     setSubmitted(null);
     setError(null);
+    setMyStatus(null);
+    setStatusOwnerId(null);
+    setStatusError(null);
   };
 
   const config = getProposalCategory(category);
-  const sourceIsValid = (() => {
-    try {
-      const url = new URL(sourceUrl.trim());
-      return url.protocol === "https:" && !!url.hostname && !url.username && !url.password;
-    } catch {
-      return false;
-    }
-  })();
+  const sourceIsValid = isPublicHttpsSourceUrl(sourceUrl.trim());
   const canSubmit = title.trim().length >= 3 &&
     title.trim().length <= 150 && sourceIsValid && sourceUrl.length <= (category === "grazia" ? 2000 : 2048) &&
     (category === "grazia" || details.length <= 1000) &&
@@ -75,6 +96,8 @@ export default function ProponiSoggetto() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSubmit || !authReady || !user) return;
+    const submitOwnerId = user.id;
+    const submitVersion = ++submitRequestVersion.current;
     setSubmitting(true);
     setError(null);
     try {
@@ -98,6 +121,7 @@ export default function ProponiSoggetto() {
       if (!response?.data?.success || !recorded) {
         throw new Error("La proposta non è stata registrata.");
       }
+      if (currentOwnerId.current !== submitOwnerId || submitRequestVersion.current !== submitVersion) return;
       setSubmitted(category);
       setTitle("");
       setDetails("");
@@ -108,13 +132,59 @@ export default function ProponiSoggetto() {
       });
     } catch (reason: any) {
       const status = reason?.status;
-      const message = status === 409
+      // Never render server-supplied error strings containing diagnostics or
+      // information about another person's pending proposal.
+      const message = status === 503 && reason?.data?.error === "PROPOSTE_NON_DISPONIBILI"
+        ? "L'invio di nuove proposte non è ancora disponibile."
+        : status === 409
         ? "Hai già una proposta in attesa per questa categoria oppure il soggetto è già stato proposto."
-        : reason?.data?.message || reason?.data?.error || "Non è stato possibile registrare la proposta.";
-      setError(message);
+        : status === 401 ? "Sessione scaduta. Accedi nuovamente per inviare la proposta."
+        : status === 403 ? "Non hai i requisiti per inviare questa proposta."
+        : status === 400 || status === 422 ? "Controlla categoria, titolo e fonte HTTPS."
+        : status === 429 ? "Troppe richieste. Riprova più tardi."
+        : "Non è stato possibile registrare la proposta. Riprova più tardi.";
+      if (currentOwnerId.current === submitOwnerId && submitRequestVersion.current === submitVersion)
+        setError(message);
     } finally {
-      setSubmitting(false);
+      if (currentOwnerId.current === submitOwnerId && submitRequestVersion.current === submitVersion)
+        setSubmitting(false);
     }
+  };
+
+  // On-demand only: neither page mount nor category switching reads personal proposals.
+  const checkMyStatus = async () => {
+    if (checkingStatus || !authReady || !user) return;
+    const requestVersion = ++statusRequestVersion.current;
+    const requestedCategory = category;
+    const requestOwnerId = user.id;
+    setCheckingStatus(true);
+    setStatusOwnerId(null);
+    setStatusError(null);
+    setMyStatus(null);
+    try {
+      const response = requestedCategory === "grazia"
+        ? await apiRequest("GET", "/api/grazia/mia-proposta")
+        : await apiRequest("GET", "/api/subject-proposals/mine?category=" + encodeURIComponent(requestedCategory));
+      if (statusRequestVersion.current !== requestVersion || currentOwnerId.current !== requestOwnerId) return;
+      if (!response?.data?.success) throw new Error("Impossibile verificare lo stato.");
+      const latest = requestedCategory === "grazia" ? response.data.richiesta : response.data.latest;
+      setStatusOwnerId(requestOwnerId);
+      setMyStatus(latest?.status || "none");
+    } catch (_) {
+      if (statusRequestVersion.current === requestVersion && currentOwnerId.current === requestOwnerId)
+        setStatusError("Stato temporaneamente non disponibile. Riprova.");
+    } finally {
+      if (statusRequestVersion.current === requestVersion && currentOwnerId.current === requestOwnerId)
+        setCheckingStatus(false);
+    }
+  };
+
+  const statusLabel: Record<string, string> = {
+    none: "Nessuna proposta trovata per questa categoria.",
+    pending: "La proposta è in attesa di valutazione.",
+    approved: "La proposta è stata approvata.",
+    rejected: "La proposta non è stata approvata.",
+    withdrawn: "La pubblicazione della proposta è stata ritirata.",
   };
 
   if (!authReady || isAuthLoading) {
@@ -151,6 +221,7 @@ export default function ProponiSoggetto() {
             <select
               id="subject-category"
               value={category}
+              disabled={submitting}
               onChange={(event) => chooseCategory(event.target.value as ProposalCategory)}
               className="h-11 w-full rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
@@ -160,6 +231,13 @@ export default function ProponiSoggetto() {
             </select>
           </div>
 
+          <div className="mt-3 space-y-2">
+            <Button type="button" variant="outline" onClick={checkMyStatus} disabled={checkingStatus}>
+              {checkingStatus ? "Verifica in corso..." : "Verifica stato della mia proposta"}
+            </Button>
+            {myStatus && statusOwnerId === user.id && <p role="status" className="text-sm text-slate-700">{statusLabel[myStatus] || "Stato non riconosciuto. Contatta l'assistenza."}</p>}
+            {statusError && <p role="alert" className="text-sm text-red-700">{statusError}</p>}
+          </div>
           <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm leading-snug text-slate-700">
             {config.explanation}
           </p>

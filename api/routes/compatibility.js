@@ -66,6 +66,7 @@ router.get('/opinioni-list', async (req, res) => {
     // Select ONLY the published opinion columns for this electoral grade.
     // This avoids transferring all 94 answers or the fonti_opinioni JSONB
     // service field while preserving the existing single SQL round trip.
+    // Art.9 consent is checked in the SAME SQL snapshot as residual answers.
     const { grado } = req.query;
     const normalizedGrade = grado ? (normalizeOpinionScope(String(grado)) || String(grado)) : '';
     const opinionResult = { rows: sortOpinionsByText(getOpinionsForGrade(normalizedGrade)) };
@@ -74,10 +75,12 @@ router.get('/opinioni-list', async (req, res) => {
     const userSql = projection
       ? `SELECT u.id, u.status, u.ruolo, row_to_json(selected) AS opinion_answers
          FROM users u
+         LEFT JOIN user_consents uc ON uc.user_id = u.id
          LEFT JOIN LATERAL (
            SELECT ${projection}
            FROM opinioni_risposte a
            WHERE a.user_id = u.id
+             AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
          ) selected ON true
          WHERE u.id = $1`
       : `SELECT u.id, u.status, u.ruolo, NULL::json AS opinion_answers

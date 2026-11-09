@@ -25,6 +25,7 @@ import RegistrazioneResidenza from "./pages/registrazione-3-residenza";
 import RegistrazioneConsensiWizard from "./pages/registrazione-consensi";
 import RegistrazioneCreaPasskey from "./pages/registrazione-crea-passkey";
 import Profilo from "./pages/Profilo";
+import CompassoPolitico from "./pages/CompassoPolitico";
 import Impostazioni from "./pages/Impostazioni";
 import SegnalaProblema from "./pages/SegnalaProblema";
 import Avvistamenti from "./pages/Avvistamenti";
@@ -38,6 +39,7 @@ import InformazioniLegali from "./pages/Impostazioni/InformazioniLegali";
 import CambiaPassword from "./pages/Impostazioni/Password";
 import GDPR from "./pages/GDPR";
 import Opinioni from "./pages/Opinioni";
+import OpinioniArgomento from "./pages/OpinioniArgomento";
 import OpinioniNazionali from "./pages/OpinioniNazionali";
 import OpinioniRegionali from "./pages/OpinioniRegionali";
 import OpinioniComunali from "./pages/OpinioniComunali";
@@ -71,6 +73,7 @@ import ICE from "./pages/ICE";
 import ReferendumAbrogativi from "./pages/ReferendumAbrogativi";
 import IniziativePopolari from "./pages/IniziativePopolari";
 import GestisciOpinioni from "./pages/GestisciOpinioni";
+import GestisciGrazia from "./pages/GestisciGrazia";
 import TestMinistero from "./pages/TestMinistero";
 import ModificaImmagine from "./pages/ModificaImmagine";
 import Utenti from "./pages/Utenti";
@@ -82,7 +85,7 @@ import VotaIniziativaPopolare from "./pages/VotaIniziativaPopolare";
 import VotaICE from "./pages/VotaICE";
 import Votazione from "./pages/Votazione";
 import Sostenitori from "./pages/Sostenitori";
-import VotiPolitici from "./pages/VotiPolitici";
+import VotiPoliticiFinali from "./pages/VotiPoliticiFinali";
 import VotiParlamento from "./pages/VotiParlamento";
 import VotiParlamentoEuropeo from "./pages/VotiParlamentoEuropeo";
 import ECI from "./pages/ECI";
@@ -573,6 +576,11 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Compasso privato: la pagina e protetta come il Profilo. */}
+              <Route path="/compasso-politico">
+                <ProtectedRoute path="/compasso-politico" component={CompassoPolitico} />
+              </Route>
+
               {/* Route del profilo - URL con menu */}
               <Route path="/menu/profilo">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
@@ -598,6 +606,11 @@ export default function App() {
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/modifica-immagine" component={ModificaImmagine} />
                 </PageTransition>
+              </Route>
+
+              {/* Editor per argomento: conserva cache, consenso e save per gradi esistenti. */}
+              <Route path="/opinioni-argomento/:topicId">
+                <ProtectedRoute path="/opinioni-argomento/:topicId" component={OpinioniArgomento} />
               </Route>
 
               {/* Route opinioni — senza PageTransition (layout ancorato) */}
@@ -764,7 +777,7 @@ export default function App() {
               {/* Route voti politici */}
               <Route path="/voti-politici">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/voti-politici" component={VotiPolitici} />
+                  <ProtectedRoute path="/voti-politici" component={VotiPoliticiFinali} />
                 </PageTransition>
               </Route>
 
@@ -994,6 +1007,13 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+
+              {/* Moderazione Grazia separata tramite richieste_grazia. */}
+              <Route path="/gestisci-grazia">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/gestisci-grazia" component={GestisciGrazia} />
+                </PageTransition>
+              </Route>
 
               {/* Route gestisci opinioni */}
               <Route path="/gestisci-opinioni">

@@ -1,0 +1,321 @@
+name: Provincial representative canonical model — isolated tests
+on:
+  # The PR can be unmergeable after main moves; push CI still exercises the
+  # disposable integrated copy without attempting a merge or deployment.
+  push:
+    branches:
+      - feat/provincial-representatives-canonical-20261106
+    paths:
+      - '.github/workflows/provincial-representatives-ci.yml'
+      - 'api/**'
+      - 'client/**'
+      - 'docs/operations/DEMOS_PROVINCIAL_E2E_STAGING_GATE_20261107.md'
+  pull_request:
+    paths:
+      - 'api/config/politicalJurisdictions.js'
+      - 'api/services/politicalEligibilityService.js'
+      - 'api/services/politicalMatchingService.js'
+      - 'api/services/politicalSelectionService.js'
+      - 'api/services/politicalConsentService.js'
+      - 'api/services/politicalJurisdictionRegistryService.js'
+      - 'api/routes/rappresentanti.js'
+      - 'api/routes/rappresentanti-sostenitori.js'
+      - 'api/routes/sostenitori-totale.js'
+      - 'api/routes/candidati.js'
+      - 'api/routes/elezioni.js'
+      - 'api/routes/users/profile.js'
+      - 'api/tests/politicalJurisdictionRegistryService.test.js'
+      - 'api/tests/politicalSelectionService.test.js'
+      - 'api/tests/politicalSelectionRoute.test.js'
+      - 'api/tests/politicalEligibilityService.test.js'
+      - 'api/tests/politicalMatchingService.test.js'
+      - 'api/tests/provincialMandateOfficeGuard.test.js'
+      - 'api/tests/provincialCandidacyJurisdictionGuard.test.js'
+      - 'api/tests/provincialRegionalDedup.test.js'
+      - 'api/tests/provincialSupporters.http.test.js'
+      - 'api/tests/provincialConsentErasure.test.js'
+      - 'api/tests/provincialConsentWriteRace.http.test.js'
+      - 'api/tests/provincialConsentOpinionRead.integration.test.js'
+      - 'api/tests/provincialOpinionMatching.contract.test.js'
+      - 'api/tests/provincialReadRelease.http.test.js'
+      - 'api/qa/provincial_staging_prerequisites_readonly.sql'
+      - 'api/qa/provincial_empty_legacy_schema_upgrade_CANDIDATE.sql'
+      - 'api/tests/provincialEmptyLegacySchema.pg.test.js'
+      - 'api/qa/provincial_preserve_fixture_legacy_schema_upgrade_CANDIDATE.sql'
+      - 'api/tests/provincialPreserveFixtureLegacySchema.pg.test.js'
+      - 'api/tests/provincialStagingSchemaGate.contract.test.js'
+      - 'api/tests/provincialFrontendWiring.smoke.test.js'
+      - 'api/tests/provincialBrowser.e2e.test.js'
+      - 'api/tests/provincialCandidateLogPrivacy.http.test.js'
+      - 'api/tests/provincialRepresentativeLogPrivacy.test.js'
+      - 'api/tests/provincialCrossPrCompatibility.integration.test.js'
+      - 'client/src/lib/provincialSelection.ts'
+      - 'client/src/components/ProvincialOfficeChoice.tsx'
+      - 'client/src/components/ViewOpinioniDialog.tsx'
+      - 'client/src/pages/SelectionGrid.css'
+      - 'client/src/pages/Rappresentanti/index.tsx'
+      - 'client/src/pages/Candidati/index.tsx'
+      - 'client/src/pages/ScegliRappresentante/**'
+      - '.github/workflows/provincial-representatives-ci.yml'
+permissions:
+  contents: read
+jobs:
+  provincial-chrome-ui:
+    name: Provincial browser TN/BZ choice — real Chrome, synthetic local API
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout isolated provincial proposal
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install frontend without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Install isolated Playwright using preinstalled Google Chrome
+        run: |
+          command -v google-chrome
+          mkdir -p /tmp/demos-provincial-browser
+          npm install --prefix /tmp/demos-provincial-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+      - name: Real Chrome provincial React UI, selection, undo and consent
+        env:
+          DEMOS_PLAYWRIGHT_MODULE: /tmp/demos-provincial-browser/node_modules/playwright
+          CI: 'true'
+        run: node --test api/tests/provincialBrowser.e2e.test.js
+
+  provincial-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Read-only checkout of merged main opinion taxonomy
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          path: .integration-refs/opinion-topics
+          persist-credentials: false
+          sparse-checkout: |
+            client/src/lib/opinionProvincialIds.ts
+            client/src/lib/opinionTopics.ts
+          sparse-checkout-cone-mode: false
+      - name: Read-only checkout of merged main political consent
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          path: .integration-refs/political-consent
+          persist-credentials: false
+          sparse-checkout: |
+            api/services/politicalMatchingService.js
+            api/routes/users/profile.js
+          sparse-checkout-cone-mode: false
+      - name: Install API dependencies without scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Validate syntax
+        run: |
+          node --check api/config/politicalJurisdictions.js
+          node --check api/services/politicalEligibilityService.js
+          node --check api/services/politicalMatchingService.js
+          node --check api/services/politicalSelectionService.js
+          node --check api/services/politicalJurisdictionRegistryService.js
+          node --check api/routes/users/profile.js
+          node --check api/routes/rappresentanti.js
+          node --check api/routes/rappresentanti-sostenitori.js
+          node --check api/routes/sostenitori-totale.js
+          node --check api/routes/candidati.js
+          node --check api/routes/elezioni.js
+      - name: Test territory, authority and canonical persistence (no database)
+        run: |
+          node --test --test-concurrency=1 \
+            api/tests/politicalJurisdictionRegistryService.test.js \
+            api/tests/politicalSelectionService.test.js \
+            api/tests/politicalSelectionRoute.test.js \
+            api/tests/politicalEligibilityService.test.js \
+            api/tests/politicalMatchingService.test.js \
+            api/tests/provincialMandateOfficeGuard.test.js \
+            api/tests/provincialCandidacyJurisdictionGuard.test.js \
+            api/tests/provincialRegionalDedup.test.js \
+            api/tests/provincialSupporters.http.test.js \
+            api/tests/provincialConsentErasure.test.js \
+            api/tests/provincialConsentWriteRace.http.test.js \
+            api/tests/provincialConsentOpinionRead.integration.test.js \
+            api/tests/provincialOpinionMatching.contract.test.js \
+            api/tests/provincialReadRelease.http.test.js \
+            api/tests/provincialStagingSchemaGate.contract.test.js \
+            api/tests/provincialFrontendWiring.smoke.test.js \
+            api/tests/provincialCandidateLogPrivacy.http.test.js \
+            api/tests/provincialRepresentativeLogPrivacy.test.js
+      - name: Test merged main dependency compatibility (read-only, no merge)
+        run: |
+          echo "Opinion taxonomy reference:"
+          git -C .integration-refs/opinion-topics rev-parse HEAD
+          echo "Consent reference:"
+          git -C .integration-refs/political-consent rev-parse HEAD
+          node --test api/tests/provincialCrossPrCompatibility.integration.test.js
+
+  combined-main-contract:
+    name: Current main + provincial PR (disposable, no merge)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout provincial proposal with history
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout merged main into an isolated directory
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          path: .integration-refs/merged-main
+          persist-credentials: false
+      - name: Setup Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Assemble temporary candidate using only provincial changed files
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=".integration-refs/merged-main"
+          printf 'Current main: '
+          git -C "$target" rev-parse HEAD
+          printf 'Provincial proposal: '
+          git rev-parse HEAD
+          base=$(git merge-base HEAD origin/main)
+          count=0
+          while IFS= read -r -d '' file; do
+            if [[ -f "$file" ]]; then
+              mkdir -p "$target/$(dirname "$file")"
+              cp -- "$file" "$target/$file"
+              count=$((count + 1))
+            fi
+          done < <(git diff --name-only -z "$base" HEAD)
+          echo "Provincial overlay files: $count"
+          test "$count" -gt 20
+          # Main's merged thematic UI and the consent-aware QA fixture must
+          # survive. The provincial PR never overwrites these paths.
+          test -f "$target/client/src/pages/OpinioniArgomento.tsx"
+          test -f "$target/client/src/lib/opinionProvincialIds.ts"
+          grep -q retainedResidualRow "$target/api/qa/opinionCatalogQaServer.js"
+          grep -q PROVINCIAL_SELECTION_NOT_RELEASED "$target/api/routes/users/profile.js"
+          cmp api/services/politicalMatchingService.js "$target/api/services/politicalMatchingService.js"
+          git -C "$target" diff --name-only | head -60
+      - name: Install combined API and frontend dependencies without scripts
+        working-directory: .integration-refs/merged-main
+        run: |
+          npm ci --prefix api --ignore-scripts --no-audit --no-fund
+          npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Test provincial, merged consent and merged topic contracts together
+        working-directory: .integration-refs/merged-main
+        run: |
+          node --check api/routes/users/profile.js
+          node --test --test-concurrency=1 \
+            api/tests/politicalSelectionRoute.test.js \
+            api/tests/politicalEligibilityService.test.js \
+            api/tests/provincialCandidacyJurisdictionGuard.test.js \
+            api/tests/provincialMandateOfficeGuard.test.js \
+            api/tests/provincialConsentOpinionRead.integration.test.js \
+            api/tests/provincialOpinionMatching.contract.test.js \
+            api/tests/opinionTopics.contract.test.js \
+            api/tests/politicalConsentMainRead.synthetic.test.js
+      - name: Build frontend with topic pages and provincial choice combined
+        working-directory: .integration-refs/merged-main
+        env:
+          VITE_DEMOS_PROVINCIAL_SELECTIONS_GO: 'false'
+        run: npm run build --prefix client
+
+  empty-legacy-postgres17:
+    name: Empty legacy key conversion — isolated PostgreSQL 17 only
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-fixture-only
+          POSTGRES_DB: provincial_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d provincial_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Read-only checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API test dependency without scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Rehearse schema guard and independent offices
+        env:
+          PROVINCIAL_SCHEMA_CI: 'true'
+          PGHOST: '127.0.0.1'
+          PGPORT: '5432'
+          PGDATABASE: provincial_ci
+          PGUSER: postgres
+          PGPASSWORD: ci-fixture-only
+        run: node --test api/tests/provincialEmptyLegacySchema.pg.test.js
+
+  preserve-fixture-legacy-postgres17:
+    name: Preserve existing legacy fixtures — isolated PostgreSQL 17 only
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-fixture-only
+          POSTGRES_DB: provincial_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d provincial_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Read-only checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API test dependencies without scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Rehearse preservation and fail-closed checks
+        env:
+          PROVINCIAL_SCHEMA_CI: 'true'
+          PGHOST: '127.0.0.1'
+          PGPORT: '5432'
+          PGDATABASE: provincial_ci
+          PGUSER: postgres
+          PGPASSWORD: ci-fixture-only
+        run: node --test api/tests/provincialPreserveFixtureLegacySchema.pg.test.js
