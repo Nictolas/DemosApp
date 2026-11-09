@@ -79,9 +79,12 @@ test('both services deduplicate in-flight calls per voting identifier', () => {
   assert.match(summary, /singleflightSpiegazione\(voteIdentity, \(\) =>/);
 });
 
-test('European Parliament analysis calls respect URI-first object-second signature', () => {
+test('European Parliament analysis keeps URI-first signature only in guarded Admin QA POST', () => {
   const source = fs.readFileSync(path.join(__dirname, '../routes/voti-parlamento-europeo.js'), 'utf8');
   assert.doesNotMatch(source, /generaAnalisiLegge\(votazione\.titolo,\s*decodedUri\)/);
-  assert.equal((source.match(/generaAnalisiLegge\(decodedUri, \{/g) || []).length, 2);
-  assert.match(source, /if \(!analisiLegge\)\s*\{\s*\/\/ Il testo ufficiale resta/);
+  assert.equal((source.match(/generaAnalisiLegge\(uri, \{/g) || []).length, 1);
+  assert.match(source, /DEMOS_GROQ_FREE_QA_ENABLED !== 'true'/);
+  assert.match(source, /router\.post\('\/rigenera-analisi\/:uri', verifyToken, requireAdmin/);
+  assert.doesNotMatch(source, /getVotiNominaliMEPItaliani|sincronizzaVotazioniPE/);
+  assert.match(source, /if \(!analisi\)\s*\{/);
 });
