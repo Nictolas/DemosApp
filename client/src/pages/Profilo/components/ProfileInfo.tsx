@@ -33,7 +33,8 @@ export const ProfileInfo = ({
 
   // Elettori e DPO non hanno avatar; Admin può gestire il proprio,
   // mentre gli avatar dei politici/candidati sono visibili pubblicamente.
-  const canShowAvatar = isOwnProfile ? allowOwnAvatar : isPublicAvatarRole(userInfo.ruolo);
+  const canShowAvatar = isOwnProfile ? allowOwnAvatar :
+    (isPublicAvatarRole(userInfo.ruolo) && userInfo.can_have_avatar !== false);
   const canShowFullName = ["P", "Politico", "C", "Candidato", "CP", "Candidato Politico"].includes(userInfo.ruolo);
 
   const fullName = userInfo.nome_completo ||
