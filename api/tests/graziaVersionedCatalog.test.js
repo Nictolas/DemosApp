@@ -7,7 +7,8 @@ const root = path.resolve(__dirname, '..', '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const {
   getStaticGraziaEntries, getStaticGraziaByName,
-  getGraziaCatalogRevision, mergeGraziaRanking, normalizeGraziaName, canonicalizeGraziaVotes
+  getGraziaCatalogRevision, mergeGraziaRanking, normalizeGraziaName, canonicalizeGraziaVotes,
+  displayGraziaName, isHiddenGraziaName
 } = require('../services/graziaCatalog');
 
 test('Grazia JSON catalog versions only existing curated names, not votes or criminal records', () => {
@@ -84,4 +85,31 @@ test('Grazia compact mobile view preserves vote controls and shows accurate expl
   assert.doesNotMatch(ranking, /Classifica carcerati|<CardHeader/);
   assert.match(form, /selectedVoti\.map/);
   assert.match(ranking, /onToggleSelezione/);
+});
+
+
+test('Roggero is displayed as Mario Roggero without altering historical votes, Rossi is absent from public ranking', () => {
+  const votes = [
+    { nome: 'Roggero', richieste: '1' },
+    { nome: 'Mario Roggero', richieste: '2' },
+    { nome: 'Rossi', richieste: '1' }
+  ];
+  const ranking = mergeGraziaRanking(votes, []);
+  assert.equal(ranking.filter(row => row.nome === 'Mario Roggero').length, 1);
+  assert.equal(ranking.find(row => row.nome === 'Mario Roggero').richieste, 3);
+  assert.equal(ranking.some(row => normalizeGraziaName(row.nome) === 'roggero'), false);
+  assert.equal(ranking.some(row => normalizeGraziaName(row.nome) === 'rossi'), false);
+  assert.equal(displayGraziaName('  ROGGERO '), 'Mario Roggero');
+  assert.equal(isHiddenGraziaName(' ROSSI '), true);
+  assert.equal(isHiddenGraziaName('Mario Rossi'), false);
+  assert.deepEqual(canonicalizeGraziaVotes(['Roggero', 'Rossi'], ranking), ['Mario Roggero', 'Rossi']);
+  assert.deepEqual(votes, [
+    { nome: 'Roggero', richieste: '1' },
+    { nome: 'Mario Roggero', richieste: '2' },
+    { nome: 'Rossi', richieste: '1' }
+  ]);
+  const route = read('api/routes/grazia.js');
+  assert.match(route, /requestedVotes\.some\(isHiddenGraziaName\)/);
+  assert.match(route, /displayGraziaName\(String\(nome\)\.trim\(\)\)/);
+  assert.match(route, /canonicalizeGraziaVotes\(mieiVoti, classifica\)/);
 });
