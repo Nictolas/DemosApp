@@ -1,4 +1,4 @@
-/** Avatar editor is reserved for public political profiles and operational roles.
+/** Avatar editor is reserved for Admin and public political profiles.
  * Always use the verified /auth/me capabilities, never local profile labels.
  */
 export function canEditPersonalAvatar(user: {
@@ -11,8 +11,8 @@ export function canEditPersonalAvatar(user: {
   return Boolean(
     user &&
     user.status === "a" &&
+    user.is_dpo !== true &&
     (user.is_admin === true ||
-      user.is_dpo === true ||
       user.is_politician === true ||
       user.is_candidate === true)
   );
