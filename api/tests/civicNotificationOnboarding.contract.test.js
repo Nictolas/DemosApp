@@ -18,7 +18,7 @@ test('Android permission is not requested automatically before onboarding', () =
 test('civic onboarding is Android-only, account-specific and explicitly optional', () => {
   const screen = read('client/src/components/CivicNotificationOnboarding.tsx');
   const app = read('client/src/App.tsx');
-  assert.match(app, /<CivicNotificationOnboarding \/>/);
+  assert.match(app, /isNativePushEnabled\(\) && <CivicNotificationOnboarding \/>/);
   assert.match(screen, /if \(!isNativePushEnabled\(\)\) return null;/);
   assert.match(screen, /"demos_civic_onboarding_v1_" \+ userId/);
   assert.match(screen, /"Non ora"/);
