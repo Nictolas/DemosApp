@@ -57,6 +57,17 @@ test("avatar endpoint rejects users without DB-authorized roles before writing",
   assert.ok(route.indexOf("res.status(403)") < route.indexOf("UPDATE users SET avatar_config"));
 });
 
+test("admin editing endpoint cannot assign avatars to electors", () => {
+  const admin = readFileSync(new URL("../../api/routes/users/search.js", import.meta.url), "utf8");
+  const start = admin.indexOf("router.put('/:userId'");
+  const route = admin.slice(start);
+  assert.ok(start >= 0);
+  assert.match(route, /if \(updateData\?\.avatar_config != null\)/);
+  assert.match(route, /getAccountSubject\(pool, userId\)/);
+  assert.match(route, /if \(!allowed\)/);
+  assert.ok(route.indexOf("res.status(403)") < route.indexOf("UPDATE users SET"));
+});
+
 test("profile summary cache rejects voter avatar config", () => {
   const source = read("pages/Profilo/utils/profileSummaryCache.ts");
   const compiled = ts.transpileModule(source, {
