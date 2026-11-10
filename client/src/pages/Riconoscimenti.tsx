@@ -142,15 +142,25 @@ export default function Riconoscimenti() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-slate-50 via-white to-emerald-50">
+    <PageContainer className="overflow-y-auto overscroll-contain bg-gradient-to-br from-slate-50 via-white to-emerald-50">
       <Card className="w-full max-w-5xl mx-auto shadow-xl border-0">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">
-            Riconoscimenti
+            Riconoscimenti e verifiche
           </CardTitle>
           <CardDescription>
-            Richieste in attesa di verifica. Apri i documenti ufficiali e confronta nome, cognome e ruolo con l'identità verificata tramite CIE prima di approvare.
+            Distinguere i riconoscimenti di politici e candidati dalla verifica dell'identità di attivisti e rappresentanti di organizzazioni. Le procedure restano separate.
           </CardDescription>
+          <nav aria-label="Tipi di riconoscimento" className="grid gap-2 pt-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3" aria-current="page">
+              <strong className="block text-sm text-slate-900">Politici e candidati</strong>
+              <span className="text-xs text-slate-600">CIE, documentazione ufficiale ed eventuale approvazione del ruolo.</span>
+            </div>
+            <a href="/gestisci/verifiche-identita" className="rounded-xl border border-slate-200 bg-white p-3 hover:border-indigo-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600">
+              <strong className="block text-sm text-indigo-800">Attivisti e Organizzazioni</strong>
+              <span className="text-xs text-slate-600">Verifica CIE, videocall e, per le organizzazioni, titolo di rappresentanza.</span>
+            </a>
+          </nav>
         </CardHeader>
         <CardContent>
           {isLoading && (
