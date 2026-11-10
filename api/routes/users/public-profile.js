@@ -46,6 +46,7 @@ async function loadPublicUser(userId) {
     const result = await pool.query(
       `SELECT
          u.id, u.nome, u.cognome,
+         COALESCE((to_jsonb(u)->>'is_dpo')::boolean, FALSE) AS is_dpo,
          COALESCE(up.grado_elezione, u.grado_elezione) AS grado_elezione,
          COALESCE(up.paese_elezione, u.paese_elezione) AS paese_elezione,
          COALESCE(up.regione_elezione, u.regione_elezione) AS regione_elezione,
@@ -87,6 +88,7 @@ async function loadPublicUser(userId) {
     const result = await pool.query(
       `SELECT
          id, nome, cognome,
+         COALESCE((to_jsonb(u)->>'is_dpo')::boolean, FALSE) AS is_dpo,
          grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
          grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
          avatar_config, facebook_url, twitter_url, instagram_url, linkedin_url, telegram_url,
@@ -94,8 +96,8 @@ async function loadPublicUser(userId) {
          rappresentante_europeo, rappresentante_camera, rappresentante_senato,
          rappresentante_regionale, rappresentante_comune,
          candidato_europeo, candidato_camera, candidato_senato, candidato_regionale, candidato_comune
-       FROM users
-       WHERE id = $1`,
+       FROM users u
+       WHERE u.id = $1`,
       [userId],
     );
     return result.rows[0] || null;
@@ -179,7 +181,8 @@ router.get('/:userId/public-profile', verifyToken, async (req, res) => {
       regione_candidatura: decompressed.regione_candidatura,
       provincia_candidatura: decompressed.provincia_candidatura,
       comune_candidatura: decompressed.comune_candidatura,
-      avatar_config: normalizeAvatar(rawUser.avatar_config),
+      can_have_avatar: rawUser.is_dpo !== true,
+      avatar_config: rawUser.is_dpo === true ? null : normalizeAvatar(rawUser.avatar_config),
       facebook_url: rawUser.facebook_url || null,
       twitter_url: rawUser.twitter_url || null,
       instagram_url: rawUser.instagram_url || null,
