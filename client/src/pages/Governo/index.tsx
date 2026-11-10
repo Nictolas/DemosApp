@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
-import { PageTransition } from "@/components/PageTransition";
+import { PageContainer } from "@/components/PageContainer";
 import { useGovernoData } from "./hooks/useGovernoData";
 import { useGovernoActions } from "./hooks/useGovernoActions";
 import { useConsensoGovernoData } from "./hooks/useConsensoGovernoData";
@@ -58,9 +58,14 @@ export default function Governo() {
   }
 
   return (
-    <PageTransition>
-      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 pt-4 page-with-navbar">
-        <div className="container mx-auto max-w-6xl p-4">
+    <PageContainer className="overflow-hidden bg-gradient-to-b from-background to-secondary/20">
+      <div
+        className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-6"
+        role="region"
+        aria-label="Governo e ministri"
+        tabIndex={0}
+      >
+        <div className="container mx-auto max-w-6xl">
           {/* Sezione Consenso Governo */}
           {consensoData && (
             <ConsensoGovernoSection
@@ -72,18 +77,18 @@ export default function Governo() {
 
           {/* Sezione Governo Attuale */}
           <GovernoAttualeSection />
-          
-          {/* Modal */}
-          {selectedMinistero && (
-            <MinisteroModal
-              ministero={selectedMinistero}
-              data={data}
-              isOpen={isModalOpen}
-              onClose={handleCloseModal}
-            />
-          )}
         </div>
       </div>
-    </PageTransition>
+
+      {/* Il modal rimane fuori dall'area scorrevole. */}
+      {selectedMinistero && (
+        <MinisteroModal
+          ministero={selectedMinistero}
+          data={data}
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+        />
+      )}
+    </PageContainer>
   );
 }

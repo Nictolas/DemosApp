@@ -31,6 +31,9 @@ on:
       - 'client/src/pages/Gestisci/ProposteSoggetti.tsx' # Admin real-data contract required
       - 'client/src/pages/CapodiStato/**' # required catalog-contract for Capo di Stato UI updates
       - 'client/src/pages/Amnistia/**' # required catalog-contract for Amnistia UI updates
+      - 'client/src/pages/Governo/**' # validate government and ministry mobile scrolling
+      - 'client/src/components/RobustAppLayout.tsx' # shared fixed-viewport scroll shell
+      - 'api/tests/civicScrollContract.test.js' # scroll regression contract
       - 'api/tests/d12AdminRealRecords.contract.test.js'
       - 'client/src/pages/VotiPolitici.tsx' # required catalog-contract for UI-only fix
       - 'client/src/pages/VotiPoliticiFinali.tsx'
