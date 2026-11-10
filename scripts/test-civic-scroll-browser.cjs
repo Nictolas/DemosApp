@@ -288,10 +288,12 @@ async function main() {
           }
         }
         if (item.path === '/amnistia') {
-          assert.ok(first.amnistiaHeader && first.amnistiaControls && first.amnistiaRankTitle,
-            'Missing fixed Amnistia header, controls or ranking title');
+          assert.ok(first.amnistiaHeader && first.amnistiaControls,
+            'Missing fixed Amnistia header or voting controls');
+          assert.equal(first.amnistiaRankTitle, null,
+            'Amnistia ranking title must be removed to save space');
           assert.equal(first.amnistiaBackLinkCount, 0, 'Amnistia must not navigate back to Vota');
-          for (const key of ['amnistiaHeader', 'amnistiaControls', 'amnistiaRankTitle']) {
+          for (const key of ['amnistiaHeader', 'amnistiaControls']) {
             assert.ok(Math.abs(first[key].top - after[key].top) <= 2 &&
               Math.abs(first[key].bottom - after[key].bottom) <= 2,
               key + ' moved when swiping Amnistia list');
