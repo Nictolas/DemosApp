@@ -22,10 +22,10 @@ export const gestisciHubs: GestisciHub[] = [
   {
     id: "contenuti",
     title: "Contenuti",
-    description: "Opinioni e configurazione del Governo ideale.",
+    description: "Proposte degli utenti e catalogo delle opinioni ufficiali.",
     icon: BookOpen,
     buttonColor: "bg-cyan-500 hover:bg-cyan-600",
-    sectionIds: ["opinioni", "governo"],
+    sectionIds: ["opinioni"],
   },
   {
     id: "comunicazioni",

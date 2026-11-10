@@ -23,9 +23,9 @@ export default function GestisciOpinioni() {
         </Button>
         
         <div className="mb-4">
-          <h1 className="text-3xl font-bold text-center mb-2">Gestisci Opinioni</h1>
+          <h1 className="text-3xl font-bold text-center mb-2">Proposte di opinioni</h1>
           <p className="text-center text-muted-foreground">
-            Le Opinioni ufficiali si modificano tramite codice e release. Qui puoi consultarle e gestire le proposte degli utenti.
+            Le opinioni ufficiali si aggiornano solo tramite codice e release. Qui trovi le proposte degli utenti ordinate per numero di voti e puoi consultare il catalogo vigente.
           </p>
         </div>
         

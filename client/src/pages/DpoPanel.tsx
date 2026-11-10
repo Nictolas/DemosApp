@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Activity, ArrowLeft, Bell, BookOpen, Building2, ChevronRight,
   ClipboardCheck, Eye, Info, LockKeyhole, ShieldCheck, Users,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
+import { Redirect } from "wouter";
 
 interface DpoOverview {
   role: "DPO" | "Admin";
@@ -38,16 +41,16 @@ type AreaId = "utenti-verifiche" | "contenuti" | "comunicazioni" | "dati-istituz
 
 const sections = [
   { id: "utenti-verifiche", title: "Utenti e verifiche", short: "Account e riconoscimenti", icon: Users, accent: "violet" },
-  { id: "contenuti", title: "Contenuti", short: "Opinioni e proposte", icon: BookOpen, accent: "cyan" },
+  { id: "contenuti", title: "Trattamenti delle opinioni", short: "Solo conteggi aggregati", icon: BookOpen, accent: "cyan" },
   { id: "comunicazioni", title: "Comunicazioni", short: "Notifiche DEMOS", icon: Bell, accent: "pink" },
-  { id: "dati-istituzionali", title: "Dati istituzionali", short: "Iniziative e Parlamento", icon: Building2, accent: "slate" },
-  { id: "ops-center", title: "Ops Center", short: "Supervisione privacy", icon: Activity, accent: "indigo" },
+  { id: "dati-istituzionali", title: "Dati istituzionali trattati", short: "Solo conteggi aggregati", icon: Building2, accent: "slate" },
+  { id: "ops-center", title: "Controlli privacy", short: "Richieste, conservazione e log", icon: Activity, accent: "indigo" },
 ] as const;
 
 const getInitialArea = (): AreaId | null => {
-  if (typeof window === "undefined") return "ops-center";
+  if (typeof window === "undefined") return null;
   const requested = new URLSearchParams(window.location.search).get("section");
-  return sections.find(section => section.id === requested)?.id ?? "ops-center";
+  return sections.find(section => section.id === requested)?.id ?? null;
 };
 
 const displayCount = (value: number | undefined) =>
@@ -77,14 +80,24 @@ function NoRequests({ total }: { total: number }) {
 }
 
 export default function DpoPanel() {
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const canViewDpo = hasAdminCapability(user) || hasDpoCapability(user);
   const [data, setData] = useState<DpoOverview | null>(null);
   const [areas, setAreas] = useState<DpoAreas | null>(null);
   const [error, setError] = useState("");
   const [areasError, setAreasError] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedArea, setSelectedArea] = useState<AreaId | null>(getInitialArea);
+  const detailRef = useRef<HTMLElement>(null);
+
+  const selectArea = (area: AreaId | null) => {
+    setSelectedArea(area);
+    // Reveal the result after a mobile tap, instead of leaving it offscreen.
+    window.requestAnimationFrame(() => detailRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  };
 
   useEffect(() => {
+    if (isAuthLoading || !canViewDpo) return;
     let mounted = true;
     Promise.allSettled([apiRequest("GET", "/dpo/overview"), apiRequest("GET", "/dpo/areas")])
       .then(([overview, areaResponse]) => {
@@ -111,7 +124,7 @@ export default function DpoPanel() {
       })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, []);
+  }, [isAuthLoading, canViewDpo]);
 
   const selected = sections.find(section => section.id === selectedArea);
   const activeUsers = areas?.["utenti-verifiche"].users_active;
@@ -120,8 +133,12 @@ export default function DpoPanel() {
     ? Math.max(0, totalUsers - activeUsers) : undefined;
   const showOverview = selectedArea === null;
 
+  if (isAuthLoading) return <main className="p-6" role="status">Verifica accesso privacy…</main>;
+  if (!user) return <Redirect to="/auth" />;
+  if (!canViewDpo) return <Redirect to="/preferiti" />;
+
   return (
-    <main className="min-h-[calc(100vh-10rem)] bg-[radial-gradient(circle_at_top_left,_#eff4ff_0%,_#f8fbff_40%,_#ffffff_90%)] px-4 pb-16 pt-6 sm:px-6 lg:pt-9" aria-labelledby="dpo-heading">
+    <main className="dpo-panel-page min-h-[calc(100vh-10rem)] bg-[radial-gradient(circle_at_top_left,_#eff4ff_0%,_#f8fbff_40%,_#ffffff_90%)] px-4 pb-16 pt-6 sm:px-6 lg:pt-9" aria-labelledby="dpo-heading">
       <div className="mx-auto w-full max-w-6xl">
         <a href="/gestisci" className="inline-flex items-center gap-2 rounded-lg px-1 py-2 text-sm font-semibold text-indigo-700 transition-colors hover:text-indigo-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Torna a Gestisci
@@ -154,10 +171,7 @@ export default function DpoPanel() {
                 </span>
               )}
               <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
-                Nessun voto individuale
-              </span>
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
-                Nessun comando tecnico
+                Nessun dato individuale
               </span>
             </div>
           </div>
@@ -174,7 +188,7 @@ export default function DpoPanel() {
                 {!showOverview && (
                   <button
                     type="button"
-                    onClick={() => setSelectedArea(null)}
+                    onClick={() => selectArea(null)}
                     className="text-sm font-semibold text-indigo-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                   >
                     Torna alla panoramica
@@ -189,7 +203,8 @@ export default function DpoPanel() {
                     <button
                       key={section.id}
                       type="button"
-                      onClick={() => setSelectedArea(section.id)}
+                      onClick={() => selectArea(section.id)}
+                      aria-controls="dpo-area-detail"
                       aria-pressed={isActive}
                       className={`group relative min-h-[120px] rounded-2xl border p-4 text-left shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isActive ? "border-indigo-400 bg-indigo-50 ring-1 ring-indigo-200" : "border-slate-200 bg-white hover:border-indigo-200"}`}
                     >
@@ -203,7 +218,7 @@ export default function DpoPanel() {
               </div>
             </nav>
 
-            <section className="mt-7 rounded-3xl border border-slate-200 bg-white/70 p-4 shadow-sm sm:p-6" aria-live="polite">
+            <section ref={detailRef} id="dpo-area-detail" tabIndex={-1} className="mt-7 scroll-mt-4 rounded-3xl border border-slate-200 bg-white/70 p-4 shadow-sm sm:p-6" aria-live="polite">
               <div className="mb-5">
                 <p className="text-xs font-bold uppercase tracking-widest text-indigo-700">{showOverview ? "Panoramica" : "Dettaglio aggregato"}</p>
                 <h2 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">

@@ -155,24 +155,9 @@ router.get('/', async (req, res) => {
     // published catalog's legacy database table.
     const result = await pool.query(fromProposte);
     
-    // Chi ha proposto ogni opinione (users.opinione_proposta_id)
-    let proposersByOpinionId = {};
-    if (result.rows.length > 0) {
-      try {
-        const ids = result.rows.map(r => String(r.id));
-        const propQuery = await pool.query(
-          `SELECT opinione_proposta_id, nome, cognome, email FROM users WHERE opinione_proposta_id = ANY($1::text[])`,
-          [ids]
-        );
-        propQuery.rows.forEach((r) => {
-          const label = [r.nome, r.cognome].filter(Boolean).join(' ') || r.email || null;
-          if (r.opinione_proposta_id) proposersByOpinionId[r.opinione_proposta_id] = label;
-        });
-      } catch (e) {
-        if (e.code !== '42703') console.error('[opinion-proposals] failure');
-      }
-    }
-    
+    // La lista pubblica non include identità o email dei proponenti.
+    // Servono soltanto il testo e il conteggio aggregato dei voti.
+
     // Mappa i dati per compatibilità con il frontend
     const mappedData = result.rows.map(row => {
       const idStr = String(row.id);
@@ -189,8 +174,7 @@ router.get('/', async (req, res) => {
         nome: null,
         cognome: null,
         email: null,
-        voti: (typeof row.voti === 'number' ? row.voti : parseInt(row.voti, 10)) || 0,
-        proponente: proposersByOpinionId[idStr] || null
+        voti: (typeof row.voti === 'number' ? row.voti : parseInt(row.voti, 10)) || 0
       };
     });
     

@@ -204,20 +204,6 @@ const OpsCenter: React.FC = () => {
           </Card>
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Security Dashboard</CardTitle>
-              <CardDescription>Raccoglie segnali di sicurezza per capire se ci sono rischi o anomalie.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-slate-600">
-                Cosa puoi farci: controllare rapidamente la situazione sicurezza e priorita di intervento.
-              </p>
-              <Button className="w-full justify-between" onClick={() => setLocation("/security-dashboard")}>
-                Apri Security Dashboard <ArrowRight className="h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
-            <CardHeader>
               <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" /> Alert e Log</CardTitle>
               <CardDescription>Mostra messaggi e avvisi del sistema quando qualcosa non va.</CardDescription>
             </CardHeader>

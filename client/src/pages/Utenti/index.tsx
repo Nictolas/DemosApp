@@ -492,7 +492,7 @@ export default function Utenti() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
+    <div className="admin-users-page min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
       <div className="container mx-auto max-w-full px-4 py-4 md:px-6 md:py-6">
         {/* Header */}
         <Header />
