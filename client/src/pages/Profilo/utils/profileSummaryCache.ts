@@ -11,7 +11,7 @@ type StoredSummary = { savedAt: number; user: UserInfo };
 const ALLOWED_FIELDS = [
   "id", "ruolo", "status", "data_nascita", "cittadinanza",
   "paese_residenza", "regione_residenza", "provincia_residenza",
-  "comune_residenza", "can_have_avatar", "avatar_config",
+  "comune_residenza", "can_have_avatar",
 ] as const;
 const safeKey = (userId: string) => PREFIX + encodeURIComponent(userId);
 
@@ -34,8 +34,8 @@ export function stripSensitiveProfileFields(user: UserInfo): UserInfo {
   clean.data_nascita = yearOnly(user.data_nascita);
   // Never persist voter/other non-public avatar configs, including old caches.
   const avatar = user.avatar_config;
-  const allowedAvatar = user.can_have_avatar === true ||
-    (user.can_have_avatar == null && ["AD", "P", "C", "CP"].includes(user.ruolo));
+  const allowedAvatar = ["AD", "P", "C", "CP"].includes(user.ruolo) &&
+    user.can_have_avatar !== false;
   if (allowedAvatar && avatar && JSON.stringify(avatar).length < 8000) clean.avatar_config = avatar;
   // Public names are displayed only for politician/candidate profiles.
   if (["P", "C", "CP"].includes(user.ruolo)) {
