@@ -11,6 +11,13 @@ const rows = require('../catalog/grazia.json');
 const normalizeGraziaName = (value) => String(value || '')
   .normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('it');
 
+// Correzioni editoriali della sola classifica: non cambiano il voto storico
+// conservato in PostgreSQL e non creano nuovi soggetti nel catalogo verificato.
+const publicAliases = new Map([['roggero', 'Mario Roggero']]);
+const hiddenPublicNames = new Set(['rossi']);
+const displayGraziaName = (name) => publicAliases.get(normalizeGraziaName(name)) || name;
+const isHiddenGraziaName = (name) => hiddenPublicNames.has(normalizeGraziaName(name));
+
 const publishedEntries = Object.freeze(rows.map(row => Object.freeze({
   id: row.id,
   nome: row.nome,
@@ -37,22 +44,26 @@ function getStaticGraziaByName(name) { return byName.get(normalizeGraziaName(nam
 // An Admin deactivation in grazia_carcerati overrides the static catalog;
 // this ensures the code never revives a deliberately suppressed name.
 function mergeGraziaRanking(voteCounts = [], databaseEntries = []) {
-  const suppressed = new Set(databaseEntries
-    .filter(row => row && row.attivo === false)
-    .map(row => normalizeGraziaName(row.nome)));
+  const suppressed = new Set([
+    ...hiddenPublicNames,
+    ...databaseEntries.filter(row => row && row.attivo === false)
+      .map(row => normalizeGraziaName(displayGraziaName(row.nome)))
+  ]);
   const all = new Map();
 
   function addName(nome, richieste = 0, useCanonical = false) {
-    const key = normalizeGraziaName(nome);
-    if (!key || suppressed.has(key)) return;
+    const originalKey = normalizeGraziaName(nome);
+    const displayName = displayGraziaName(nome);
+    const key = normalizeGraziaName(displayName);
+    if (!key || suppressed.has(originalKey) || suppressed.has(key)) return;
     const staticEntry = byName.get(key);
     if (staticEntry && !staticEntry.attivo) return;
     const current = all.get(key);
     if (current) {
-      if (useCanonical) current.nome = nome;
+      if (useCanonical && !publicAliases.has(originalKey) && !byName.has(key)) current.nome = displayName;
       current.richieste += Number(richieste) || 0;
     } else {
-      all.set(key, { nome: staticEntry?.nome || nome, richieste: Number(richieste) || 0 });
+      all.set(key, { nome: staticEntry?.nome || displayName, richieste: Number(richieste) || 0 });
     }
   }
 
@@ -79,11 +90,11 @@ function mergeGraziaRanking(voteCounts = [], databaseEntries = []) {
 // this never changes the value stored in the original voting record.
 function canonicalizeGraziaVotes(votes, ranking) {
   const displayed = new Map(ranking.map(row => [normalizeGraziaName(row.nome), row.nome]));
-  return votes.map(nome => displayed.get(normalizeGraziaName(nome)) || nome);
+  return votes.map(nome => displayed.get(normalizeGraziaName(displayGraziaName(nome))) || nome);
 }
 
 module.exports = {
   getStaticGraziaEntries, getStaticGraziaByName,
   getGraziaCatalogRevision, normalizeGraziaName, mergeGraziaRanking,
-  canonicalizeGraziaVotes
+  canonicalizeGraziaVotes, displayGraziaName, isHiddenGraziaName
 };
