@@ -17,6 +17,7 @@ type LiveSecurityStatus = {
   health: SystemHealth | null;
   performanceMonitoring: boolean | null;
   violationMonitoring: boolean | null;
+  violationCounts: { CRITICAL: number; HIGH: number; MEDIUM: number } | null;
   lastCheckedAt: string | null;
 };
 
@@ -39,6 +40,7 @@ const OpsCenter: React.FC = () => {
     health: null,
     performanceMonitoring: null,
     violationMonitoring: null,
+    violationCounts: null,
     lastCheckedAt: null,
   });
   const [securityLoading, setSecurityLoading] = useState(true);
@@ -53,7 +55,7 @@ const OpsCenter: React.FC = () => {
       const results = await Promise.allSettled([
         apiRequest.get<SystemHealth>("/admin/monitoring/health"),
         apiRequest.get<{ isMonitoring: boolean }>("/admin/monitoring/status"),
-        apiRequest.get<{ status: { isRunning: boolean } }>("/admin/violations/monitoring/status"),
+        apiRequest.get<{ status: { isRunning: boolean; violationCounts?: { CRITICAL: number; HIGH: number; MEDIUM: number } } }>("/admin/violations/monitoring/status"),
       ]);
       if (cancelled) return;
       const healthResult = results[0].status === "fulfilled" ? results[0].value : null;
@@ -69,11 +71,14 @@ const OpsCenter: React.FC = () => {
       const violationMonitoring = violationsResult?.success === true &&
         typeof violationsResult.data?.status?.isRunning === "boolean"
         ? violationsResult.data.status.isRunning : null;
+      const counts = violationMonitoring && violationsResult?.data?.status?.violationCounts;
       setSecurityStatus({
         health,
         performanceMonitoring,
         violationMonitoring,
-        lastCheckedAt: health ? health.timestamp || new Date().toISOString() : null,
+        violationCounts: counts && Object.values(counts).every(n => typeof n === "number")
+          ? counts : null,
+        lastCheckedAt: health?.timestamp ?? null,
       });
       setSecurityLoading(false);
     };
@@ -203,6 +208,14 @@ const OpsCenter: React.FC = () => {
                   Rilevamento violazioni: {securityLoading ? "verifica in corso" : monitoringLabel(securityStatus.violationMonitoring)}
                 </Badge>
               </div>
+              {securityStatus.violationCounts && (
+                <p className="text-xs leading-relaxed text-slate-600">
+                  Segnalazioni conteggiate dal processo corrente (non sono incidenti unici):
+                  critiche {securityStatus.violationCounts.CRITICAL},
+                  alte {securityStatus.violationCounts.HIGH},
+                  medie {securityStatus.violationCounts.MEDIUM}.
+                </p>
+              )}
               {securityStatus.health?.summary && (
                 <p className="text-sm text-slate-600">
                   Verifiche superate: {securityStatus.health.summary.passed}/{securityStatus.health.summary.total}.
