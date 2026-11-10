@@ -257,10 +257,10 @@ const OpsCenter: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-sm text-slate-600">
-                Cosa puoi farci: avviare backup, pianificare recupero e fare export per verifiche o report.
+                Cosa puoi farci: verificare lo stato del sistema di backup dismesso ed esportare dati per analisi; l'export non sostituisce un backup completo.
               </p>
               <Button variant="outline" className="w-full justify-between" onClick={() => setLocation("/backup-dashboard")}>
-                Backup Dashboard <ArrowRight className="h-4 w-4" />
+                Stato backup legacy <ArrowRight className="h-4 w-4" />
               </Button>
               <Button variant="outline" className="w-full justify-between" onClick={() => setLocation("/admin/data-export")}>
                 Data Export <ArrowRight className="h-4 w-4" />
