@@ -88,13 +88,12 @@ test('menu logo Admin access uses canonical capability helper', () => {
   assert.doesNotMatch(src, /const isAdmin = user\?\.ruolo === ['"]AD['"]/);
 });
 
-test('/gestisci home exposes four canonical hubs, with proposed opinions inside Users', () => {
+test('/gestisci home exposes three Admin hubs plus DPO, with notifications inside Users', () => {
   const hubs = read('client/src/pages/Gestisci/constants/hubs.ts');
   const grid = read('client/src/pages/Gestisci/components/SectionsGrid.tsx');
 
   for (const id of [
     'utenti-verifiche',
-    'comunicazioni',
     'dati-istituzionali',
     'ops-center',
   ]) {
@@ -102,15 +101,15 @@ test('/gestisci home exposes four canonical hubs, with proposed opinions inside 
   }
 
   const hubArray = hubs.slice(hubs.indexOf('export const gestisciHubs'));
-  assert.equal((hubArray.match(/\n\s*id: /g) || []).length, 4);
+  assert.equal((hubArray.match(/\n\s*id: /g) || []).length, 3);
   assert.doesNotMatch(hubs, /sectionIds:\s*\[[^\]]*["']backup-recovery["']/s);
   assert.doesNotMatch(hubs, /sectionIds:\s*\[[^\]]*["']data-export["']/s);
   assert.match(hubs, /route:\s*["']\/admin\/ops-center["']/);
   assert.match(grid, /gestisciHubs\.map/);
   assert.match(grid, /selectedHubId/);
-  assert.match(hubs, /sectionIds: \["utenti", "riconoscimenti", "proposte-soggetti", "opinioni"\]/);
+  assert.match(hubs, /sectionIds: \["utenti", "riconoscimenti", "proposte-soggetti", "opinioni", "notifiche-totali"\]/);
   assert.doesNotMatch(hubs, /id: "contenuti"/);
-  assert.match(grid, /Quattro aree/);
+  assert.match(grid, /gestisci-overview-grid/);
 });
 
 test('web API defaults to the restored canonical domain while native fallback remains isolated', () => {
@@ -148,12 +147,12 @@ test('Data Export uses real API data, authenticated downloads and no web Render 
   assert.doesNotMatch(src, /Supabase/);
 });
 
-test('communications hub exposes one canonical notification surface with send, history and diagnostics', () => {
+test('Users and proposals hub exposes one canonical notification surface with send, history and diagnostics', () => {
   const hubs = read('client/src/pages/Gestisci/constants/hubs.ts');
   const sections = read('client/src/pages/Gestisci/constants/sections.ts');
   const notifications = read('client/src/pages/NotificheTotali/index.tsx');
 
-  assert.match(hubs, /sectionIds:\s*\[["']notifiche-totali["']\]/);
+  assert.match(hubs, /"opinioni", "notifiche-totali"\]/);
   assert.doesNotMatch(hubs, /notifiche-demos/);
   assert.match(sections, /id:\s*["']notifiche-totali["']/);
   assert.doesNotMatch(sections, /id:\s*["']notifiche-demos["']/);
