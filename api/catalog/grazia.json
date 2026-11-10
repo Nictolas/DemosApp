@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "nome": "Raffaella Ragnoli",
+    "attivo": true
+  },
+  {
+    "id": 2,
+    "nome": "Roberto Canulli",
+    "attivo": true
+  }
+]

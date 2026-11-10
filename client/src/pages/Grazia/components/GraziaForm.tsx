@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { X, CheckCircle2 } from "lucide-react";
 import { Classifica } from "../types";
 
@@ -30,9 +29,6 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
   onSubmit,
   onRemoveLocal,
   hasReachedLimit,
-  currentVotes,
-  limit,
-  remainingVotes
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -48,20 +44,12 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
 
   return (
     <Card className="overflow-hidden rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-sm lg:shadow-xl">
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-white lg:px-5 lg:py-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-bold lg:text-lg">Il tuo voto</h2>
-          <Badge className="rounded-full border border-white/30 bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-white/20" aria-label={`Voti selezionati: ${currentVotes} su ${limit}`}>
-            {currentVotes}/{limit}
-          </Badge>
-        </div>
-      </CardHeader>
       <CardContent className="px-3 py-2 lg:px-5 lg:py-3">
         <form onSubmit={onSubmit} className="mb-2 lg:mb-3">
           <div>
             <div className="relative min-w-0 w-full">
               <Input
-                placeholder="Nome del carcerato..."
+                placeholder="Nome della persona..."
                 enterKeyHint="done"
                 aria-label="Cerca un nome per il voto"
                 value={nomeInput}

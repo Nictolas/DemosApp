@@ -1,0 +1,37 @@
+name: Grazia catalog and privacy regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/catalog/grazia.json'
+      - 'api/services/graziaCatalog.js'
+      - 'api/routes/grazia.js'
+      - 'api/tests/graziaVersionedCatalog.test.js'
+      - 'api/tests/notificationRecipientAndReactionsSecurity.test.js'
+      - 'client/src/pages/Grazia/**'
+      - '.github/workflows/grazia-catalog-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  grazia-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Verify backend syntax
+        run: |
+          node --check api/routes/grazia.js
+          node --check api/services/graziaCatalog.js
+      - name: Validate versioned catalog, privacy, and preference contracts
+        run: |
+          node --test \
+            api/tests/graziaVersionedCatalog.test.js \
+            api/tests/notificationRecipientAndReactionsSecurity.test.js

@@ -6,6 +6,8 @@ const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 
+const { getGraziaCatalogRevision, mergeGraziaRanking, canonicalizeGraziaVotes } = require('../services/graziaCatalog');
+
 const router = express.Router();
 
 // POST /api/grazia - Crea richiesta di grazia
@@ -57,34 +59,21 @@ router.get('/', async (req, res) => {
     // Il feed pubblico espone soltanto risultati aggregati. I voti personali
     // (userid, timestamp e preferenze) non devono essere restituiti a terzi.
 
-    // La classifica include anche i carcerati inseriti dagli amministratori,
-    // senza attribuire loro voti fittizi. Il catalogo è separato dalle preferenze.
-    const classificaQuery = `
-      WITH voti_per_nome AS (
-        SELECT BTRIM(nome) AS nome, COUNT(*)::bigint AS richieste
-        FROM voti_grazia
-        WHERE nome IS NOT NULL AND LENGTH(BTRIM(nome)) > 0
-        GROUP BY BTRIM(nome)
-      ), classificati AS (
-        SELECT v.nome, v.richieste
-        FROM voti_per_nome v
-        WHERE NOT EXISTS (
-          SELECT 1 FROM grazia_carcerati c
-          WHERE LOWER(BTRIM(c.nome)) = LOWER(v.nome) AND c.attivo = false
-        )
-        UNION ALL
-        SELECT nome, 0::bigint AS richieste
-        FROM grazia_carcerati
-        WHERE attivo = true
-      )
-      SELECT nome, SUM(richieste)::integer AS richieste
-      FROM classificati
-      GROUP BY nome
-      ORDER BY richieste DESC, nome ASC
+    // Metadati della selezione pubblicata nel JSON versionato; approvazioni,
+    // disattivazioni e voti rimangono nel DB. Anche i nomi da vecchi voti
+    // continuano a comparire per non perdere le richieste già registrate,
+    // ma NON vengono promossi automaticamente nel codice.
+    const votiCountQuery = `
+      SELECT BTRIM(nome) AS nome, COUNT(*)::bigint AS richieste
+      FROM voti_grazia
+      WHERE nome IS NOT NULL AND LENGTH(BTRIM(nome)) > 0
+      GROUP BY BTRIM(nome)
     `;
-
-    const classificaResult = await pool.query(classificaQuery);
-    console.log(`✅ Classifica creata con ${classificaResult.rows.length} carcerati`);
+    const [votesResult, approvedResult] = await Promise.all([
+      pool.query(votiCountQuery),
+      pool.query('SELECT id, nome, attivo FROM grazia_carcerati')
+    ]);
+    const classifica = mergeGraziaRanking(votesResult.rows, approvedResult.rows);
 
     // Recupera i voti dell'utente se autenticato
     let mieiVoti = [];
@@ -152,9 +141,10 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      classifica: classificaResult.rows,
+      classifica,
+      catalogRevision: getGraziaCatalogRevision(),
       richieste: [], // Compatibilità legacy, senza esporre voti personali
-      mieiVoti: mieiVoti,
+      mieiVoti: canonicalizeGraziaVotes(mieiVoti, classifica),
       blocco
     });
   } catch (error) {
