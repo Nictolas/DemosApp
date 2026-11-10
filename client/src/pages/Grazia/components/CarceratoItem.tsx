@@ -73,12 +73,12 @@ export const CarceratoItem: React.FC<CarceratoItemProps> = ({
       </div>
 
       {/* Original richer ranking cards on larger screens. */}
-      <div className={`group hidden min-w-0 items-center justify-between gap-4 rounded-xl border p-4 transition-colors sm:flex ${carceratoStyle}`}>
-        <div className="flex min-w-0 flex-1 items-center gap-4">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white shadow-md ${numberStyle}`}>
+      <div className={`group hidden min-w-0 items-center justify-between gap-2 rounded-xl border p-3 transition-colors sm:flex lg:gap-4 lg:p-4 ${carceratoStyle}`}>
+        <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-4">
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base font-bold lg:h-10 lg:w-10 lg:text-lg text-white shadow-md ${numberStyle}`}>
             {index + 1}
           </div>
-          {avatarForSize(44)}
+          {avatarForSize(36)}
           <div className="min-w-0 flex-1">
             <h4 className={`break-words text-lg font-bold leading-snug text-gray-800 transition-colors ${textStyle}`}>
               {item.nome}
@@ -94,20 +94,22 @@ export const CarceratoItem: React.FC<CarceratoItemProps> = ({
           size="sm"
           onClick={() => onToggleSelezione(item.nome)}
           disabled={disabled}
-          className={`shrink-0 transition-colors ${isSelected
+          aria-label={`${isSelected ? "Rimuovi selezione" : "Seleziona"} ${item.nome}`}
+          title={`${isSelected ? "Rimuovi selezione" : "Seleziona"} ${item.nome}`}
+          className={`h-10 w-10 shrink-0 p-0 transition-colors lg:h-auto lg:w-auto lg:px-3 ${isSelected
             ? "border-green-500 bg-green-100 text-green-700 hover:bg-green-200"
             : "hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
           }`}
         >
           {isSelected ? (
             <>
-              <ThumbsUp className="mr-2 h-4 w-4" />
-              Selezionato
+              <ThumbsUp className="h-4 w-4 lg:mr-2" />
+              <span className="hidden lg:inline">Selezionato</span>
             </>
           ) : (
             <>
-              <Plus className="mr-2 h-4 w-4" />
-              Seleziona
+              <Plus className="h-4 w-4 lg:mr-2" />
+              <span className="hidden lg:inline">Seleziona</span>
             </>
           )}
         </Button>
