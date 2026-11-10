@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import apiRequest from "@/lib/api-request";
-import { Shield, Activity, Scale, Database, HardDrive, Bell, ArrowRight, SlidersHorizontal, PieChart, Gauge, Bot } from "lucide-react";
+import { Shield, Activity, Scale, Database, HardDrive, Bell, ArrowRight, SlidersHorizontal, PieChart, Gauge, Bot, ChevronDown } from "lucide-react";
 
 type SecurityAgentHealth = {
   generatedAt?: string;
@@ -74,18 +74,25 @@ const OpsCenter: React.FC = () => {
   }, []);
 
   return (
-    <div className="w-full mx-auto px-4 md:px-6 py-8 pt-20 min-h-screen bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f6f9ff_36%,_#ffffff_72%)]">
+    <div className="w-full mx-auto max-w-6xl px-4 py-5 pb-12 md:px-6 bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f6f9ff_36%,_#ffffff_72%)]">
       <div className="mb-6 rounded-2xl border border-slate-200/70 bg-white/85 p-5 md:p-6 shadow-sm backdrop-blur-sm">
         <Badge variant="outline" className="mb-3 text-indigo-700 border-indigo-300">Admin Hub</Badge>
         <h1 className="text-3xl font-bold mb-2">Ops Center</h1>
         <p className="text-slate-600 max-w-4xl">
-          Pagina unica per operativita, sicurezza e compliance, pensata anche per chi non e tecnico: ogni card spiega in modo semplice a cosa serve e cosa puoi farci.
+          Quattro gruppi espandibili. Apri soltanto quello che ti interessa; le operazioni tecniche restano riservate all'Admin.
         </p>
       </div>
 
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold text-slate-900 mb-3">Monitoring</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+
+      <details open className="group mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-sm">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600">
+          <span className="min-w-0">
+            <span className="block text-base">Salute</span>
+            <span className="mt-1 block text-xs font-normal text-slate-600">Stato servizi, Neon, spazio, parametri e metriche API.</span>
+          </span>
+          <ChevronDown className="h-5 w-5 shrink-0 text-indigo-600 transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-3 md:grid-cols-2 xl:grid-cols-3">
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" /> Monitoraggio Sistema</CardTitle>
@@ -161,11 +168,16 @@ const OpsCenter: React.FC = () => {
             </CardContent>
           </Card>
         </div>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold text-slate-900 mb-3">Security</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      </details>
+      <details className="group mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-sm">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600">
+          <span className="min-w-0">
+            <span className="block text-base">Sicurezza</span>
+            <span className="mt-1 block text-xs font-normal text-slate-600">Security Center, log, avvisi e protezione delle API.</span>
+          </span>
+          <ChevronDown className="h-5 w-5 shrink-0 text-indigo-600 transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-3 md:grid-cols-2 xl:grid-cols-3">
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> AI Cybersecurity Agent</CardTitle>
@@ -231,11 +243,16 @@ const OpsCenter: React.FC = () => {
             </CardContent>
           </Card>
         </div>
-      </section>
-
-      <section>
-        <h2 className="text-lg font-semibold text-slate-900 mb-3">Compliance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      </details>
+      <details className="group mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-sm">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600">
+          <span className="min-w-0">
+            <span className="block text-base">Privacy</span>
+            <span className="mt-1 block text-xs font-normal text-slate-600">GDPR, richieste e documenti legali: funzioni operative Admin.</span>
+          </span>
+          <ChevronDown className="h-5 w-5 shrink-0 text-indigo-600 transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-3 md:grid-cols-2 xl:grid-cols-3">
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Scale className="h-5 w-5" /> GDPR e Legale</CardTitle>
@@ -250,6 +267,17 @@ const OpsCenter: React.FC = () => {
               </Button>
             </CardContent>
           </Card>
+        </div>
+      </details>
+      <details className="group mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-sm">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600">
+          <span className="min-w-0">
+            <span className="block text-base">Backup/Export</span>
+            <span className="mt-1 block text-xs font-normal text-slate-600">Stato del backup applicativo ritirato ed esportazione dati.</span>
+          </span>
+          <ChevronDown className="h-5 w-5 shrink-0 text-indigo-600 transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-3 md:grid-cols-2 xl:grid-cols-3">
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><HardDrive className="h-5 w-5" /> Backup e Export</CardTitle>
@@ -268,7 +296,7 @@ const OpsCenter: React.FC = () => {
             </CardContent>
           </Card>
         </div>
-      </section>
+      </details>
     </div>
   );
 };
