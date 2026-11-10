@@ -125,13 +125,16 @@ test('web API defaults to the restored canonical domain while native fallback re
   assert.match(apiRequest, /return configured \|\| CANONICAL_API_BASE_URL/);
 });
 
-test('Ops Center identifies Neon and reads the existing Security Center health endpoint', () => {
+test('Ops Center identifies Neon and reads live Admin monitoring rather than an unavailable AI agent', () => {
   const src = read('client/src/pages/Admin/OpsCenter.tsx');
   assert.match(src, /Database \(Neon\)/);
   assert.doesNotMatch(src, /Database \(Supabase\)/);
-  assert.match(src, /\/security-center\/health/);
-  assert.match(src, /AI Cybersecurity Agent/);
-  assert.match(src, /Non disponibile/);
+  assert.match(src, /\/admin\/monitoring\/health/);
+  assert.match(src, /\/admin\/monitoring\/status/);
+  assert.match(src, /\/admin\/violations\/monitoring\/status/);
+  assert.match(src, /Stato della sicurezza/);
+  assert.match(src, /non verificabile/);
+  assert.doesNotMatch(src, /\/security-center\/health/);
 });
 
 test('Data Export uses real API data, authenticated downloads and no web Render fallback', () => {

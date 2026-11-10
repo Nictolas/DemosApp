@@ -26,6 +26,7 @@ on:
       - 'client/src/pages/Gestisci/constants/hubs.ts' # required contract for changing proposal entry points
       - 'client/src/pages/Gestisci/components/SectionsGrid.tsx' # validate Admin nav restructuring
       - 'client/src/pages/DpoPanel.tsx' # DPO read-only mobile layout and separate area views
+      - 'client/src/pages/Admin/OpsCenter.tsx' # required Admin security-status read-only contract
       - 'client/src/robust-layout.css' # DPO viewport adjustments require frontend build and catalog contract
       - 'client/src/pages/Gestisci/ProposteSoggetti.tsx' # Admin real-data contract required
       - 'client/src/pages/CapodiStato/**' # required catalog-contract for Capo di Stato UI updates
