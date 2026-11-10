@@ -13,6 +13,7 @@ import { ChevronDown, Settings, RefreshCcw, Compass, ArrowRight } from "lucide-r
 import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
 import { ProfileInfo } from "./components/ProfileInfo";
 import { ProfileOpinions } from "./components/ProfileOpinions";
+import { CompleteOpinionsCallout } from "./components/CompleteOpinionsCallout";
 import { ProfileGovernoIdeale } from "./components/ProfileGovernoIdeale";
 import { ProfileChosenPreferences, type ChosenPreferencesStatus } from "./components/ProfileChosenPreferences";
 
@@ -39,6 +40,11 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
   // Estrai userId dall'URL o dalla prop
   const userId = propUserId || params.userId;
 
+  // The callout is private and requires verified consent. It must load only the
+  // owner's answers, never a visitor's or another user's public profile.
+  const profileTargetId = propUserId || params.userId;
+  const wantsCompletion = !profileTargetId || profileTargetId === user?.id;
+
   // Hook personalizzato per la gestione dei dati del profilo
   const {
     userInfo,
@@ -60,7 +66,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
     fetchAllProfileData,
     isLoading,
     authReady
-  } = useProfileData(userId, { ...openPanels, edit: isEditing });
+  } = useProfileData(profileTargetId, { ...openPanels, opinions: wantsCompletion || openPanels.opinions, edit: isEditing });
 
   // Determina se l'utente sta visualizzando il proprio profilo o quello di un altro
   const isViewingOwnProfile = !userId || userId === user?.id;
@@ -198,6 +204,16 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
           <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
             Profilo pubblico · sola lettura
           </p>
+        )}
+
+        {/* Conteggio privato, solo su risposte confermate e dopo il consenso. */}
+        {isViewingOwnProfile && !isEditing && (
+          <CompleteOpinionsCallout
+            answers={userOpinions}
+            questions={opinionQuestions}
+            visible={Boolean(displayUserInfo && !isLoading && !isLoadingInfo && !error &&
+              consentGranted && !sectionsLoading.opinions && !opinionsError && opinionQuestions.length > 0)}
+          />
         )}
 
         {/* Contenuto principale */}
