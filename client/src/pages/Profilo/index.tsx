@@ -7,6 +7,7 @@ import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
 import { PageContainer } from "@/components/PageContainer";
 import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
+import { canEditPersonalAvatar } from "@/lib/avatar-access";
 import { ChevronDown, Settings, RefreshCcw, Compass, ArrowRight } from "lucide-react";
 
 // Componenti modulari
@@ -183,6 +184,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               onModificaImmagine={handleModificaImmagine}
               canEdit={isViewingOwnProfile}
               isOwnProfile={isViewingOwnProfile}
+              allowOwnAvatar={isViewingOwnProfile && canEditPersonalAvatar(user)}
               avatarConfig={avatarConfig}
             />
           </div>
