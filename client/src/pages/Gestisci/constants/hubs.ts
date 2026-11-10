@@ -13,7 +13,7 @@ export interface GestisciHub {
 export const gestisciHubs: GestisciHub[] = [
   {
     id: "utenti-verifiche",
-    title: "Utenti e proposte",
+    title: "Utenti e Proposte",
     description: "Utenti, riconoscimenti, proposte e notifiche.",
     icon: Users,
     buttonColor: "bg-purple-600 hover:bg-purple-700",
