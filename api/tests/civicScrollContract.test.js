@@ -210,7 +210,7 @@ test('Governo consent and ministers scroll together above the mobile navbar', ()
   assert.match(page, /<PageContainer className="overflow-hidden/);
   assert.match(page, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain/);
   assert.match(page, /aria-label="Governo e ministri"/);
-  assert.match(page, /tabIndex=\\{0\\}/);
+  assert.match(page, /tabIndex=\{0\}/);
   assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('<ConsensoGovernoSection'));
   assert.ok(page.indexOf('<ConsensoGovernoSection') < page.indexOf('<GovernoAttualeSection'));
   assert.ok(page.indexOf('<GovernoAttualeSection') < page.indexOf('{/* Il modal rimane fuori'));
