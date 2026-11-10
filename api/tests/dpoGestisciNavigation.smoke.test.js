@@ -38,7 +38,7 @@ test('Gestisci exposes DPO overview cards without granting underlying Admin rout
   assert.doesNotMatch(home, /data-testid="gestisci-dpo"/);
   assert.match(hubs, /data-testid="gestisci-dpo"/);
   assert.match(hubs, /hubCardClass/);
-  assert.match(hubs, /2xl:grid-cols-5/);
+  assert.match(hubs, /gestisci-overview-grid/);
   assert.match(hubs, /<ShieldCheck/);
   assert.match(home, /<SectionsGrid dpoReadOnly=\{!isAdmin && isDpo\} \/>/);
   assert.match(hubs, /if \(dpoReadOnly\)/);
