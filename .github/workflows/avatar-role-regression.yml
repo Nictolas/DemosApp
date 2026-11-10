@@ -1,0 +1,41 @@
+name: Avatar role authorization regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/lib/avatar-access.ts'
+      - 'client/src/pages/Profilo/**'
+      - 'client/src/pages/ModificaImmagine.tsx'
+      - 'client/src/components/DesktopAppHeader.tsx'
+      - 'client/src/hooks/use-auth.tsx'
+      - 'client/tests/avatarRoles.test.mjs'
+      - 'client/tests/profileNavLocalCache.test.mjs'
+      - 'api/routes/users/profile.js'
+      - 'api/routes/users/search.js'
+      - 'api/migrations/20261110_minimize_non_public_avatars.sql'
+      - '.github/workflows/avatar-role-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  avatar-roles:
+    name: Test avatar access and build frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Test avatar and profile navigation contracts
+        run: node --test client/tests/avatarRoles.test.mjs client/tests/profileNavLocalCache.test.mjs
+      - name: Check API JavaScript syntax
+        run: |
+          node --check api/routes/users/profile.js
+          node --check api/routes/users/search.js
+      - name: Build frontend
+        run: npm run build --prefix client

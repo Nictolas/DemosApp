@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Edit, MapPin, User } from "lucide-react";
 import { UserInfo } from "@/types/profile";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
+import { isPublicAvatarRole } from "@/lib/avatar-access";
 
 interface ProfileInfoProps {
   userInfo: UserInfo;
@@ -13,6 +14,7 @@ interface ProfileInfoProps {
   onModificaImmagine: () => void;
   canEdit?: boolean;
   isOwnProfile?: boolean;
+  allowOwnAvatar?: boolean;
   avatarConfig?: any;
 }
 
@@ -23,13 +25,16 @@ export const ProfileInfo = ({
   onModificaImmagine,
   canEdit = true,
   isOwnProfile = true,
+  allowOwnAvatar = false,
   avatarConfig,
 }: ProfileInfoProps) => {
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
   const [showEditConfirmation, setShowEditConfirmation] = useState(false);
 
-  // Tutti gli account possono riconoscere e modificare il proprio avatar.
-  const canShowAvatar = true;
+  // Elettori e DPO non hanno avatar; Admin può gestire il proprio,
+  // mentre gli avatar dei politici/candidati sono visibili pubblicamente.
+  const canShowAvatar = isOwnProfile ? allowOwnAvatar :
+    (isPublicAvatarRole(userInfo.ruolo) && userInfo.can_have_avatar !== false);
   const canShowFullName = ["P", "Politico", "C", "Candidato", "CP", "Candidato Politico"].includes(userInfo.ruolo);
 
   const fullName = userInfo.nome_completo ||
@@ -71,7 +76,7 @@ export const ProfileInfo = ({
         <div className="flex items-start gap-3">
           {canShowAvatar && (
             <div className="relative shrink-0">
-              {canEdit ? (
+              {canEdit && isOwnProfile ? (
                 <button
                   type="button"
                   onClick={() => setShowAvatarDialog(true)}
@@ -154,7 +159,7 @@ export const ProfileInfo = ({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAvatarDialog} onOpenChange={setShowAvatarDialog}>
+      <Dialog open={canShowAvatar && canEdit && isOwnProfile && showAvatarDialog} onOpenChange={setShowAvatarDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle>Modifica avatar</DialogTitle>

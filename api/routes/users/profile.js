@@ -51,7 +51,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     try {
       result = await pool.query(`
         SELECT
-          u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.created_at, u.updated_at,
+          u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, COALESCE((to_jsonb(u)->>'is_dpo')::boolean, FALSE) AS is_dpo, u.created_at, u.updated_at,
           COALESCE(up.genere, u.genere) AS genere,
           COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
           COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
@@ -126,9 +126,15 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       }
     }
     
-    // Gestisci avatar_config - può essere un oggetto JSONB o una stringa JSON
+    // Non trasferire agli elettori configurazioni avatar superflue.
+    // I permessi politici vengono dal middleware autenticato, non dal ruolo in cache.
+    const canReadOwnAvatar = req.user.status === 'a' && user.is_dpo !== true && (
+      req.user.isAdmin === true ||
+      req.user.isPolitician === true ||
+      req.user.isCandidate === true
+    );
     let avatarConfig = null;
-    if (user.avatar_config) {
+    if (canReadOwnAvatar && user.avatar_config) {
       try {
         // Se è già un oggetto (JSONB dal database), usalo direttamente
         if (typeof user.avatar_config === 'object' && user.avatar_config !== null) {
@@ -186,6 +192,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         candidato_regionale: decompressedUser.candidato_regionale,
         candidato_comune: decompressedUser.candidato_comune,
         status: decompressedUser.status,
+        can_have_avatar: canReadOwnAvatar,
         avatar_config: avatarConfig,
         created_at: decompressedUser.created_at,
         updated_at: decompressedUser.updated_at,
@@ -215,8 +222,25 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
     const userId = req.user.id;
     const { avatar_config } = req.body;
     
-    console.log('🎨 POST /api/users/me/avatar - Aggiornamento avatar per utente:', userId);
-    
+    // Recheck against DB on each write: hiding the client button is not authorization.
+    const subject = await getAccountSubject(pool, userId);
+    if (!subject || subject.status !== 'a') {
+      return res.status(403).json({ success: false, error: 'Account non autorizzato' });
+    }
+    const capabilities = subject.capabilities || {};
+    const hasPoliticalOrAdminCapability = capabilities.isAdmin === true ||
+      capabilities.isPolitician === true || capabilities.isCandidate === true;
+    const dpoResult = await pool.query(
+      'SELECT COALESCE((to_jsonb(u)->>\'is_dpo\')::boolean, FALSE) AS is_dpo FROM users u WHERE u.id = $1',
+      [userId]
+    );
+    if (!hasPoliticalOrAdminCapability || dpoResult.rows[0]?.is_dpo === true) {
+      return res.status(403).json({
+        success: false,
+        error: 'Avatar riservato ad Admin, politici e candidati'
+      });
+    }
+
     if (!avatar_config) {
       return res.status(400).json({
         success: false,

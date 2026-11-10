@@ -28,6 +28,8 @@ interface User {
   status?: string;
   is_admin?: boolean;
   is_dpo?: boolean;
+  is_politician?: boolean;
+  is_candidate?: boolean;
 }
 
 type AuthContextType = {
