@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, ThumbsUp, Trophy } from "lucide-react";
+import { Plus, ThumbsUp, Trophy, UserRound } from "lucide-react";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { CarceratoItemProps } from "../types";
 import {
   getCarceratoStyle,
@@ -15,12 +16,34 @@ export const CarceratoItem: React.FC<CarceratoItemProps> = ({
   isSelected,
   isTopThree,
   onToggleSelezione,
-  disabled
+  disabled,
+  canEditAvatar = false,
+  onEditAvatar
 }) => {
   const carceratoStyle = getCarceratoStyle(isTopThree);
   const numberStyle = getCarceratoNumberStyle(isTopThree);
   const textStyle = getCarceratoTextStyle(isTopThree);
   const trophyColor = getTrophyColor(isTopThree);
+
+  const avatarForSize = (size: number) => {
+    const portrait = item.avatar_config
+      ? <CustomAvatar config={item.avatar_config} size={size} className="overflow-hidden rounded-full" />
+      : <span className="flex h-full w-full items-center justify-center rounded-full bg-slate-100 text-slate-400"><UserRound className="h-1/2 w-1/2" /></span>;
+    return canEditAvatar && onEditAvatar ? (
+      <button
+        type="button"
+        onClick={() => onEditAvatar(item.nome)}
+        aria-label={`Modifica avatar di ${item.nome}`}
+        title={`Modifica avatar di ${item.nome}`}
+        className="shrink-0 overflow-hidden rounded-full border border-slate-200 transition hover:ring-2 hover:ring-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        style={{ width: size, height: size }}
+      >{portrait}</button>
+    ) : (
+      <div className="shrink-0 overflow-hidden rounded-full border border-slate-200" style={{ width: size, height: size }} aria-hidden="true">
+        {portrait}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -29,6 +52,7 @@ export const CarceratoItem: React.FC<CarceratoItemProps> = ({
         <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${numberStyle}`}>
           {index + 1}
         </span>
+        {avatarForSize(32)}
         <div className="min-w-0 flex-1">
           <p className="break-words text-sm font-semibold leading-snug text-gray-900">{item.nome}</p>
           <p className="mt-0.5 text-xs text-gray-500">{item.richieste} richieste</p>
@@ -54,6 +78,7 @@ export const CarceratoItem: React.FC<CarceratoItemProps> = ({
           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white shadow-md ${numberStyle}`}>
             {index + 1}
           </div>
+          {avatarForSize(44)}
           <div className="min-w-0 flex-1">
             <h4 className={`break-words text-lg font-bold leading-snug text-gray-800 transition-colors ${textStyle}`}>
               {item.nome}
