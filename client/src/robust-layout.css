@@ -200,6 +200,36 @@
   overflow: hidden;
 }
 
+/* Android long-form screens: the generic inner flexbox was clipped by overflow:hidden.
+   Allow its content to contribute scroll height to app-main, without changing fixed
+   screens, custom nested scrollers, dialogs, iOS or desktop. */
+body.android-device .app-main.app-main--android-document-scroll {
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y !important;
+}
+body.android-device .app-main.app-main--android-document-scroll > .app-main__inner {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+body.android-device .app-main.app-main--android-document-scroll > .app-main__inner > .fade-up-transition,
+body.android-device .app-main.app-main--android-document-scroll > .app-main__inner > .fade-side-transition,
+body.android-device .app-main.app-main--android-document-scroll > .app-main__inner > .page-transition {
+  flex: 0 0 auto;
+  height: auto !important;
+  min-height: 100%;
+  overflow: visible;
+}
+/* Android document routes must not inherit fixed-height mobile page constraints. */
+html.demos-mobile-layout body.android-device .app-main.app-main--android-document-scroll .min-h-screen,
+html.demos-mobile-layout body.android-device .app-main.app-main--android-document-scroll .h-screen {
+  height: auto !important;
+  min-height: 100% !important;
+  max-height: none !important;
+}
+
 /* PageTransition normally sizes to content; make this route fill the available
    area so iOS can scroll the list rather than the entire app shell. */
 .app-main.app-main--notifiche .fade-up-transition {
