@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
-import { PageTransition } from "@/components/PageTransition";
+import { PageContainer } from "@/components/PageContainer";
 import { useMinisteroData } from "./hooks/useMinisteroData";
 import { useMinisteroActions } from "./hooks/useMinisteroActions";
 import { Header } from "./components/Header";
@@ -60,8 +60,13 @@ export default function MinisteroPage() {
   }
 
   return (
-    <PageTransition>
-      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <PageContainer className="overflow-hidden bg-gradient-to-b from-background to-secondary/20">
+      <div
+        className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-6"
+        role="region"
+        aria-label="Dettaglio ministero"
+        tabIndex={0}
+      >
         <div className="container mx-auto max-w-4xl">
           <Header ministero={ministero} unlockDate={data?.blocco.unlockDate} />
 
@@ -102,6 +107,6 @@ export default function MinisteroPage() {
           )}
         </div>
       </div>
-    </PageTransition>
+    </PageContainer>
   );
 }
