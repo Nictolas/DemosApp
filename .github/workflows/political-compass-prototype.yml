@@ -18,6 +18,10 @@ on:
       - 'api/routes/opinioni/user-answers.js'
       - 'api/tests/politicalCompassProfileAnswers.contract.test.js'
       - 'api/tests/politicalCompassPrototype.smoke.test.js'
+      - 'api/tests/completeOpinionsCallout.contract.test.js'
+      - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
+      - 'client/src/pages/Proponi.tsx'
+      - 'client/src/pages/Profilo/components/CompleteOpinionsCallout.tsx'
       - '.github/workflows/political-compass-prototype.yml'
   workflow_dispatch:
 
@@ -59,6 +63,6 @@ jobs:
           fs.writeFileSync('/tmp/demos-political-compass.cjs', compiled.outputText);
           NODE
       - name: Test exact catalog IDs, score extremes, uncertainty and consent gating
-        run: COMPASS_MODEL_BUNDLE=/tmp/demos-political-compass.cjs node --test api/tests/politicalCompassPrototype.smoke.test.js api/tests/politicalCompassProfileAnswers.contract.test.js
+        run: COMPASS_MODEL_BUNDLE=/tmp/demos-political-compass.cjs node --test api/tests/politicalCompassPrototype.smoke.test.js api/tests/politicalCompassProfileAnswers.contract.test.js api/tests/completeOpinionsCallout.contract.test.js api/tests/unifiedSubjectProposalNavigation.contract.test.js
       - name: Build frontend
         run: npm run build --prefix client
