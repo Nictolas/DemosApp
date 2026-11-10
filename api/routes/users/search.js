@@ -480,7 +480,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
         capabilities.isCandidate === true;
       if (!allowed) {
         const { rows } = await pool.query(
-          'SELECT is_dpo, is_admin, status FROM users WHERE id = $1', [userId]
+          'SELECT COALESCE((to_jsonb(u)->>\'is_dpo\')::boolean, FALSE) AS is_dpo, u.is_admin, u.status FROM users u WHERE u.id = $1', [userId]
         );
         allowed = rows[0]?.status === 'a' && rows[0]?.is_dpo === true && rows[0]?.is_admin !== true;
       }
