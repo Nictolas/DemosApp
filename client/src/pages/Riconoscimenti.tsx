@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api-config";
+import { hasAdminCapability } from "@/lib/admin-access";
+import { getAuthToken } from "@/lib/auth-token";
 
 interface RiconoscimentoRow {
   id: string;
@@ -34,7 +36,7 @@ interface RiconoscimentoRow {
 }
 
 async function fetchRiconoscimenti(): Promise<RiconoscimentoRow[]> {
-  const token = localStorage.getItem("auth_token");
+  const token = getAuthToken();
   if (!token) {
     throw new Error("Token mancante");
   }
@@ -78,7 +80,7 @@ export default function Riconoscimenti() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const isAdmin = user?.ruolo === "AD" || user?.role === "AD";
+  const isAdmin = hasAdminCapability(user);
 
   const { data, isLoading, isError, error } = useQuery<RiconoscimentoRow[]>({
     queryKey: ["riconoscimenti"],
