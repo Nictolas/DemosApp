@@ -148,7 +148,17 @@ test('Amnistia fixes header and voting form; only offence rows scroll', () => {
   assert.match(form, /onSubmit=\{onSubmit\}/);
   assert.doesNotMatch(ranking, /<CardHeader|Classifica Reati/);
   assert.match(ranking, /aria-label="Lista reati Amnistia"/);
-  assert.match(header, /L’amnistia estingue il reato: per quale la concederesti\?/);
+  assert.match(header, /L’amnistia estingue il reato:<\/span>/);
+  assert.match(header, /className="block">per quale la concederesti\?<\/span>/);
+  const offenceCard = read('client/src/pages/Amnistia/components/LeggeItem.tsx');
+  assert.doesNotMatch(offenceCard, /fonte_url|>Fonte<\/a>/);
+  assert.match(offenceCard, /item\.precedente_storico/);
+  const emojiRules = read('client/src/pages/Amnistia/utils/amnistiaUtils.ts');
+  assert.ok(emojiRules.includes("[/legittima difesa/u, '🛡️']"));
+  assert.ok(emojiRules.includes("[/rissa|percosse|aggressione|lesioni personali/u, '🥊']"));
+  assert.ok(emojiRules.includes("[/diffamazion|stampa|giornal/u, '📰']"));
+  assert.ok(emojiRules.indexOf("[/cannabis|marijuana|canapa|hashish|ganja/u, '🌿']") < emojiRules.indexOf("[/commercio|vendita/u, '🛒']"));
+  assert.match(emojiRules, /return emojiReato\.find/);
   assert.ok(!header.includes('<Link'), 'Amnistia must not show back-to-Vota links');
   assert.ok(!header.includes('href="/vota"'), 'Amnistia must not link to Vota');
   assert.doesNotMatch(page, /page-with-navbar|min-h-screen bg-gradient/);

@@ -52,9 +52,6 @@ export const LeggeItem: React.FC<LeggeItemProps> = ({
         {item.precedente_storico && (
           <p className="mt-2 break-words text-sm leading-relaxed text-amber-800">
             {item.precedente_storico}
-            {item.fonte_url?.startsWith("https://") && (
-              <> · <a href={item.fonte_url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Fonte</a></>
-            )}
           </p>
         )}
       </div>
