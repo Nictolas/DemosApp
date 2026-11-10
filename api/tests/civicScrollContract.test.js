@@ -199,3 +199,20 @@ test('sightings header stays visible while all three categories scroll', () => {
     assert.ok(page.includes(`id: "${section}"`));
   }
 });
+
+test('Governo consent and ministers scroll together above the mobile navbar', () => {
+  const app = read('client/src/App.tsx');
+  const layout = read('client/src/components/RobustAppLayout.tsx');
+  const page = read('client/src/pages/Governo/index.tsx');
+
+  assert.ok(app.includes('<Route path="/governo">'));
+  assert.ok(layout.includes("location === '/governo'"));
+  assert.match(page, /<PageContainer className="overflow-hidden/);
+  assert.match(page, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain/);
+  assert.match(page, /aria-label="Governo e ministri"/);
+  assert.match(page, /tabIndex=\\{0\\}/);
+  assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('<ConsensoGovernoSection'));
+  assert.ok(page.indexOf('<ConsensoGovernoSection') < page.indexOf('<GovernoAttualeSection'));
+  assert.ok(page.indexOf('<GovernoAttualeSection') < page.indexOf('{/* Il modal rimane fuori'));
+  assert.doesNotMatch(page, /min-h-screen bg-gradient|page-with-navbar/);
+});
