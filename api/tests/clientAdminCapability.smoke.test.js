@@ -88,13 +88,12 @@ test('menu logo Admin access uses canonical capability helper', () => {
   assert.doesNotMatch(src, /const isAdmin = user\?\.ruolo === ['"]AD['"]/);
 });
 
-test('/gestisci home exposes five canonical hubs instead of low-level tools', () => {
+test('/gestisci home exposes four canonical hubs, with proposed opinions inside Users', () => {
   const hubs = read('client/src/pages/Gestisci/constants/hubs.ts');
   const grid = read('client/src/pages/Gestisci/components/SectionsGrid.tsx');
 
   for (const id of [
     'utenti-verifiche',
-    'contenuti',
     'comunicazioni',
     'dati-istituzionali',
     'ops-center',
@@ -103,12 +102,15 @@ test('/gestisci home exposes five canonical hubs instead of low-level tools', ()
   }
 
   const hubArray = hubs.slice(hubs.indexOf('export const gestisciHubs'));
-  assert.equal((hubArray.match(/\n\s*id: /g) || []).length, 5);
+  assert.equal((hubArray.match(/\n\s*id: /g) || []).length, 4);
   assert.doesNotMatch(hubs, /sectionIds:\s*\[[^\]]*["']backup-recovery["']/s);
   assert.doesNotMatch(hubs, /sectionIds:\s*\[[^\]]*["']data-export["']/s);
   assert.match(hubs, /route:\s*["']\/admin\/ops-center["']/);
   assert.match(grid, /gestisciHubs\.map/);
   assert.match(grid, /selectedHubId/);
+  assert.match(hubs, /sectionIds: \["utenti", "riconoscimenti", "proposte-soggetti", "opinioni"\]/);
+  assert.doesNotMatch(hubs, /id: "contenuti"/);
+  assert.match(grid, /quattro aree/);
 });
 
 test('web API defaults to the restored canonical domain while native fallback remains isolated', () => {
