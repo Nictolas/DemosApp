@@ -1,7 +1,7 @@
-import { BarChart3, Bell, Building2, Users } from "lucide-react";
+import { BarChart3, Building2, Users } from "lucide-react";
 
 export interface GestisciHub {
-  id: "utenti-verifiche" | "comunicazioni" | "dati-istituzionali" | "ops-center";
+  id: "utenti-verifiche" | "dati-istituzionali" | "ops-center";
   title: string;
   description: string;
   icon: any;
@@ -13,20 +13,11 @@ export interface GestisciHub {
 export const gestisciHubs: GestisciHub[] = [
   {
     id: "utenti-verifiche",
-    title: "Utenti e proposte",
-    description: "Account, riconoscimenti, verifiche e proposte civiche.",
+    title: "Utenti e Proposte",
+    description: "Utenti, riconoscimenti, proposte e notifiche.",
     icon: Users,
     buttonColor: "bg-purple-600 hover:bg-purple-700",
-    sectionIds: ["utenti", "riconoscimenti", "proposte-soggetti", "opinioni"],
-  },
-  {
-    id: "comunicazioni",
-    title: "Notifiche",
-    description: "Invio, diagnostica e cronologia delle notifiche DEMOS.",
-    icon: Bell,
-    buttonColor: "bg-pink-500 hover:bg-pink-600",
-    sectionIds: ["notifiche-totali"],
-    route: "/notifiche-totali",
+    sectionIds: ["utenti", "riconoscimenti", "proposte-soggetti", "opinioni", "notifiche-totali"],
   },
   {
     id: "dati-istituzionali",

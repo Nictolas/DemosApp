@@ -25,7 +25,7 @@ export default function Gestisci() {
 
   return (
     <PageContainer className="menu-page gestisci-page flex flex-col bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f8fbff_35%,_#ffffff_70%)]">
-      <div className="w-full px-4 py-4 flex-1 flex flex-col">
+      <div className="gestisci-page__content w-full min-h-0 px-4 py-4 flex-1 flex flex-col">
         <SectionsGrid dpoReadOnly={!isAdmin && isDpo} />
       </div>
     </PageContainer>

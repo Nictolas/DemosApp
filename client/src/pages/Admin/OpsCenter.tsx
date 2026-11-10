@@ -74,7 +74,7 @@ const OpsCenter: React.FC = () => {
   }, []);
 
   return (
-    <div className="w-full mx-auto max-w-6xl px-4 py-5 pb-12 md:px-6 bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f6f9ff_36%,_#ffffff_72%)]">
+    <div className="admin-ops-page w-full mx-auto max-w-6xl px-4 py-5 pb-12 md:px-6 bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f6f9ff_36%,_#ffffff_72%)]">
       <div className="mb-6 rounded-2xl border border-slate-200/70 bg-white/85 p-5 md:p-6 shadow-sm backdrop-blur-sm">
         <Badge variant="outline" className="mb-3 text-indigo-700 border-indigo-300">Admin Hub</Badge>
         <h1 className="text-3xl font-bold mb-2">Ops Center</h1>

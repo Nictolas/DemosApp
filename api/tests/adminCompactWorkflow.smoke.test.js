@@ -6,11 +6,12 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '../..');
 const read = relative => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 
-test('Notifications are opened directly from the Admin hub without a single-item submenu', () => {
+test('Notifications belong under Users and proposals, not a top-level tile', () => {
   const hubs = read('client/src/pages/Gestisci/constants/hubs.ts');
-  assert.match(hubs, /id: "comunicazioni"/);
-  assert.match(hubs, /title: "Notifiche"/);
-  assert.match(hubs, /route: "\/notifiche-totali"/);
+  assert.doesNotMatch(hubs, /id: "comunicazioni"/);
+  assert.match(hubs, /"opinioni", "notifiche-totali"\]/);
+  const sections = read("client/src/pages/Gestisci/constants/sections.ts");
+  assert.match(sections, /route: "\/notifiche-totali"/);
   const grid = read('client/src/pages/Gestisci/components/SectionsGrid.tsx');
   assert.match(grid, /if \(dpoReadOnly\)/);
   assert.match(grid, /\/dpo\?section=/);
