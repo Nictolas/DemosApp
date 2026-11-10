@@ -6,7 +6,7 @@ const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 
-const { getGraziaCatalogRevision, mergeGraziaRanking, canonicalizeGraziaVotes } = require('../services/graziaCatalog');
+const { getGraziaCatalogRevision, mergeGraziaRanking, canonicalizeGraziaVotes, displayGraziaName, isHiddenGraziaName } = require('../services/graziaCatalog');
 
 const router = express.Router();
 
@@ -259,7 +259,11 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
     console.log('🔍 DEBUG - Tipo id usato:', idType);
     console.log('🔍 DEBUG - Colonna timestamp usata:', timestampColumn);
 
-    const requestedVotes = voti.slice(0, 1).map((nome) => String(nome).trim()).filter(Boolean);
+    const requestedVotes = voti.slice(0, 1).map((nome) => displayGraziaName(String(nome).trim())).filter(Boolean);
+    // Evita di ripubblicare una voce ritirata semplicemente riscrivendola.
+    if (requestedVotes.some(isHiddenGraziaName)) {
+      return res.status(400).json({ success: false, error: 'Nome non disponibile nella classifica Grazia' });
+    }
     const existingResult = await pool.query(
       `SELECT nome, ${timestampColumn} AS changed_at
        FROM voti_grazia
@@ -267,7 +271,7 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
        ORDER BY ${timestampColumn} DESC`,
       [userId]
     );
-    const currentVotes = existingResult.rows.map((row) => String(row.nome || '').trim()).filter(Boolean).slice(0, 1);
+    const currentVotes = existingResult.rows.map((row) => displayGraziaName(String(row.nome || '').trim())).filter(Boolean).slice(0, 1);
     const requestedVote = requestedVotes[0] || null;
     const currentVote = currentVotes[0] || null;
 
