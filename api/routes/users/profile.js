@@ -193,6 +193,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         candidato_regionale: decompressedUser.candidato_regionale,
         candidato_comune: decompressedUser.candidato_comune,
         status: decompressedUser.status,
+        can_have_avatar: canReadOwnAvatar,
         avatar_config: avatarConfig,
         created_at: decompressedUser.created_at,
         updated_at: decompressedUser.updated_at,
