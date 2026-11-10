@@ -7,6 +7,11 @@ const { pool } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 
+const {
+  getStaticAmnistie, getStaticAmnistiaByName, getAmnistiaCatalogRevision,
+  mergePublishedAmnistie, normalizeAmnistiaName, resolveVoteTarget, AmnistiaCatalogConflict
+} = require('../services/amnistiaCatalog');
+
 const router = express.Router();
 
 // GET /api/amnistia - Ottieni leggi per amnistia
@@ -15,11 +20,16 @@ router.get('/', verifyToken, async (req, res) => {
     console.log('🔍 GET /api/amnistia chiamato');
     const userId = req.userId || req.user?.id;
     
-    // Query per tutte le amnistie
-    const amnistieQuery = `SELECT * FROM amnistia WHERE attiva = true ORDER BY legge`;
-    const amnistieResult = await pool.query(amnistieQuery);
-    console.log(`✅ Recuperate ${amnistieResult.rows.length} amnistie`);
-    
+    // Definizioni pubblicate nel JSON versionato; SQL serve soltanto per
+    // aggiunte approvate non presenti nel catalogo statico.
+    const excluded = getStaticAmnistie().map(item => normalizeAmnistiaName(item.legge));
+    const dynamicResult = await pool.query(
+      'SELECT id, legge, articolo, descrizione, fonte_url, precedente_storico, attiva ' +
+      'FROM amnistia WHERE attiva = true AND NOT (lower(btrim(legge)) = ANY($1::text[])) ORDER BY legge',
+      [excluded]
+    );
+    const publishedAmnistie = mergePublishedAmnistie(dynamicResult.rows);
+
     // Query per i voti dell'utente
     let mieiVoti = [];
     if (userId) {
@@ -44,29 +54,26 @@ router.get('/', verifyToken, async (req, res) => {
     try {
       const votiCountResult = await pool.query(votiCountQuery);
       votiCountResult.rows.forEach(row => {
-        votiCountMap[row.legge] = parseInt(row.voti);
+        const key = normalizeAmnistiaName(row.legge);
+        votiCountMap[key] = (votiCountMap[key] || 0) + parseInt(row.voti, 10);
       });
     } catch (error) {
       console.log('⚠️ Errore nel contare voti:', error.message);
     }
     
     // Crea classifica con voti reali
-    const classificaResult = amnistieResult.rows.map(amnistia => ({
-      id: amnistia.id,
-      legge: amnistia.legge,
-      articolo: amnistia.articolo || '',
-      descrizione: amnistia.descrizione || '',
-      fonte_url: amnistia.fonte_url || null,
-      precedente_storico: amnistia.precedente_storico || null,
-      voti: votiCountMap[amnistia.legge] || 0
+    const classificaResult = publishedAmnistie.map(amnistia => ({
+      ...amnistia,
+      voti: votiCountMap[normalizeAmnistiaName(amnistia.legge)] || 0
     }));
-    
+
     // Ordina la classifica per voti in ordine decrescente (più voti in alto)
     classificaResult.sort((a, b) => b.voti - a.voti);
     
     res.json({
       success: true,
-      amnistie: amnistieResult.rows,
+      amnistie: publishedAmnistie,
+      catalogRevision: getAmnistiaCatalogRevision(),
       classifica: classificaResult,
       mieiVoti: mieiVoti,
       blocco: await getPreferenceCooldown(pool, {
@@ -107,21 +114,22 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
       });
     }
     
-    // Prima trova l'ID di amnistia corrispondente alla legge
-    const amnistiaResult = await pool.query(
-      'SELECT id FROM amnistia WHERE legge = $1 AND attiva = true',
-      [legge]
-    );
-    
-    if (amnistiaResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Amnistia non trovata'
-      });
+    // Il catalogo versionato autorizza le voci statiche; SQL soltanto
+    // le nuove proposte approvate e non ancora incorporate nel codice.
+    const staticEntry = getStaticAmnistiaByName(legge);
+    if (staticEntry && !staticEntry.attiva) {
+      return res.status(404).json({ success: false, error: 'Amnistia non trovata' });
     }
-    
-    const amnistiaId = amnistiaResult.rows[0].id;
-    
+    if (!staticEntry) {
+      const eligible = await pool.query(
+        'SELECT id FROM amnistia WHERE lower(btrim(legge))=lower(btrim($1)) AND attiva=true LIMIT 1',
+        [legge]
+      );
+      if (!eligible.rows.length) {
+        return res.status(404).json({ success: false, error: 'Amnistia non trovata' });
+      }
+    }
+
     const existingVote = await pool.query(
       'SELECT id, legge FROM voti_amnistia WHERE userid = $1 LIMIT 1',
       [userId]
@@ -140,12 +148,17 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      const target = await resolveVoteTarget(client, legge);
+      if (!target) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, error: 'Amnistia non trovata' });
+      }
       if (current) {
         await client.query('DELETE FROM voti_amnistia WHERE userid = $1', [userId]);
       }
       await client.query(
         'INSERT INTO voti_amnistia (userid, amnistia_id, legge) VALUES ($1, $2, $3)',
-        [userId, amnistiaId, legge]
+        [userId, target.id, target.legge]
       );
       await recordPreferenceChange(client, { userId, scope: 'amnistia:preferenza' });
       await client.query('COMMIT');
@@ -159,6 +172,9 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
     res.json({ success: true, message: 'Voto amnistia salvato' });
   } catch (error) {
     if (sendCooldownError(res, error)) return;
+    if (error instanceof AmnistiaCatalogConflict) {
+      return res.status(409).json({ success: false, error: 'Catalogo Amnistia da riconciliare' });
+    }
     console.error('❌ Errore nel salvare voto amnistia:', error);
     res.status(500).json({
       success: false,
@@ -221,7 +237,7 @@ router.delete('/vota', verifyToken, validateInput(['legge']), async (req, res) =
 });
 
 // POST /api/amnistia - Crea nuova amnistia
-router.post('/', verifyToken, validateInput(['legge', 'articolo', 'descrizione']), async (req, res) => {
+router.post('/', verifyToken, requireAdmin, validateInput(['legge', 'articolo', 'descrizione']), async (req, res) => {
   try {
     const { legge, articolo, descrizione } = req.body;
     

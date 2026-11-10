@@ -14,6 +14,7 @@ router.use((_req, res, next) => {
 });
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
 const pool = getPool();
+const { getStaticAmnistiaByName } = require('../services/amnistiaCatalog');
 const CATEGORIES = new Set(['capo_stato', 'amnistia', 'attivisti', 'organizzazioni']);
 const SELF_PROFILE_CATEGORIES = new Set(['attivisti', 'organizzazioni']);
 
@@ -557,6 +558,12 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
     let publishedRef = null;
     if (decision === 'approve') {
       if (p.category === 'amnistia') {
+        // Evita di pubblicare duplicati di voci nel JSON (anche disattivate)
+        // negli ambienti dove la riga tecnica non è ancora presente nel DB.
+        if (getStaticAmnistiaByName(p.title)) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ success: false, error: 'Reato già presente nel catalogo Amnistia' });
+        }
         const exists = await client.query('SELECT id FROM amnistia WHERE lower(btrim(legge))=lower(btrim($1)) LIMIT 1', [p.title]);
         if (exists.rows.length) {
           await client.query('ROLLBACK');

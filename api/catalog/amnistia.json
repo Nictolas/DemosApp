@@ -1,0 +1,164 @@
+[
+  {
+    "id": 1,
+    "legge": "Vendita, produzione e distribuzione di cannabis illegale",
+    "articolo": "73 D.P.R. 309/1990",
+    "descrizione": "",
+    "fonte_url": null,
+    "precedente_storico": null,
+    "attiva": true
+  },
+  {
+    "id": 2,
+    "legge": "Vilipendio alla Repubblica, alle istituzioni e alle Forze Armate",
+    "articolo": "290 c.p.",
+    "descrizione": "",
+    "fonte_url": null,
+    "precedente_storico": null,
+    "attiva": true
+  },
+  {
+    "id": 3,
+    "legge": "Abuso d’ufficio",
+    "articolo": "323 c.p.",
+    "descrizione": "Reato abrogato dall'art. 1, comma 1, lett. b, legge 114/2024: non si applica una nuova amnistia alla fattispecie abrogata.",
+    "fonte_url": null,
+    "precedente_storico": null,
+    "attiva": false
+  },
+  {
+    "id": 4,
+    "legge": "Atti osceni presso luoghi frequentati da minori",
+    "articolo": "Art. 527, comma 2, c.p.",
+    "descrizione": "Punibile penalmente solo se commesso all'interno o nelle immediate vicinanze di luoghi abitualmente frequentati da minori e se ne deriva pericolo che vi assistano; la fattispecie generale è amministrativa.",
+    "fonte_url": null,
+    "precedente_storico": null,
+    "attiva": true
+  },
+  {
+    "id": 5,
+    "legge": "Occupazione abusiva di edifici per necessità abitativa",
+    "articolo": "633 c.p.",
+    "descrizione": "",
+    "fonte_url": null,
+    "precedente_storico": null,
+    "attiva": true
+  },
+  {
+    "id": 6,
+    "legge": "Omicidio del consenziente",
+    "articolo": "579 c.p.",
+    "descrizione": "",
+    "fonte_url": null,
+    "precedente_storico": null,
+    "attiva": true
+  },
+  {
+    "id": 7,
+    "legge": "Vilipendio o danneggiamento alla bandiera o ad altri simboli nazionali",
+    "articolo": "292 c.p.",
+    "descrizione": "",
+    "fonte_url": null,
+    "precedente_storico": null,
+    "attiva": true
+  },
+  {
+    "id": 8,
+    "legge": "Eccesso colposo di legittima difesa",
+    "articolo": "Art. 55 c.p.",
+    "descrizione": "Amnistia per eccesso colposo di legittima difesa",
+    "fonte_url": null,
+    "precedente_storico": null,
+    "attiva": true
+  },
+  {
+    "id": 9,
+    "legge": "Resistenza a pubblico ufficiale senza aggravanti gravi",
+    "articolo": "Art. 337 c.p.",
+    "descrizione": "Amnistia limitata alle ipotesi senza aggravanti dell'art. 339 c.p. e senza lesioni gravi o gravissime né morte.",
+    "fonte_url": "https://www.senato.it/legislature/17/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=39319&tab=datiGenerali",
+    "precedente_storico": "DDL S.21/2013 (non vigente)",
+    "attiva": true
+  },
+  {
+    "id": 10,
+    "legge": "Violenza o minaccia a pubblico ufficiale in casi non aggravati",
+    "articolo": "Art. 336, comma 1, c.p.",
+    "descrizione": "Amnistia per ipotesi del primo comma, escluse aggravanti dell'art. 339 c.p., lesioni gravi o gravissime e morte.",
+    "fonte_url": "https://www.senato.it/legislature/17/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=39319&tab=datiGenerali",
+    "precedente_storico": "DDL S.21/2013 (non vigente)",
+    "attiva": true
+  },
+  {
+    "id": 11,
+    "legge": "Rissa senza lesioni gravi o morte",
+    "articolo": "Art. 588, comma 2, c.p.",
+    "descrizione": "Ipotesi del secondo comma limitate ai casi senza lesioni gravi o gravissime e senza morte.",
+    "fonte_url": "https://www.senato.it/legislature/17/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=39319&tab=datiGenerali",
+    "precedente_storico": "DDL S.21/2013 (non vigente)",
+    "attiva": true
+  },
+  {
+    "id": 12,
+    "legge": "Furto aggravato con attenuanti specifiche",
+    "articolo": "Artt. 624, 625 e 62 nn. 4 e 6 c.p.",
+    "descrizione": "Furto aggravato ai sensi dell'art. 625 quando ricorre almeno una delle attenuanti indicate nell'art. 62, nn. 4 e 6.",
+    "fonte_url": "https://www.senato.it/legislature/17/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=39319&tab=datiGenerali",
+    "precedente_storico": "DDL S.21/2013 (non vigente)",
+    "attiva": true
+  },
+  {
+    "id": 13,
+    "legge": "Truffa aggravata in ipotesi delimitate",
+    "articolo": "Art. 640, comma 2, c.p.",
+    "descrizione": "Amnistia proposta per ipotesi del secondo comma, escluse quelle con aggravante dell'art. 61, n. 7.",
+    "fonte_url": "https://www.senato.it/legislature/17/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=39319&tab=datiGenerali",
+    "precedente_storico": "DDL S.21/2013 (non vigente)",
+    "attiva": true
+  },
+  {
+    "id": 14,
+    "legge": "Ricettazione di particolare tenuità",
+    "articolo": "Art. 648 c.p. (oggi comma 4)",
+    "descrizione": "Il DDL S.21/2013 richiamava l'art. 648, comma 2, nel testo di allora. La particolare tenuità è ora disciplinata al comma 4.",
+    "fonte_url": "https://www.senato.it/legislature/17/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=39319&tab=datiGenerali",
+    "precedente_storico": "DDL S.21/2013 (non vigente)",
+    "attiva": true
+  },
+  {
+    "id": 15,
+    "legge": "Falsa testimonianza su reati amnistiabili",
+    "articolo": "Art. 372 c.p.",
+    "descrizione": "Amnistia proposta solo quando la testimonianza verte su un reato che rientra esso stesso nell'amnistia.",
+    "fonte_url": "https://www.senato.it/legislature/17/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=39319&tab=datiGenerali",
+    "precedente_storico": "DDL S.21/2013 (non vigente)",
+    "attiva": true
+  },
+  {
+    "id": 16,
+    "legge": "Violazione di domicilio con violenza sulle cose",
+    "articolo": "Art. 614, comma 4, c.p.",
+    "descrizione": "Amnistia limitata alla violenza sulle cose (non a tutte le forme di violazione di domicilio aggravata).",
+    "fonte_url": "https://www.normattiva.it/eli/id/1990/04/12/090G0114/CONSOLIDATED/19970730",
+    "precedente_storico": "D.P.R. 75/1990 (precedente storico)",
+    "attiva": true
+  },
+  {
+    "id": 17,
+    "legge": "Blocco stradale durante manifestazioni sindacali in casi non violenti",
+    "articolo": "Art. 1, d.lgs. 66/1948",
+    "descrizione": "Precedente del 1990 per fatti legati a manifestazioni sindacali o gravi disagi, esclusi lesioni o morte e ulteriori aggravanti nei termini della norma.",
+    "fonte_url": "https://www.normattiva.it/eli/id/1990/04/12/090G0114/CONSOLIDATED/19970730",
+    "precedente_storico": "D.P.R. 75/1990 (precedente storico)",
+    "attiva": true
+  },
+  {
+    "id": 18,
+    "legge": "Diffamazione a mezzo stampa",
+    "articolo": "Art. 595, comma 3, c.p.",
+    "descrizione": "Precedente del 1966 per diffamazione col mezzo della stampa, con le specifiche esclusioni richiamate dall'art. 596 c.p.",
+    "fonte_url": "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=066U0332&atto.dataPubblicazioneGazzetta=1966-06-04",
+    "precedente_storico": "D.P.R. 332/1966 (precedente storico)",
+    "attiva": true
+  }
+]
