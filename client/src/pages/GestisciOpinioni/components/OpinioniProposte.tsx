@@ -50,35 +50,39 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
     );
   }
 
+  const ranked = [...proposte].sort((a, b) =>
+    (Number(b.voti) || 0) - (Number(a.voti) || 0) || a.testo.localeCompare(b.testo, "it")
+  );
+
   return (
     <div>
-      <p className="text-sm text-muted-foreground mb-3">Le proposte possono essere esaminate o rifiutate qui. Per trasformarne una in Opinione ufficiale bisogna aggiornare il catalogo nel codice e pubblicare una release.</p>
-      <ul className="space-y-2">
-        {proposte.map((op) => (
-          <li key={op.id} className="flex items-center justify-between border rounded px-3 py-2 bg-fuchsia-50">
-            <div className="flex flex-col">
-              <span className="font-medium">{op.testo}</span>
-              <span className="text-xs text-muted-foreground">
-                Voti: {op.voti}
-                {op.proponente && (
-                  <> · Proposta da: {op.proponente}</>
-                )}
-              </span>
+      <p className="mb-3 text-sm text-muted-foreground">
+        Classifica delle proposte ordinate per voti ricevuti. Una proposta non diventa
+        automaticamente un'opinione ufficiale: serve aggiornare il codice e pubblicare una release.
+      </p>
+      <ol className="space-y-2" aria-label="Classifica delle opinioni proposte">
+        {ranked.map((op, index) => (
+          <li key={op.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-fuchsia-50/50 px-3 py-3">
+            <div className="min-w-0 flex-1">
+              <span className="font-medium break-words">{index + 1}. {op.testo}</span>
+              <span className="mt-1 block text-sm text-muted-foreground">{Number(op.voti) || 0} voti ricevuti</span>
             </div>
-            <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                variant="destructive" 
-                onClick={() => processPropostaMutation.mutate({id: op.id, action: 'rifiuta'})} 
-                disabled={processPropostaMutation.isPending}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              aria-label={`Rifiuta proposta: ${op.testo}`}
+              onClick={() => {
+                if (window.confirm("Rifiutare questa proposta? Verranno rimossi anche i voti collegati.")) {
+                  processPropostaMutation.mutate({ id: op.id, action: "rifiuta" });
+                }
+              }}
+              disabled={processPropostaMutation.isPending}
+            >
+              <X className="mr-1 h-4 w-4" aria-hidden="true" /> Rifiuta
+            </Button>
           </li>
         ))}
-      </ul>
-      
+      </ol>
     </div>
   );
 };
