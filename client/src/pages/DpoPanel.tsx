@@ -4,6 +4,9 @@ import {
   ClipboardCheck, Eye, Info, LockKeyhole, ShieldCheck, Users,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
+import { Redirect } from "wouter";
 
 interface DpoOverview {
   role: "DPO" | "Admin";
@@ -77,6 +80,8 @@ function NoRequests({ total }: { total: number }) {
 }
 
 export default function DpoPanel() {
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const canViewDpo = hasAdminCapability(user) || hasDpoCapability(user);
   const [data, setData] = useState<DpoOverview | null>(null);
   const [areas, setAreas] = useState<DpoAreas | null>(null);
   const [error, setError] = useState("");
@@ -92,6 +97,7 @@ export default function DpoPanel() {
   };
 
   useEffect(() => {
+    if (isAuthLoading || !canViewDpo) return;
     let mounted = true;
     Promise.allSettled([apiRequest("GET", "/dpo/overview"), apiRequest("GET", "/dpo/areas")])
       .then(([overview, areaResponse]) => {
@@ -118,7 +124,7 @@ export default function DpoPanel() {
       })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, []);
+  }, [isAuthLoading, canViewDpo]);
 
   const selected = sections.find(section => section.id === selectedArea);
   const activeUsers = areas?.["utenti-verifiche"].users_active;
@@ -126,6 +132,10 @@ export default function DpoPanel() {
   const otherUsers = typeof activeUsers === "number" && typeof totalUsers === "number"
     ? Math.max(0, totalUsers - activeUsers) : undefined;
   const showOverview = selectedArea === null;
+
+  if (isAuthLoading) return <main className="p-6" role="status">Verifica accesso privacy…</main>;
+  if (!user) return <Redirect to="/auth" />;
+  if (!canViewDpo) return <Redirect to="/preferiti" />;
 
   return (
     <main className="min-h-[calc(100vh-10rem)] bg-[radial-gradient(circle_at_top_left,_#eff4ff_0%,_#f8fbff_40%,_#ffffff_90%)] px-4 pb-16 pt-6 sm:px-6 lg:pt-9" aria-labelledby="dpo-heading">
