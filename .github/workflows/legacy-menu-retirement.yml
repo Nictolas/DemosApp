@@ -9,6 +9,7 @@ on:
       - 'api/tests/adminCompactWorkflow.smoke.test.js'
       - 'api/tests/adminFourTilesAndOpsScroll.smoke.test.js'
       - 'api/tests/adminRuntimeCorrections.smoke.test.js'
+      - 'api/tests/adminSecurityStatus.smoke.test.js'
       - 'api/tests/adminNotificheScroll.smoke.test.js'
       - 'api/tests/clientUsersReadonly.smoke.test.js'
       - 'api/tests/legacyManualApprovalRetirement.smoke.test.js'
@@ -36,7 +37,7 @@ jobs:
           node-version: '22'
       - name: Confirm retired Menu route and return links
         run: |
-          node --test api/tests/retiredMenuNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js api/tests/adminCompactWorkflow.smoke.test.js api/tests/adminFourTilesAndOpsScroll.smoke.test.js api/tests/adminRuntimeCorrections.smoke.test.js api/tests/adminNotificheScroll.smoke.test.js api/tests/dpoGestisciNavigation.smoke.test.js api/tests/clientUsersReadonly.smoke.test.js api/tests/legacyManualApprovalRetirement.smoke.test.js api/tests/adminAccountDeletion.smoke.test.js api/tests/utentiCanonicalSexTable.smoke.test.js
+          node --test api/tests/retiredMenuNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js api/tests/adminCompactWorkflow.smoke.test.js api/tests/adminFourTilesAndOpsScroll.smoke.test.js api/tests/adminRuntimeCorrections.smoke.test.js api/tests/adminSecurityStatus.smoke.test.js api/tests/adminNotificheScroll.smoke.test.js api/tests/dpoGestisciNavigation.smoke.test.js api/tests/clientUsersReadonly.smoke.test.js api/tests/legacyManualApprovalRetirement.smoke.test.js api/tests/adminAccountDeletion.smoke.test.js api/tests/utentiCanonicalSexTable.smoke.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Profile tab, persistent summary and privacy regression
