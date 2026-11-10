@@ -61,16 +61,16 @@ const DataRetention: React.FC = () => {
         apiRequest('GET', '/admin/data-retention/job/status')
       ]);
 
-      if (policiesRes.success) {
-        setPolicies(policiesRes.data.policies);
+      if (policiesRes.ok && policiesRes.data?.success === true) {
+        setPolicies(policiesRes.data.data?.policies ?? {});
       }
 
-      if (statsRes.success) {
-        setStats(statsRes.data.stats);
+      if (statsRes.ok && statsRes.data?.success === true) {
+        setStats(statsRes.data.data?.stats ?? null);
       }
 
-      if (statusRes.success) {
-        setJobStatus(statusRes.data.status);
+      if (statusRes.ok && statusRes.data?.success === true) {
+        setJobStatus(statusRes.data.data?.status ?? null);
       }
 
     } catch (err) {
@@ -84,7 +84,7 @@ const DataRetention: React.FC = () => {
   const handleStartJob = async () => {
     try {
       const response = await apiRequest('POST', '/admin/data-retention/job/start');
-      if (response.success) {
+      if (response.ok && response.data?.success === true) {
         setSuccess('Job di data retention avviato');
         loadData();
       }
@@ -96,7 +96,7 @@ const DataRetention: React.FC = () => {
   const handleStopJob = async () => {
     try {
       const response = await apiRequest('POST', '/admin/data-retention/job/stop');
-      if (response.success) {
+      if (response.ok && response.data?.success === true) {
         setSuccess('Job di data retention fermato');
         loadData();
       }
@@ -106,10 +106,11 @@ const DataRetention: React.FC = () => {
   };
 
   const handleImmediateCleanup = async () => {
+    if (!window.confirm('Confermi la pulizia immediata? Può cancellare definitivamente dati scaduti. Verifica prima le policy approvate.')) return;
     try {
       const response = await apiRequest('POST', '/admin/data-retention/cleanup/immediate');
-      if (response.success) {
-        setSuccess(`Pulizia completata: ${response.data.total_deleted} record cancellati`);
+      if (response.ok && response.data?.success === true) {
+        setSuccess(`Pulizia completata: ${response.data.data?.total_deleted ?? 0} record cancellati`);
         loadData();
       }
     } catch (err) {
