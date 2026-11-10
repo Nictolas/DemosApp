@@ -79,7 +79,8 @@ test('page is protected, retains Firma, and can be opened from a menu entry', ()
   assert.match(app, /<Route path="\/proponi-soggetto">/);
   assert.match(app, /<ProtectedRoute path="\/proponi-soggetto" component=\{ProponiSoggetto\}/);
   assert.match(app, /<Route path="\/firma">/);
-  assert.match(firma, /href="\/proponi-soggetto\?da=firma"/);
+  assert.doesNotMatch(firma, /href="\/proponi-soggetto/);
+  assert.match(firma, /aria-label="Strumenti di firma"/);
   assert.match(app, /<Route path="\/proponi-opinione">/);
   assert.match(app, /<Route path="\/governo\/:slug">/);
 });
