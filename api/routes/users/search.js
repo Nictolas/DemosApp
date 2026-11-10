@@ -476,16 +476,13 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
         return res.status(403).json({ success: false, error: 'Avatar non autorizzato per questo utente' });
       }
       const capabilities = target.capabilities || {};
-      let allowed = capabilities.isAdmin === true || capabilities.isPolitician === true ||
+      const allowed = capabilities.isAdmin === true || capabilities.isPolitician === true ||
         capabilities.isCandidate === true;
-      if (!allowed) {
-        const { rows } = await pool.query(
-          'SELECT COALESCE((to_jsonb(u)->>\'is_dpo\')::boolean, FALSE) AS is_dpo, u.is_admin, u.status FROM users u WHERE u.id = $1', [userId]
-        );
-        allowed = rows[0]?.status === 'a' && rows[0]?.is_dpo === true && rows[0]?.is_admin !== true;
-      }
-      if (!allowed) {
-        return res.status(403).json({ success: false, error: 'Avatar riservato ad Admin, DPO, politici e candidati' });
+      const { rows } = await pool.query(
+        'SELECT COALESCE((to_jsonb(u)->>\'is_dpo\')::boolean, FALSE) AS is_dpo FROM users u WHERE u.id = $1', [userId]
+      );
+      if (!allowed || rows[0]?.is_dpo === true) {
+        return res.status(403).json({ success: false, error: 'Avatar riservato ad Admin, politici e candidati' });
       }
     }
 
