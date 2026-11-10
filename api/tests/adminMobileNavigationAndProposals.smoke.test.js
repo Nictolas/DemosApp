@@ -57,3 +57,17 @@ test('Public opinion proposal list does not query or return proposer identities'
   assert.doesNotMatch(publicList, /proponente:\s*proposersByOpinionId/);
   assert.match(publicList, /COUNT\(\*\) as voti_count/);
 });
+
+test('DPO overview fits six areas into a non-scrollable mobile grid', () => {
+  const panel = read('client/src/pages/DpoPanel.tsx');
+  const css = read('client/src/robust-layout.css');
+  const areaIds = ['utenti-verifiche', 'contenuti', 'comunicazioni', 'dati-istituzionali', 'ops-center', 'gdpr'];
+  for (const id of areaIds) assert.match(panel, new RegExp('id: "' + id + '"'));
+  assert.match(css, /\.app-main \.dpo-panel-page--overview\s*\{/);
+  assert.match(css, /overflow-y: hidden !important/);
+  assert.match(css, /grid-template-rows: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(panel, /showOverview \? \(/);
+  assert.match(panel, /selectedArea === null/);
+  assert.match(panel, /Torna alle aree/);
+  assert.match(panel, /window\.addEventListener\("popstate", restoreView\)/);
+});
