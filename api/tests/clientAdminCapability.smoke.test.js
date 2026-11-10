@@ -110,7 +110,7 @@ test('/gestisci home exposes four canonical hubs, with proposed opinions inside 
   assert.match(grid, /selectedHubId/);
   assert.match(hubs, /sectionIds: \["utenti", "riconoscimenti", "proposte-soggetti", "opinioni"\]/);
   assert.doesNotMatch(hubs, /id: "contenuti"/);
-  assert.match(grid, /quattro aree/);
+  assert.match(grid, /Quattro aree/);
 });
 
 test('web API defaults to the restored canonical domain while native fallback remains isolated', () => {

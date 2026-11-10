@@ -59,6 +59,8 @@ import Vota from "./pages/Vota";
 import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
 import ProposteSoggetti from "./pages/Gestisci/ProposteSoggetti";
+import VerificheIdentita from "./pages/Gestisci/VerificheIdentita";
+import VotazioniAdmin from "./pages/Gestisci/VotazioniAdmin";
 import Strumenti from "./pages/Strumenti";
 import Sondaggi from "./pages/Sondaggi";
 import Proponi from "./pages/Proponi";
@@ -755,6 +757,20 @@ export default function App() {
               </Route>
 
               {/* Route riconoscimenti (admin) */}
+              {/* Gestione CIE/videocall per attivisti e rappresentanti di organizzazioni.
+                  Riusa i medesimi endpoint e vincoli di approvazione. */}
+              <Route path="/gestisci/verifiche-identita">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/gestisci/verifiche-identita" component={VerificheIdentita} />
+                </PageTransition>
+              </Route>
+
+              <Route path="/gestisci/votazioni">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/gestisci/votazioni" component={VotazioniAdmin} />
+                </PageTransition>
+              </Route>
+
               <Route path="/gestisci/riconoscimenti">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci/riconoscimenti" component={Riconoscimenti} />

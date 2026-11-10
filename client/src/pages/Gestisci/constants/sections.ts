@@ -38,8 +38,8 @@ export const gestisciSections: GestisciSection[] = [
   {
     id: "proposte-soggetti",
     category: "amministrazione",
-    title: "Proposte soggetti",
-    description: "Esamina proposte, verifica i soggetti e consulta le approvazioni",
+    title: "Proposte civiche",
+    description: "Capo di Stato, Grazia e Amnistia: proposte, graduatorie ed esiti",
     icon: ClipboardList,
     color: "text-slate-600 group-hover:text-slate-800",
     buttonColor: "bg-slate-500 hover:bg-slate-600",
@@ -49,8 +49,8 @@ export const gestisciSections: GestisciSection[] = [
   {
     id: "riconoscimenti",
     category: "amministrazione",
-    title: "Riconoscimenti",
-    description: "Approva o rifiuta le richieste di riconoscimento come politico o candidato",
+    title: "Riconoscimenti e verifiche",
+    description: "Politici, candidati, attivisti e rappresentanti di organizzazioni",
     icon: Award,
     color: "text-emerald-600 group-hover:text-emerald-800",
     buttonColor: "bg-emerald-500 hover:bg-emerald-600",
@@ -111,6 +111,17 @@ export const gestisciSections: GestisciSection[] = [
     buttonColor: "bg-blue-500 hover:bg-blue-600",
     route: "/admin/data-export",
     buttonText: "Gestisci Export"
+  },
+  {
+    id: "votazioni-admin",
+    category: "istituzionale-dati",
+    title: "Votazioni",
+    description: "Un unico accesso a votazioni nazionali, europee e diagnostica",
+    icon: Vote,
+    color: "text-blue-600 group-hover:text-blue-800",
+    buttonColor: "bg-blue-500 hover:bg-blue-600",
+    route: "/gestisci/votazioni",
+    buttonText: "Apri Votazioni"
   },
   {
     id: "voti-politici",
