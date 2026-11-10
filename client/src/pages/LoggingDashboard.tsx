@@ -153,6 +153,7 @@ const LoggingDashboard: React.FC = () => {
 
   // Pulizia log vecchi
   const cleanupLogs = async (retentionDays = 30) => {
+    if (!window.confirm('Applicare la pulizia dei vecchi log? Solo se i periodi di conservazione sono approvati.')) return;
     try {
       setLoading(true);
       const response = await apiRequest('POST', '/admin/logging/cleanup', { retentionDays });
