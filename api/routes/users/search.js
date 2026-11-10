@@ -3,7 +3,7 @@ const { pool } = require('../../middleware/auth');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { decompressGender, compressGender } = require('../../utils/genderUtils');
 const { decompressUserLocation, compressUserLocation } = require('../../utils/locationUtils');
-const { queryWithAccountModelFallback } = require('../../services/accountCapabilitiesService');
+const { queryWithAccountModelFallback, getAccountSubject } = require('../../services/accountCapabilitiesService');
 
 const router = express.Router();
 
@@ -468,6 +468,26 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
     const { userId } = req.params;
     const updateData = req.body;
+
+    // Admin tooling must not reintroduce avatars on ordinary voter accounts.
+    if (updateData?.avatar_config != null) {
+      const target = await getAccountSubject(pool, userId);
+      if (!target || target.status !== 'a') {
+        return res.status(403).json({ success: false, error: 'Avatar non autorizzato per questo utente' });
+      }
+      const capabilities = target.capabilities || {};
+      let allowed = capabilities.isAdmin === true || capabilities.isPolitician === true ||
+        capabilities.isCandidate === true;
+      if (!allowed) {
+        const { rows } = await pool.query(
+          'SELECT is_dpo, is_admin, status FROM users WHERE id = $1', [userId]
+        );
+        allowed = rows[0]?.status === 'a' && rows[0]?.is_dpo === true && rows[0]?.is_admin !== true;
+      }
+      if (!allowed) {
+        return res.status(403).json({ success: false, error: 'Avatar riservato ad Admin, DPO, politici e candidati' });
+      }
+    }
 
     if (Object.prototype.hasOwnProperty.call(updateData || {}, 'ruolo')) {
       return res.status(410).json({
