@@ -1,80 +1,44 @@
 import { Classifica } from '../types';
 
-// Funzione per ottenere l'emoji per una legge
+// Le regole più specifiche precedono quelle generiche per evitare corrispondenze fuorvianti.
+// Niente sottostringhe come "art", "pena", "reato": ricorrono in titoli molto diversi.
+const emojiReato: ReadonlyArray<readonly [RegExp, string]> = [
+  [/cannabis|marijuana|canapa|hashish|ganja/u, '🌿'],
+  [/legittima difesa/u, '🛡️'],
+  [/resistenza a pubblico ufficiale/u, '🚓'],
+  [/violenza o minaccia a pubblico ufficiale|minaccia a pubblico ufficiale/u, '🗣️'],
+  [/rissa|percosse|aggressione|lesioni personali/u, '🥊'],
+  [/furto|rapina|borseggio|scippo/u, '👜'],
+  [/truffa|frode|raggiro/u, '🎭'],
+  [/ricettazione/u, '📦'],
+  [/falsa testimonianza|testimonianza|falso giuramento/u, '🗣️'],
+  [/domicilio|violazione di abitazione/u, '🏠'],
+  [/blocco stradale|sciopero|manifestazion|protesta/u, '🚧'],
+  [/diffamazion|stampa|giornal/u, '📰'],
+  [/atti osceni|oscenita/u, '🚫'],
+  [/abuso d.ufficio|peculato|corruzion|concussion/u, '🏛️'],
+  [/evasione fiscale|imposte|tribut|fiscale|tassazion/u, '🧾'],
+  [/riciclaggio|denaro illecito/u, '💸'],
+  [/falsificazion|contraffazion/u, '🪪'],
+  [/informatic|accesso abusivo|cyber|privacy|dati personali/u, '🔐'],
+  [/ambiente|inquinament|rifiuti tossici|disboscament/u, '🌍'],
+  [/arma|armi|esplosiv/u, '🚨'],
+  [/stupefacen|droga|spaccio|psicotrop|tossicodipenden/u, '💊'],
+  [/maltrattament|violenza domestic/u, '🚨'],
+  [/danneggiament|vandalismo|imbrattament/u, '🧱'],
+  [/guida|circolazione stradale|incidente stradale|omicidio stradale/u, '🚗'],
+  [/immigrazion|permesso di soggiorno|frontiera/u, '🛂'],
+  [/carcere|detenzion|prigione/u, '🔒'],
+  [/multa|ammenda|sanzione amministrativa/u, '💶'],
+  [/coltivazion/u, '🌱'],
+  [/commercio|vendita/u, '🛒'],
+  [/produzion/u, '🏭'],
+  [/omicidio|uccisione/u, '🕯️'],
+];
+
 export const getLeggeEmoji = (legge: string): string => {
-  const leggeLower = legge.toLowerCase();
-  
-  // Mappa di parole chiave a emoji
-  const emojiMap: { [key: string]: string } = {
-    'cannabis': '🌿',
-    'marijuana': '🌿',
-    'droga': '💊',
-    'stupefacenti': '💊',
-    'reato': '⚖️',
-    'penale': '⚖️',
-    'carcere': '🔒',
-    'detenzione': '🔒',
-    'prigione': '🔒',
-    'condanna': '📜',
-    'sentenza': '📜',
-    'giustizia': '⚖️',
-    'legge': '📋',
-    'decreto': '📋',
-    'codice': '📚',
-    'art': '📄',
-    'articolo': '📄',
-    'amnistia': '🕊️',
-    'indulto': '🕊️',
-    'grazia': '🕊️',
-    'libertà': '🕊️',
-    'diritto': '⚖️',
-    'cittadino': '👤',
-    'persona': '👤',
-    'sanzione': '⚠️',
-    'multa': '💰',
-    'pena': '⚖️',
-    'tribunale': '⚖️',
-    'corte': '⚖️',
-    'processo': '⚖️',
-    'crimine': '🚨',
-    'delitto': '🚨',
-    'violazione': '⚠️',
-    'infrazione': '⚠️',
-    'sostanza': '💊',
-    'psicotropo': '💊',
-    'tossicodipendenza': '💊',
-    'spaccio': '💊',
-    'traffico': '💊',
-    'possesso': '📦',
-    'consumo': '🍃',
-    'coltivazione': '🌱',
-    'produzione': '🏭',
-    'commercio': '💼',
-    'vendita': '💰',
-    'acquisto': '🛒',
-    'uso': '💉',
-    'somministrazione': '💉',
-    'somministrare': '💉',
-    'somministrato': '💉',
-  };
-  
-  // Cerca corrispondenze nelle parole chiave
-  for (const [keyword, emoji] of Object.entries(emojiMap)) {
-    if (leggeLower.includes(keyword)) {
-      return emoji;
-    }
-  }
-  
-  // Emoji di default basata sulla prima lettera o categoria
-  if (leggeLower.includes('legge') || leggeLower.includes('decreto') || leggeLower.includes('codice')) {
-    return '📋';
-  }
-  if (leggeLower.includes('art') || leggeLower.includes('articolo')) {
-    return '📄';
-  }
-  
-  // Emoji di default
-  return '⚖️';
+  const testo = legge.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return emojiReato.find(([pattern]) => pattern.test(testo))?.[1] ?? '⚖️';
 };
 
 export const getSuggestions = (classifica: Classifica[], leggeInput: string, showSuggestions: boolean): Classifica[] => {
