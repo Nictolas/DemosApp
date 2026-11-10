@@ -37,6 +37,12 @@ on:
       - 'client/src/components/VotazioniFinaliOpenpolis.tsx'
       - 'client/tests/parliamentFinalSourceFeed.test.mjs'
       - 'client/src/pages/Profilo/components/PoliticalCompassPreview.tsx' # required catalog-contract for compass UI changes
+      - 'client/src/pages/Profilo/index.tsx' # owner opinion completion UI
+      - 'client/src/pages/Profilo/components/CompleteOpinionsCallout.tsx'
+      - 'client/src/pages/CompassoPolitico.tsx'
+      - 'client/src/pages/Proponi.tsx' # signature navigation
+      - 'api/tests/completeOpinionsCallout.contract.test.js'
+      - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
       - 'client/src/App.tsx' # required contract for front routing change
       - 'client/public/app-ads.txt'
       - 'client/android/app/build.gradle' # Android version bump must satisfy required catalog-contract on PRs

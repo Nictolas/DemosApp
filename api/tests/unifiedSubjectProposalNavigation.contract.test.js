@@ -64,7 +64,12 @@ test('civic headers use the centered fixed directory style and a single top-righ
     const pageSource = read('client/src/pages/' + page + '/index.tsx');
     assert.match(header, /text-center/);
     assert.match(header, /flex items-center justify-center gap-2 px-11 sm:px-12/);
-    assert.match(header, /className="sr-only"/);
+    if (page === 'Amnistia') {
+      // This category deliberately has a visible, compact explanatory subtitle.
+      assert.match(header, /L’amnistia estingue il reato/);
+    } else {
+      assert.match(header, /className="sr-only"/);
+    }
     assert.match(header, /text-blue-600/);
     assert.match(pageSource, /shrink-0 border-b border-slate-200 bg-white/);
     assert.match(pageSource, /absolute right-0 top-0 z-10/);
@@ -79,7 +84,8 @@ test('page is protected, retains Firma, and can be opened from a menu entry', ()
   assert.match(app, /<Route path="\/proponi-soggetto">/);
   assert.match(app, /<ProtectedRoute path="\/proponi-soggetto" component=\{ProponiSoggetto\}/);
   assert.match(app, /<Route path="\/firma">/);
-  assert.match(firma, /href="\/proponi-soggetto\?da=firma"/);
+  assert.doesNotMatch(firma, /href="\/proponi-soggetto/);
+  assert.match(firma, /aria-label="Strumenti di firma"/);
   assert.match(app, /<Route path="\/proponi-opinione">/);
   assert.match(app, /<Route path="\/governo\/:slug">/);
 });
