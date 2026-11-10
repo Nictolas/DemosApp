@@ -60,6 +60,8 @@ test('Ops Center groups ten existing links in four accessible native disclosure 
   assert.equal((ops.match(/<details /g) || []).length, 4);
   assert.equal((ops.match(/<Card className="border-slate-200\/70 bg-white\/90 shadow-sm">/g) || []).length, 10);
   assert.match(ops, /Database \(Neon\)/);
-  assert.match(ops, /AI Cybersecurity Agent/);
-  assert.match(ops, /\/security-center\/health/);
+  assert.match(ops, /Stato della sicurezza/);
+  assert.match(ops, /\/admin\/monitoring\/health/);
+  assert.match(ops, /\/admin\/violations\/monitoring\/status/);
+  assert.doesNotMatch(ops, /\/security-center\/health/);
 });
