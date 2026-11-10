@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { useToast } from '@/hooks/use-toast';
 
 interface ConsensoData {
   mioConsenso: {
@@ -37,7 +36,12 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
   onVote,
   isVoting
 }) => {
-  const { toast } = useToast();
+  const [showBlockedNotice, setShowBlockedNotice] = useState(false);
+
+  // Un nuovo voto o lo sblocco settimanale non devono mantenere un avviso precedente.
+  useEffect(() => {
+    setShowBlockedNotice(false);
+  }, [data.blocco.isBlocked, data.mioConsenso?.timestamp]);
 
   // Prepara i dati per il grafico a torta
   const chartData = [
@@ -51,13 +55,11 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
 
   const handleVote = (risposta: string) => {
     if (data.blocco.isBlocked) {
-      toast({
-        title: "Voto bloccato",
-        description: "Hai già votato per il consenso questa settimana. Potrai votare di nuovo tra 7 giorni.",
-        variant: "destructive"
-      });
+      // Il tentativo di cambiare risposta mostra il motivo senza inviare una POST.
+      setShowBlockedNotice(risposta !== data.mioConsenso?.risposta);
       return;
     }
+    setShowBlockedNotice(false);
     onVote(risposta);
   };
 
@@ -90,7 +92,7 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
                   : 'bg-white text-slate-900 hover:bg-slate-50'
               }`}
               onClick={() => handleVote(option.value)}
-              disabled={isVoting || data.blocco.isBlocked}
+              disabled={isVoting}
               aria-pressed={data.mioConsenso?.risposta === option.value}
             >
               {option.value}
@@ -140,8 +142,8 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
           </p>
         )}
 
-        {data.blocco.isBlocked && (
-          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-2 text-center lg:p-3">
+        {data.blocco.isBlocked && showBlockedNotice && (
+          <div role="status" className="rounded-lg border border-yellow-200 bg-yellow-50 p-2 text-center lg:p-3">
             <p className="text-sm font-medium text-yellow-800">
               Hai già votato per il consenso questa settimana
             </p>
