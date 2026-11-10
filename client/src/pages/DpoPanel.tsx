@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Activity, ArrowLeft, Bell, BookOpen, Building2, ChevronRight,
-  ClipboardCheck, Eye, Info, LockKeyhole, ShieldCheck, Users,
+  ClipboardCheck, Info, ShieldCheck, Users,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
