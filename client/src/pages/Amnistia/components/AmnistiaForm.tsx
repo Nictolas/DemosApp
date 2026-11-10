@@ -1,13 +1,12 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { X, Loader2 } from "lucide-react";
 import { AmnistiaFormProps } from "../types";
 
 export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
-  limit,
   leggeInput,
   showSuggestions,
   mieiVoti,
@@ -23,14 +22,6 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
 }) => {
   return (
     <Card className="overflow-hidden border border-blue-100/50 bg-white shadow-sm">
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-white lg:px-5 lg:py-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-bold lg:text-lg">Il tuo voto</h2>
-          <Badge className="rounded-full border border-white/30 bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-white/20" aria-label={`Voti selezionati: ${mieiVoti.length} su ${limit}`}>
-            {mieiVoti.length}/{limit}
-          </Badge>
-        </div>
-      </CardHeader>
       <CardContent className="px-3 py-2 lg:px-5 lg:py-3">
         <form onSubmit={onSubmit} className="space-y-1">
           <div className="flex min-w-0 gap-1 lg:gap-2">
