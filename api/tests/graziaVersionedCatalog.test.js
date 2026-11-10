@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..', '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const {
   getStaticGraziaEntries, getStaticGraziaByName,
-  getGraziaCatalogRevision, mergeGraziaRanking, normalizeGraziaName
+  getGraziaCatalogRevision, mergeGraziaRanking, normalizeGraziaName, canonicalizeGraziaVotes
 } = require('../services/graziaCatalog');
 
 test('Grazia JSON catalog versions only existing curated names, not votes or criminal records', () => {
@@ -50,6 +50,10 @@ test('Grazia retains suppression and deduplicates whitespace or case without los
   assert.equal(ranking.filter(x => x.nome === 'Mario Rossi').length, 1);
   assert.equal(ranking.find(x => x.nome === 'Mario Rossi').richieste, 3);
   assert.equal(ranking.some(x => x.nome === 'Nome ritirato'), false);
+  assert.deepEqual(
+    canonicalizeGraziaVotes(['MARIO ROSSI', first.nome, 'Voto storico non pubblicato'], ranking),
+    ['Mario Rossi', first.nome, 'Voto storico non pubblicato']
+  );
 });
 
 test('Grazia API keeps individual votes in Postgres and only publishes aggregated result data', () => {
