@@ -126,7 +126,7 @@ test('Grazia avatars are public only as graphical config, editable solely with v
   assert.match(route, /router\.put\('\/avatar', verifyToken, requireAdmin,/);
   assert.match(route, /parseGraziaAvatarConfig\(req\.body\?\.avatar_config\)/);
   assert.match(route, /isHiddenGraziaName\(name\)/);
-  assert.match(route, /known\.some\(value => normalizeGraziaName/);
+  assert.match(route, /published\.some\(item => normalizeGraziaName/);
   assert.match(route, /INSERT INTO public\.grazia_avatar_configs/);
   assert.match(route, /SELECT nome_key, avatar_config FROM public\.grazia_avatar_configs/);
   assert.match(route, /avatar_config: avatarsByName\.get/);
