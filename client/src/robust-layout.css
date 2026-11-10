@@ -210,6 +210,33 @@
   overflow: hidden;
 }
 
+/* Admin Notifiche: the entire content (forms, history and diagnostics) must scroll
+   inside the fixed shell, above the mobile navbar. This is intentionally
+   distinct from the citizen /notifiche fixed-header list. */
+.app-main.app-main--admin-notifiche {
+  overflow-y: hidden !important;
+}
+
+.app-main.app-main--admin-notifiche .fade-up-transition {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-main.app-main--admin-notifiche .admin-notifiche-page {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+
 /* Eventi: stesso layout a scroll isolato di Notifiche.
    L'app shell si arresta sopra la navbar; header e tab non scorrono. */
 .app-main.app-main--eventi {
