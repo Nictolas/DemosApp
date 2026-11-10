@@ -34,7 +34,8 @@ export function stripSensitiveProfileFields(user: UserInfo): UserInfo {
   clean.data_nascita = yearOnly(user.data_nascita);
   // Never persist voter/other non-public avatar configs, including old caches.
   const avatar = user.avatar_config;
-  const allowedAvatar = user.can_have_avatar === true || ["AD", "P", "C", "CP"].includes(user.ruolo);
+  const allowedAvatar = user.can_have_avatar === true ||
+    (user.can_have_avatar == null && ["AD", "P", "C", "CP"].includes(user.ruolo));
   if (allowedAvatar && avatar && JSON.stringify(avatar).length < 8000) clean.avatar_config = avatar;
   // Public names are displayed only for politician/candidate profiles.
   if (["P", "C", "CP"].includes(user.ruolo)) {
