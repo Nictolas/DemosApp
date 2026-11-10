@@ -142,7 +142,13 @@ test('Amnistia fixes header and voting form; only offence rows scroll', () => {
   assert.ok(page.indexOf('<AmnistiaForm') < page.indexOf('<ClassificaLeggi'));
   assert.match(ranking, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto/);
   assert.match(ranking, /aria-label="Lista reati Amnistia"/);
-  assert.ok(ranking.indexOf('<CardHeader') < ranking.indexOf('app-page-scroll min-h-0'));
+  const form = read('client/src/pages/Amnistia/components/AmnistiaForm.tsx');
+  assert.doesNotMatch(form, /Il tuo voto|<CardHeader|Voti selezionati:/);
+  assert.match(form, /placeholder="Nome del reato\.\.\."/);
+  assert.match(form, /onSubmit=\{onSubmit\}/);
+  assert.doesNotMatch(ranking, /<CardHeader|Classifica Reati/);
+  assert.match(ranking, /aria-label="Lista reati Amnistia"/);
+  assert.match(header, /L’amnistia estingue il reato: per quale la concederesti\?/);
   assert.ok(!header.includes('<Link'), 'Amnistia must not show back-to-Vota links');
   assert.ok(!header.includes('href="/vota"'), 'Amnistia must not link to Vota');
   assert.doesNotMatch(page, /page-with-navbar|min-h-screen bg-gradient/);
