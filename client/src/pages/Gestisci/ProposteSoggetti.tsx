@@ -31,10 +31,15 @@ const CATEGORY_LABELS: Record<string, string> = {
   attivisti: "Attivisti", organizzazioni: "Organizzazioni"
 };
 
-export default function ProposteSoggetti() {
+export default function ProposteSoggetti({ scope = "civic" }: { scope?: "civic" | "verification" }) {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
-  const [activeCategory, setActiveCategory] = useState<SubjectCategory>("capo_stato");
+  const [activeCategory, setActiveCategory] = useState<SubjectCategory>(scope === "verification" ? "attivisti" : "capo_stato");
+  const visibleCategories = SUBJECT_CATEGORIES.filter(category =>
+    scope === "verification" ? SELF_PROFILE_CATEGORIES.has(category) : !SELF_PROFILE_CATEGORIES.has(category)
+  );
+  const inCurrentScope = (category: string) =>
+    scope === "verification" ? SELF_PROFILE_CATEGORIES.has(category) : !SELF_PROFILE_CATEGORIES.has(category);
   const [rankedNames, setRankedNames] = useState<RankedName[]>([]);
   const [graziaNames, setGraziaNames] = useState<string[]>([]);
   const [loadingRanked, setLoadingRanked] = useState(false);
@@ -353,11 +358,20 @@ export default function ProposteSoggetti() {
       <div className="flex h-full min-h-0 flex-col px-4 py-3">
         <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold">Proposte di nuovi soggetti</h1>
-            <p className="text-sm text-slate-600">Solo l'admin può rendere pubbliche le proposte.</p>
+            <h1 className="text-xl font-bold">{scope === "verification" ? "Attivisti e Organizzazioni" : "Proposte civiche"}</h1>
+            <p className="text-sm text-slate-600">{scope === "verification"
+              ? "Identità CIE, videocall e rappresentanza: procedure distinte dal riconoscimento dei politici."
+              : "Capo di Stato, Grazia e Amnistia: le verifiche di Attivisti e Organizzazioni sono in Riconoscimenti."}</p>
           </div>
           <Button variant="outline" onClick={() => showUndelivered ? void refreshUndelivered() : showApproved ? void refreshApproved() : activeCategory === "capo_stato" ? void refreshRanked() : activeCategory === "grazia" ? void refreshGrazia() : void refresh()} disabled={showUndelivered ? loadingUndelivered : showApproved ? loadingApproved : loading} aria-label="Aggiorna proposte">
             <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="mb-2 shrink-0">
+          <Button type="button" size="sm" variant="ghost"
+            onClick={() => window.location.assign(scope === "verification" ? "/gestisci/riconoscimenti" : "/gestisci")}
+            aria-label={scope === "verification" ? "Torna a Riconoscimenti" : "Torna a Gestisci"}>
+            ← {scope === "verification" ? "Torna a Riconoscimenti" : "Torna a Gestisci"}
           </Button>
         </div>
         {undeliveredNotification && (
@@ -377,7 +391,7 @@ export default function ProposteSoggetti() {
           </Button>
         </div>
         <div role="tablist" aria-label="Categoria proposte" className="mb-3 flex shrink-0 flex-wrap gap-2">
-          {SUBJECT_CATEGORIES.map(category => (
+          {visibleCategories.map(category => (
             <Button key={category} type="button" size="sm"
               role="tab" aria-selected={activeCategory === category}
               variant={activeCategory === category ? "default" : "outline"}
@@ -415,8 +429,8 @@ export default function ProposteSoggetti() {
               ))}
             </section>
           )}
-          {!showApproved && !showUndelivered && activeCategory !== "capo_stato" && activeCategory !== "grazia" && !loading && !error && pending.filter(p => p.category === activeCategory).length === 0 && <p className="text-sm text-slate-600">Nessuna proposta in attesa.</p>}
-          {showApproved && !loadingApproved && !error && approved.length === 0 && <p className="text-sm text-slate-600">Nessuna pubblicazione gestibile qui. Le richieste Grazia conservano la propria coda separata.</p>}
+          {!showApproved && !showUndelivered && activeCategory !== "capo_stato" && activeCategory !== "grazia" && !loading && !error && pending.filter(p => p.category === activeCategory).length === 0 && <p className="text-sm text-slate-600">{pendingCursor ? "Nessuna proposta in questa pagina: carica altre richieste." : "Nessuna proposta in attesa."}</p>}
+          {showApproved && !loadingApproved && !error && approved.filter(p => p.category === activeCategory).length === 0 && <p className="text-sm text-slate-600">Nessuna pubblicazione gestibile qui. Le richieste Grazia conservano la propria coda separata.</p>}
           {!showApproved && !showUndelivered && activeCategory !== "capo_stato" && activeCategory !== "grazia" && pending.filter(p => p.category === activeCategory).map(p => (
             <article key={p.id} className="space-y-2 rounded-xl border bg-white p-3 shadow-sm">
               <p className="text-xs font-medium text-slate-600">{CATEGORY_LABELS[p.category]}</p>
@@ -476,7 +490,7 @@ export default function ProposteSoggetti() {
               Carica altre richieste
             </Button>
           )}
-          {showUndelivered && !loadingUndelivered && !error && undelivered.length === 0 && unconfirmedProposals.length === 0 && (
+          {showUndelivered && !loadingUndelivered && !error && !undelivered.some(item => inCurrentScope(item.category)) && !unconfirmedProposals.some(item => inCurrentScope(item.category)) && (
             <p className="text-sm text-slate-600">Nessun avviso di proposta o ritiro da verificare.</p>
           )}
           {showUndelivered && !loadingUndelivered && !error && (
@@ -485,7 +499,7 @@ export default function ProposteSoggetti() {
               richiedono verifica DPO: non verranno reinviate automaticamente.
             </p>
           )}
-          {showUndelivered && !loadingUndelivered && !error && undelivered.map(item => (
+          {showUndelivered && !loadingUndelivered && !error && undelivered.filter(item => inCurrentScope(item.category)).map(item => (
             <article key={item.id} className="rounded-xl border bg-white p-3 shadow-sm">
               <p className="text-sm font-medium">{CATEGORY_LABELS[item.category] || item.category}</p>
               <p className="text-xs text-slate-600">
@@ -499,7 +513,7 @@ export default function ProposteSoggetti() {
               </p>
             </article>
           ))}
-          {showUndelivered && !loadingUndelivered && !error && unconfirmedProposals.map(item => (
+          {showUndelivered && !loadingUndelivered && !error && unconfirmedProposals.filter(item => inCurrentScope(item.category)).map(item => (
             <article key={item.id} className="rounded-xl border bg-white p-3 shadow-sm">
               <p className="text-sm font-medium">{CATEGORY_LABELS[item.category] || item.category}</p>
               <p className="text-xs text-slate-700">
