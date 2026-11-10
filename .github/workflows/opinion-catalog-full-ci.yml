@@ -29,6 +29,7 @@ on:
       - 'client/src/robust-layout.css' # DPO viewport adjustments require frontend build and catalog contract
       - 'client/src/pages/Gestisci/ProposteSoggetti.tsx' # Admin real-data contract required
       - 'client/src/pages/CapodiStato/**' # required catalog-contract for Capo di Stato UI updates
+      - 'client/src/pages/Amnistia/**' # required catalog-contract for Amnistia UI updates
       - 'api/tests/d12AdminRealRecords.contract.test.js'
       - 'client/src/pages/VotiPolitici.tsx' # required catalog-contract for UI-only fix
       - 'client/src/pages/VotiPoliticiFinali.tsx'
