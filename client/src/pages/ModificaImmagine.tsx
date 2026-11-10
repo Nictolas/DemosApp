@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { UserInfo } from "@/types/user";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { canEditPersonalAvatar } from "@/lib/avatar-access";
 
 interface AvatarConfig {
   skinColor: string;
@@ -56,7 +57,7 @@ export default function ModificaImmagine() {
         const result = await response.json();
         return result.user || result;
     },
-    enabled: !!user,
+    enabled: canEditPersonalAvatar(user),
   });
 
 
@@ -88,9 +89,9 @@ export default function ModificaImmagine() {
     return <Redirect to="/auth" />;
   }
 
-  const hasPermission = userInfo?.ruolo === "P" || userInfo?.ruolo === "C" || userInfo?.ruolo === "CP" || userInfo?.ruolo === "AD";
+  const hasPermission = canEditPersonalAvatar(user);
   
-  if (!isLoadingInfo && !hasPermission) {
+  if (!hasPermission) {
       return <Redirect to="/menu/profilo" />;
   }
   
