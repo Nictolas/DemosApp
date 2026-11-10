@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink, RefreshCw, Search } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
 import { useAuth } from "@/hooks/use-auth";
+import { hasAdminCapability } from "@/lib/admin-access";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,7 +99,7 @@ export default function VotiPoliticiFinali() {
             </div>
           </div>
           <div className="flex gap-2">
-            {user?.ruolo === "AD" && <Button variant="outline" size="sm" disabled={sync.isPending} onClick={() => sync.mutate()}>{sync.isPending ? "Sincronizzazione…" : "Sincronizza voti finali"}</Button>}
+            {hasAdminCapability(user) && <Button variant="outline" size="sm" disabled={sync.isPending} onClick={() => sync.mutate()}>{sync.isPending ? "Sincronizzazione…" : "Sincronizza voti finali"}</Button>}
             <Button variant="outline" size="sm" disabled={isFetching} onClick={() => refetch()}><RefreshCw className="mr-1 h-4 w-4" /> Aggiorna</Button>
           </div>
         </div>
