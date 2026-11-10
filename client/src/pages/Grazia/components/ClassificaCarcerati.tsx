@@ -17,6 +17,8 @@ interface ClassificaCarceratiProps {
   isPending: boolean;
   onToggleSelezione: (nome: string) => void;
   hasReachedLimit: boolean;
+  canEditAvatar?: boolean;
+  onEditAvatar?: (nome: string) => void;
 }
 
 export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
@@ -25,7 +27,9 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
   isBlocked,
   isPending,
   onToggleSelezione,
-  hasReachedLimit
+  hasReachedLimit,
+  canEditAvatar = false,
+  onEditAvatar
 }) => {
   if (!classifica || classifica.length === 0) {
     return (
@@ -60,6 +64,10 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
                 isSelected={selectedVoti.includes(item.nome)}
                 isTopThree={isTopThree(index)}
                 onToggleSelezione={onToggleSelezione}
+
+                canEditAvatar={canEditAvatar}
+
+                onEditAvatar={onEditAvatar}
                 disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
               />
             ))}
@@ -76,6 +84,10 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
                   isSelected={selectedVoti.includes(item.nome)}
                   isTopThree={isTopThree(index + 3)}
                   onToggleSelezione={onToggleSelezione}
+
+                  canEditAvatar={canEditAvatar}
+
+                  onEditAvatar={onEditAvatar}
                   disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
                 />
               ))}

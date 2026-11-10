@@ -113,3 +113,50 @@ test('Roggero is displayed as Mario Roggero without altering historical votes, R
   assert.match(route, /displayGraziaName\(String\(nome\)\.trim\(\)\)/);
   assert.match(route, /canonicalizeGraziaVotes\(mieiVoti, classifica\)/);
 });
+
+
+test('Grazia avatars are public only as graphical config, editable solely with verified Admin middleware', () => {
+  const route = read('api/routes/grazia.js');
+  const profile = read('client/src/pages/Grazia/index.tsx');
+  const card = read('client/src/pages/Grazia/components/CarceratoItem.tsx');
+  const list = read('client/src/pages/Grazia/components/ClassificaCarcerati.tsx');
+  const dialog = read('client/src/pages/Grazia/components/GraziaAvatarDialog.tsx');
+  const migration = read('api/migrations/20261110_grazia_avatar_configs.sql');
+
+  assert.match(route, /router\.put\('\/avatar', verifyToken, requireAdmin,/);
+  assert.match(route, /parseGraziaAvatarConfig\(req\.body\?\.avatar_config\)/);
+  assert.match(route, /isHiddenGraziaName\(name\)/);
+  assert.match(route, /published\.some\(item => normalizeGraziaName/);
+  assert.match(route, /INSERT INTO public\.grazia_avatar_configs/);
+  assert.match(route, /SELECT nome_key, avatar_config FROM public\.grazia_avatar_configs/);
+  assert.match(route, /avatar_config: avatarsByName\.get/);
+  assert.match(profile, /isSessionVerified && hasAdminCapability\(user\)/);
+  assert.match(profile, /canEditAvatar && editingAvatarName/);
+  assert.match(list, /canEditAvatar=\{canEditAvatar\}/);
+  assert.match(card, /canEditAvatar && onEditAvatar/);
+  assert.match(card, /<CustomAvatar config=\{item\.avatar_config\}/);
+  assert.match(card, /onClick=\{\(\) => onEditAvatar\(item\.nome\)\}/);
+  assert.match(dialog, /import \{ AvatarEditor \} from "@\/components\/AvatarEditor"/);
+  assert.match(dialog, /"PUT", "\/api\/grazia\/avatar"/);
+  assert.match(migration, /ALTER TABLE public\.grazia_avatar_configs ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /REVOKE ALL ON TABLE public\.grazia_avatar_configs FROM PUBLIC, anon, authenticated/);
+  assert.doesNotMatch(migration, /INSERT INTO public\.voti_grazia|ALTER TABLE public\.users/);
+});
+
+test('Grazia only stores safe SVG editor controls and rejects extra data', () => {
+  const { parseGraziaAvatarConfig } = require('../services/graziaAvatarConfig');
+  const valid = {
+    skinColor: '#FDBCB4', hairColor: '#8B4513', hairStyle: 'short',
+    mustacheStyle: 'none', mustacheColor: '#2C1810',
+    beardStyle: 'none', beardColor: '#2C1810', noseStyle: 'normal',
+    suitColor: '#2C3E50', tieColor: '#E74C3C',
+    glassesStyle: 'none', glassesColor: '#333333'
+  };
+  assert.deepEqual(parseGraziaAvatarConfig(valid), valid);
+  assert.equal(parseGraziaAvatarConfig({ ...valid, avatar_url: 'https://example.com/photo' }), null);
+  assert.equal(parseGraziaAvatarConfig({ ...valid, skinColor: 'url(javascript:alert(1))' }), null);
+  assert.equal(parseGraziaAvatarConfig({ ...valid, hairStyle: '<script>' }), null);
+  assert.equal(parseGraziaAvatarConfig({ ...valid, hairStyle: '' }), null);
+  assert.equal(parseGraziaAvatarConfig({ ...valid, glassesColor: null }), null);
+  assert.equal(parseGraziaAvatarConfig([]), null);
+});

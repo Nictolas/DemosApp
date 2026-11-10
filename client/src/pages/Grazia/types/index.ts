@@ -1,6 +1,22 @@
+export interface GraziaAvatarConfig {
+  skinColor: string;
+  hairColor: string;
+  hairStyle: string;
+  mustacheStyle: string;
+  mustacheColor: string;
+  beardStyle: string;
+  beardColor: string;
+  noseStyle: string;
+  suitColor: string;
+  tieColor: string;
+  glassesStyle: string;
+  glassesColor: string;
+}
+
 export interface Classifica {
   nome: string;
   richieste: number;
+  avatar_config?: GraziaAvatarConfig | null;
 }
 
 export interface GraziaData {
@@ -37,4 +53,6 @@ export interface CarceratoItemProps {
   isTopThree: boolean;
   onToggleSelezione: (nome: string) => void;
   disabled: boolean;
+  canEditAvatar?: boolean;
+  onEditAvatar?: (nome: string) => void;
 }
