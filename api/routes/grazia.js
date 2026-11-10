@@ -6,7 +6,7 @@ const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 
-const { getGraziaCatalogRevision, mergeGraziaRanking, canonicalizeGraziaVotes, displayGraziaName, isHiddenGraziaName, normalizeGraziaName, getStaticGraziaEntries } = require('../services/graziaCatalog');
+const { getGraziaCatalogRevision, mergeGraziaRanking, canonicalizeGraziaVotes, displayGraziaName, isHiddenGraziaName, normalizeGraziaName } = require('../services/graziaCatalog');
 const { parseGraziaAvatarConfig } = require('../services/graziaAvatarConfig');
 
 const router = express.Router();
@@ -185,16 +185,15 @@ router.put('/avatar', verifyToken, requireAdmin, async (req, res) => {
     return res.status(404).json({ success: false, error: 'Soggetto non disponibile' });
   }
   try {
-    const namesResult = await pool.query(
-      `SELECT nome FROM public.grazia_carcerati WHERE attivo = true
-       UNION SELECT DISTINCT BTRIM(nome) AS nome FROM public.voti_grazia
-       WHERE NULLIF(BTRIM(nome), '') IS NOT NULL`
-    );
-    const known = [
-      ...getStaticGraziaEntries().filter(item => item.attivo).map(item => item.nome),
-      ...namesResult.rows.map(row => row.nome)
-    ];
-    if (!known.some(value => normalizeGraziaName(displayGraziaName(value)) === normalizeGraziaName(name))) {
+    const [votesResult, approvedResult] = await Promise.all([
+      pool.query(`SELECT BTRIM(nome) AS nome, COUNT(*)::bigint AS richieste
+        FROM public.voti_grazia
+        WHERE NULLIF(BTRIM(nome), '') IS NOT NULL
+        GROUP BY BTRIM(nome)`),
+      pool.query('SELECT id, nome, attivo FROM public.grazia_carcerati')
+    ]);
+    const published = mergeGraziaRanking(votesResult.rows, approvedResult.rows);
+    if (!published.some(item => normalizeGraziaName(item.nome) === normalizeGraziaName(name))) {
       return res.status(404).json({ success: false, error: 'Soggetto non disponibile' });
     }
     await pool.query(
