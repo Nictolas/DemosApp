@@ -8,9 +8,7 @@ export const useOpinioniData = () => {
   const { data: opinioniResponse, isLoading, isError: isOpinioniError } = useQuery<{success: boolean, data: Opinione[]}>({
     queryKey: ['opinioni'],
     queryFn: async () => {
-      console.log('🔍 DEBUG - Chiamata API /api/opinioni');
       const response = await apiRequest('GET', '/api/opinioni');
-      console.log('🔍 DEBUG - Dati ricevuti:', response);
       
       // apiRequest restituisce { ok, status, data, json }
       // response.data contiene la risposta dell'API che ha struttura { success, data: [...] }
@@ -91,7 +89,11 @@ export const useOpinioniMutations = () => {
 
   // Mutazioni per le opinioni proposte
   const processPropostaMutation = useMutation({
-    mutationFn: ({ id }: { id: string; action: 'rifiuta' }) => apiRequest('DELETE', `/api/opinioni-proposte/${id}`),
+    mutationFn: async ({ id }: { id: string; action: 'rifiuta' }) => {
+      const result = await apiRequest('DELETE', `/api/opinioni-proposte/${id}`);
+      if (!result?.ok || result?.data?.success === false) throw new Error('Rifiuto non riuscito');
+      return result;
+    },
     onSuccess: () => { 
       toast({ title: "Successo", description: 'Proposta rifiutata.' }); 
       invalidateAll(); 
