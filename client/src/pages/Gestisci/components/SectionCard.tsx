@@ -10,34 +10,6 @@ interface SectionCardProps {
 export const SectionCard: React.FC<SectionCardProps> = ({ section, compact = false }) => {
   const IconComponent = section.icon;
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.classList.add('scale-95', 'shadow-md');
-  };
-
-  const handleMouseUp = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.classList.remove('scale-95', 'shadow-md');
-    window.location.href = section.route;
-  };
-
-  const handleMouseLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.classList.remove('scale-95', 'shadow-md');
-  };
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.add('scale-95', 'shadow-md');
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('scale-95', 'shadow-md');
-    window.location.href = section.route;
-  };
-
-  const handleContextMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-  };
-
   // Estrai i colori dal gradient per creare il colore di sfondo
   const getBackgroundColor = (buttonColor: string) => {
     if (buttonColor.includes('purple')) return '#8b5cf6';
@@ -74,12 +46,8 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section, compact = fal
       className={`group relative w-full overflow-hidden cursor-pointer transition-all duration-200 border border-white/50 bg-white/70 backdrop-blur-md hover:bg-white/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 rounded-2xl ${
         compact ? "min-h-[56px]" : "min-h-[156px]"
       }`}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onContextMenu={handleContextMenu}
+      onClick={() => window.location.assign(section.route)}
+      aria-label={`Apri ${section.title}`}
       data-testid="gestisci-button"
     >
       <div className="absolute inset-0 opacity-10" style={{ backgroundColor: bgColor }} />
