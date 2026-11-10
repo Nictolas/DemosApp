@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '../lib/queryClient';
 import { getApiUrl } from '@/lib/api-config';
+import { getAuthToken } from '@/lib/auth-token';
 
 interface LogEntry {
   id: string;
@@ -68,9 +69,9 @@ const LoggingDashboard: React.FC = () => {
   const loadStats = async (days = 7) => {
     try {
       setLoading(true);
-      const response = await apiRequest(`/admin/logging/stats?days=${days}`);
-      if (response.success) {
-        setStats(response.data);
+      const response = await apiRequest('GET', `/admin/logging/stats?days=${days}`);
+      if (response.ok && response.data?.success === true) {
+        setStats(response.data.data);
       }
     } catch (err) {
       setError('Errore caricamento statistiche');
@@ -83,9 +84,9 @@ const LoggingDashboard: React.FC = () => {
   const loadRecentLogs = async (hours = 24, limit = 50) => {
     try {
       setLoading(true);
-      const response = await apiRequest(`/admin/logging/recent?hours=${hours}&limit=${limit}`);
-      if (response.success) {
-        setRecentLogs(response.data);
+      const response = await apiRequest('GET', `/admin/logging/recent?hours=${hours}&limit=${limit}`);
+      if (response.ok && response.data?.success === true) {
+        setRecentLogs(response.data.data);
       }
     } catch (err) {
       setError('Errore caricamento log recenti');
@@ -104,9 +105,9 @@ const LoggingDashboard: React.FC = () => {
         if (value) params.append(key, value);
       });
       
-      const response = await apiRequest(`/admin/logging/search?${params.toString()}`);
-      if (response.success) {
-        setSearchResults(response.data);
+      const response = await apiRequest('GET', `/admin/logging/search?${params.toString()}`);
+      if (response.ok && response.data?.success === true) {
+        setSearchResults(response.data.data);
       }
     } catch (err) {
       setError('Errore ricerca log');
@@ -124,9 +125,11 @@ const LoggingDashboard: React.FC = () => {
       if (searchFilters.level) params.append('level', searchFilters.level);
       params.append('format', format);
       
+      const token = getAuthToken();
+      if (!token) throw new Error('Sessione Admin mancante');
       const response = await fetch(getApiUrl(`/admin/logging/export?${params.toString()}`), {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${getAuthToken()}`
         }
       });
       
@@ -140,6 +143,8 @@ const LoggingDashboard: React.FC = () => {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+      } else {
+        throw new Error(`Esportazione non riuscita (HTTP ${response.status})`);
       }
     } catch (err) {
       setError('Errore esportazione log');
@@ -150,9 +155,9 @@ const LoggingDashboard: React.FC = () => {
   const cleanupLogs = async (retentionDays = 30) => {
     try {
       setLoading(true);
-      const response = await apiRequest('/admin/logging/cleanup', 'POST', { retentionDays });
-      if (response.success) {
-        alert(`Puliti ${response.deletedCount} log vecchi`);
+      const response = await apiRequest('POST', '/admin/logging/cleanup', { retentionDays });
+      if (response.ok && response.data?.success === true) {
+        alert(response.data.message || `Puliti ${response.data.deletedCount ?? 0} log vecchi`);
         loadStats();
       }
     } catch (err) {
