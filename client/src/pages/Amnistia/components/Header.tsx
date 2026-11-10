@@ -8,6 +8,9 @@ export const Header: React.FC = () => (
       <Scale className="h-7 w-7 shrink-0 text-blue-600" aria-hidden="true" />
       <h1 className="min-w-0 text-xl font-bold leading-tight text-gray-900 sm:text-2xl">Amnistia</h1>
     </div>
-    <p className="mt-1 px-11 text-xs leading-snug text-gray-500 sm:px-12 sm:text-sm">L’amnistia estingue il reato: per quale la concederesti?</p>
+    <p className="mt-1 px-11 text-xs leading-snug text-gray-500 sm:px-12 sm:text-sm">
+      <span className="block">L’amnistia estingue il reato:</span>
+      <span className="block">per quale la concederesti?</span>
+    </p>
   </div>
 );
