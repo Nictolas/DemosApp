@@ -1,7 +1,7 @@
-import { BarChart3, Bell, BookOpen, Building2, Users } from "lucide-react";
+import { BarChart3, Bell, Building2, Users } from "lucide-react";
 
 export interface GestisciHub {
-  id: "utenti-verifiche" | "contenuti" | "comunicazioni" | "dati-istituzionali" | "ops-center";
+  id: "utenti-verifiche" | "comunicazioni" | "dati-istituzionali" | "ops-center";
   title: string;
   description: string;
   icon: any;
@@ -14,18 +14,10 @@ export const gestisciHubs: GestisciHub[] = [
   {
     id: "utenti-verifiche",
     title: "Utenti e verifiche",
-    description: "Account, statistiche e richieste di riconoscimento.",
+    description: "Account, riconoscimenti e proposte di opinioni e soggetti.",
     icon: Users,
     buttonColor: "bg-purple-600 hover:bg-purple-700",
-    sectionIds: ["utenti", "riconoscimenti", "proposte-soggetti"],
-  },
-  {
-    id: "contenuti",
-    title: "Contenuti",
-    description: "Proposte degli utenti e catalogo delle opinioni ufficiali.",
-    icon: BookOpen,
-    buttonColor: "bg-cyan-500 hover:bg-cyan-600",
-    sectionIds: ["opinioni"],
+    sectionIds: ["utenti", "riconoscimenti", "proposte-soggetti", "opinioni"],
   },
   {
     id: "comunicazioni",
