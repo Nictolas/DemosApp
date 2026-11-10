@@ -7,9 +7,11 @@ BEGIN;
 CREATE TEMP TABLE avatar_cleanup_ineligible_users ON COMMIT DROP AS
 SELECT u.id
 FROM users u
-WHERE COALESCE(u.is_admin, FALSE) = FALSE
-  AND COALESCE((to_jsonb(u)->>'is_dpo')::boolean, FALSE) = FALSE
-  AND COALESCE(u.ruolo, 'E') NOT IN
+WHERE (
+  COALESCE((to_jsonb(u)->>'is_dpo')::boolean, FALSE) = TRUE
+  OR (
+    COALESCE(u.is_admin, FALSE) = FALSE
+    AND COALESCE(u.ruolo, 'E') NOT IN
       ('AD', 'Admin', 'P', 'Politico', 'C', 'Candidato', 'CP', 'Candidato Politico')
   AND NOT EXISTS (
     SELECT 1 FROM political_mandates pm
@@ -24,6 +26,7 @@ WHERE COALESCE(u.is_admin, FALSE) = FALSE
       AND pc.status = 'ACTIVE'
       AND pc.starts_at <= NOW()
       AND (pc.ends_at IS NULL OR pc.ends_at > NOW())
+  )
   );
 
 -- Keep the two duplicated legacy avatar columns consistent.
