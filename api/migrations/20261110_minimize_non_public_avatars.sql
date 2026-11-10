@@ -26,8 +26,9 @@ WHERE (
       AND pc.status = 'ACTIVE'
       AND pc.starts_at <= NOW()
       AND (pc.ends_at IS NULL OR pc.ends_at > NOW())
+    )
   )
-  );
+);
 
 -- Keep the two duplicated legacy avatar columns consistent.
 UPDATE user_profile up
