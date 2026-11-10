@@ -13,7 +13,7 @@ const hubAccent = (buttonColor: string) => {
   return "#6b7280";
 };
 
-const hubCardClass = "group relative min-h-[170px] w-full overflow-hidden rounded-2xl border border-white/60 bg-white/75 p-5 text-left shadow-sm backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/95 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500";
+const hubCardClass = "gestisci-overview-card group relative flex w-full min-w-0 flex-col justify-center overflow-hidden rounded-2xl border border-white/60 bg-white/85 p-3 text-left shadow-sm backdrop-blur-md transition-all duration-200 hover:bg-white/95 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 sm:p-5";
 
 export const SectionsGrid: React.FC<{ dpoReadOnly?: boolean }> = ({ dpoReadOnly = false }) => {
   const [selectedHubId, setSelectedHubId] = useState<GestisciHub["id"] | null>(null);
@@ -75,19 +75,19 @@ export const SectionsGrid: React.FC<{ dpoReadOnly?: boolean }> = ({ dpoReadOnly 
   }
 
   return (
-    <div className="w-full space-y-5">
-      <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur-sm">
-        <h1 className="text-2xl font-bold text-slate-900">
+    <div className="gestisci-overview-layout">
+      <header className="gestisci-overview-heading rounded-2xl border border-white/70 bg-white/75 p-3 shadow-sm backdrop-blur-sm sm:p-5">
+        <h1 className="text-lg font-bold text-slate-900 sm:text-2xl">
           {dpoReadOnly ? "Consultazione DEMOS" : "Gestione DEMOS"}
         </h1>
-        <p className="mt-1 max-w-3xl text-sm text-slate-600">
+        <p className="gestisci-overview-subtitle mt-1 text-xs leading-snug text-slate-600 sm:text-sm">
           {dpoReadOnly
-            ? "Esplora le aree in sola lettura. Nessuna modifica ai dati o accesso alle configurazioni tecniche."
-            : "Quattro aree operative, oltre al pannello DPO. Notifiche si apre direttamente e gli strumenti tecnici sono in Sistema e sicurezza."}
+            ? "Consulta le aree della privacy in sola lettura."
+            : "Utenti, proposte, notifiche, dati istituzionali e sicurezza."}
         </p>
-      </div>
+      </header>
 
-      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+      <nav className="gestisci-overview-grid" aria-label="Aree di Gestione DEMOS">
         <button
           type="button"
           onClick={() => { window.location.href = "/dpo"; }}
@@ -96,12 +96,12 @@ export const SectionsGrid: React.FC<{ dpoReadOnly?: boolean }> = ({ dpoReadOnly 
           aria-label="Apri Pannello DPO"
         >
           <div className="absolute inset-x-0 top-0 h-1.5 bg-indigo-600" />
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100">
+          <div className="gestisci-overview-card__icon mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 sm:h-12 sm:w-12">
             <ShieldCheck className="h-6 w-6 text-indigo-700" aria-hidden="true" />
           </div>
-          <div className="pr-5">
-            <div className="font-semibold leading-tight text-slate-900">Pannello DPO</div>
-            <div className="mt-2 text-xs leading-snug text-slate-600">
+          <div className="min-w-0 pr-2">
+            <div className="gestisci-overview-card__title text-sm font-semibold leading-tight text-slate-900 sm:text-base">Pannello DPO</div>
+            <div className="gestisci-overview-card__description mt-1 text-[11px] leading-snug text-slate-600 sm:text-xs">
               Privacy, richieste GDPR e consultazione in sola lettura.
             </div>
           </div>
@@ -121,14 +121,14 @@ export const SectionsGrid: React.FC<{ dpoReadOnly?: boolean }> = ({ dpoReadOnly 
             >
               <div className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: accent }} />
               <div
-                className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl"
+                className="gestisci-overview-card__icon mb-2 flex h-10 w-10 items-center justify-center rounded-xl sm:h-12 sm:w-12"
                 style={{ backgroundColor: `${accent}20` }}
               >
                 <Icon className="h-6 w-6" style={{ color: accent }} aria-hidden="true" />
               </div>
-              <div className="pr-5">
-                <div className="font-semibold leading-tight text-slate-900">{hub.title}</div>
-                <div className="mt-2 text-xs leading-snug text-slate-600">
+              <div className="min-w-0 pr-2">
+                <div className="gestisci-overview-card__title text-sm font-semibold leading-tight text-slate-900 sm:text-base">{hub.title}</div>
+                <div className="gestisci-overview-card__description mt-1 text-[11px] leading-snug text-slate-600 sm:text-xs">
                   {dpoReadOnly ? "Riepilogo aggregato in sola lettura" : hub.description}
                 </div>
               </div>
@@ -136,7 +136,7 @@ export const SectionsGrid: React.FC<{ dpoReadOnly?: boolean }> = ({ dpoReadOnly 
             </button>
           );
         })}
-      </div>
+      </nav>
     </div>
   );
 };
