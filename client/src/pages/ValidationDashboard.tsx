@@ -83,6 +83,7 @@ const ValidationDashboard: React.FC = () => {
 
   // Pulisci fallimenti vecchi
   const handleCleanup = async () => {
+    if (!window.confirm('Eliminare definitivamente i fallimenti di validazione scaduti?')) return;
     try {
       const response = await apiRequest('POST', '/admin/validation/cleanup', {
         retentionDays: 30
