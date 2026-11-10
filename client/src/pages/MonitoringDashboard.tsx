@@ -312,39 +312,10 @@ const MonitoringDashboard: React.FC = () => {
     }
   };
 
-  // Carica dati iniziali
+  // Opening an Admin dashboard must not change monitoring state.
+  // The explicit toggle above remains available to the administrator.
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      await loadAllData();
-
-      // On-demand: se il monitor non è attivo, lo avviamo automaticamente quando apri la dashboard.
-      // Questo evita di tenerlo sempre acceso lato backend in produzione.
-      try {
-        const response = await apiRequest('GET', '/admin/monitoring/status');
-        const serverPayload = response?.data ?? response;
-        const currentlyMonitoring =
-          serverPayload?.success === true ? !!serverPayload.data?.isMonitoring :
-          typeof serverPayload?.isMonitoring === 'boolean' ? serverPayload.isMonitoring :
-          false;
-
-        if (mounted && !currentlyMonitoring) {
-          await apiRequest('POST', '/admin/monitoring/start', { intervalMs: MONITORING_INTERVAL_MS });
-          startedByThisPageRef.current = true;
-          await loadMonitoringStatus();
-        }
-      } catch (_e) {
-        // Se non riesce ad avviare (es. non admin), non bloccare la pagina.
-      }
-    })();
-
-    return () => {
-      mounted = false;
-      // Se questa pagina ha avviato il monitor, lo fermiamo quando esci per ridurre compute.
-      if (startedByThisPageRef.current) {
-        apiRequest('POST', '/admin/monitoring/stop').catch(() => {});
-      }
-    };
+    void loadAllData();
   }, []);
 
   const getStatusColor = (status: string) => {
