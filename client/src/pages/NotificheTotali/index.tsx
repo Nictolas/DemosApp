@@ -156,7 +156,7 @@ export default function NotificheTotali() {
   if (!isAdmin) return <Redirect to="/preferiti" />;
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <PageContainer className="admin-notifiche-page bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-[1800px] mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => setLocation("/gestisci")}><ArrowLeft className="h-5 w-5" /></Button>
