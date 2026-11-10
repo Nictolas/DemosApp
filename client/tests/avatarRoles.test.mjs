@@ -42,7 +42,7 @@ test("profile and standalone editor use the same verified capability gate", () =
   const editor = read("pages/ModificaImmagine.tsx");
   const header = read("components/DesktopAppHeader.tsx");
   assert.match(profile, /allowOwnAvatar=\{isViewingOwnProfile && canEditPersonalAvatar\(user\)\}/);
-  assert.match(info, /isOwnProfile \? allowOwnAvatar : isPublicAvatarRole\(userInfo.ruolo\)/);
+  assert.match(info, /isPublicAvatarRole\(userInfo.ruolo\) && userInfo.can_have_avatar !== false/);
   assert.match(editor, /const hasPermission = canEditPersonalAvatar\(user\)/);
   assert.match(header, /enabled: !!user\?\.id && canUseAvatar/);
 });
