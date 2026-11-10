@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
+import { canEditPersonalAvatar } from "@/lib/avatar-access";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -30,6 +31,11 @@ type AuthUser = {
   cognome?: string;
   email?: string;
   ruolo?: string;
+  status?: string;
+  is_admin?: boolean;
+  is_dpo?: boolean;
+  is_candidate?: boolean;
+  is_politician?: boolean;
 } | null;
 
 function userInitials(user: AuthUser): string {
@@ -60,8 +66,9 @@ function UserMenu({ user }: { user: AuthUser }) {
   const [, setLocation] = useLocation();
   const displayName = [user?.nome, user?.cognome].filter(Boolean).join(" ") || user?.email || "Utente";
   const initials = userInitials(user);
+  const canUseAvatar = canEditPersonalAvatar(user);
 
-  const { data: avatarConfig } = useQuery({
+  const { data: savedAvatarConfig } = useQuery({
     queryKey: ["desktop-user-avatar", user?.id],
     queryFn: async () => {
       // A cached avatar is sufficient: mounting the global header must not
@@ -74,11 +81,12 @@ function UserMenu({ user }: { user: AuthUser }) {
       if (user?.id && userData?.id === user.id) storeProfileSummary(user.id, userData);
       return parseAvatarConfig(userData?.avatar_config);
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && canUseAvatar,
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,
   });
+  const avatarConfig = canUseAvatar ? savedAvatarConfig : null;
 
   return (
     <DropdownMenu>
