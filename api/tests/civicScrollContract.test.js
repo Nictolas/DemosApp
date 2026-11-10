@@ -162,6 +162,15 @@ test('Capo di Stato shows a real mobile pie alongside consent statistics', () =>
   assert.match(consent, /PieChart/);
 });
 
+test('Capo di Stato weekly consent notice appears only after a blocked change attempt', () => {
+  const section = read('client/src/pages/CapodiStato/components/ConsensoSection.tsx');
+  assert.match(section, /const \[showBlockedNotice, setShowBlockedNotice\] = useState\(false\)/);
+  assert.match(section, /setShowBlockedNotice\(risposta !== data\.mioConsenso\?\.risposta\)/);
+  assert.match(section, /data\.blocco\.isBlocked && showBlockedNotice &&/);
+  assert.match(section, /disabled=\{isVoting\}/);
+  assert.doesNotMatch(section, /disabled=\{isVoting \|\| data\.blocco\.isBlocked\}/);
+});
+
 test('sightings header stays visible while all three categories scroll', () => {
   const page = read('client/src/pages/Avvistamenti/index.tsx');
   assert.match(page, /<PageContainer className="overflow-hidden/);

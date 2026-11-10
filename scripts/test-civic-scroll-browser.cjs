@@ -111,7 +111,7 @@ async function main() {
             success: true,
             data: { mioConsenso: { risposta: 'Sì', timestamp: '2026-10-01T12:00:00Z' },
               statistiche: { 'Sì': 12, 'Non so': 3, 'No': 5, totale: 20 },
-              blocco: { isBlocked: false, unlockDate: null },
+              blocco: { isBlocked: true, unlockDate: '2026-11-17T00:00:00Z' },
             },
           });
         }
@@ -326,6 +326,18 @@ async function main() {
             'Avvistamenti header moved with scroll');
         }
         assert.equal(writes, 0, 'A synthetic scroll test attempted an API write');
+        if (item.path === '/capo-stato' && viewport.width === 390) {
+          // The locked weekly notice is invisible until a DIFFERENT response is attempted.
+          const notice = page.getByText('Hai già votato per il consenso questa settimana', { exact: true });
+          const consentGroup = page.getByRole('group', { name: 'Esprimi il tuo consenso' });
+          assert.equal(await notice.count(), 0, 'Weekly warning must be hidden on page load');
+          await consentGroup.getByRole('button', { name: 'Sì', exact: true }).click();
+          assert.equal(await notice.count(), 0, 'Tapping the current vote must not show the warning');
+          await consentGroup.getByRole('button', { name: 'No', exact: true }).click();
+          await notice.waitFor({ state: 'visible' });
+          assert.equal(writes, 0, 'Blocked consent change must not send an API write');
+        }
+
 
         console.log('PASS ' + item.path + ' ' + viewport.width + 'x' + viewport.height +
           ' scrollTop=' + after.scrollTop + ' lastBottom=' + lastRect.bottom.toFixed(1));
