@@ -74,7 +74,16 @@ function mergeGraziaRanking(voteCounts = [], databaseEntries = []) {
     b.richieste - a.richieste || a.nome.localeCompare(b.nome, 'it'));
 }
 
+// On older votes a name may have different spacing/case than its current
+// ranking label. Return the ranking spelling for UI selected-state matching;
+// this never changes the value stored in the original voting record.
+function canonicalizeGraziaVotes(votes, ranking) {
+  const displayed = new Map(ranking.map(row => [normalizeGraziaName(row.nome), row.nome]));
+  return votes.map(nome => displayed.get(normalizeGraziaName(nome)) || nome);
+}
+
 module.exports = {
   getStaticGraziaEntries, getStaticGraziaByName,
-  getGraziaCatalogRevision, normalizeGraziaName, mergeGraziaRanking
+  getGraziaCatalogRevision, normalizeGraziaName, mergeGraziaRanking,
+  canonicalizeGraziaVotes
 };
