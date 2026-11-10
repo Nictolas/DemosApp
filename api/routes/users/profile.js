@@ -51,7 +51,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     try {
       result = await pool.query(`
         SELECT
-          u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.is_dpo, u.created_at, u.updated_at,
+          u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, COALESCE((to_jsonb(u)->>'is_dpo')::boolean, FALSE) AS is_dpo, u.created_at, u.updated_at,
           COALESCE(up.genere, u.genere) AS genere,
           COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
           COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
@@ -234,7 +234,7 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
     let hasDpoCapability = false;
     if (!hasPoliticalOrAdminCapability) {
       const dpoResult = await pool.query(
-        'SELECT is_dpo, is_admin, status FROM users WHERE id = $1',
+        'SELECT COALESCE((to_jsonb(u)->>\'is_dpo\')::boolean, FALSE) AS is_dpo, u.is_admin, u.status FROM users u WHERE u.id = $1',
         [userId]
       );
       const row = dpoResult.rows[0];
