@@ -25,8 +25,10 @@ test('Gestisci has an iOS scrollport inside the fixed application shell', () => 
 test('DPO uses Admin or DPO capability and makes selected metrics visible after tap', () => {
   const panel = read('client/src/pages/DpoPanel.tsx');
   assert.match(panel, /hasAdminCapability\(user\) \|\| hasDpoCapability\(user\)/);
-  assert.match(panel, /window\.requestAnimationFrame\(\(\) => detailRef\.current\?\.scrollIntoView/);
-  assert.match(panel, /aria-controls="dpo-area-detail"/);
+  assert.match(panel, /navigate\(area \? "\/dpo\?section="/);
+  assert.doesNotMatch(panel, /scrollIntoView/);
+  assert.match(panel, /dpo-panel-page--overview/);
+  assert.match(panel, /dpo-panel-page--detail/);
   assert.match(panel, /id="dpo-area-detail"/);
   assert.match(panel, /if \(!canViewDpo\) return <Redirect to="\/preferiti" \/>/);
   assert.doesNotMatch(panel, /\/admin\/data-export|\/backup-dashboard/);
