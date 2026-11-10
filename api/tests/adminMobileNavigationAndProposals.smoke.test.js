@@ -42,6 +42,8 @@ test('Opinion proposal ranking is separate from catalog edits', () => {
   assert.match(sections, /title: "Proposte di opinioni"/);
   assert.doesNotMatch(sections, /Aggiungi o elimina le opinioni disponibili/);
   assert.doesNotMatch(hubs, /sectionIds: \["opinioni", "governo"\]/);
+  assert.match(hubs, /sectionIds: \["utenti", "riconoscimenti", "proposte-soggetti", "opinioni"\]/);
+  assert.doesNotMatch(hubs, /id: "contenuti"/);
   assert.match(proposed, /Number\(b\.voti\)/);
   assert.match(proposed, /classifica/i);
   assert.match(catalog, /sola lettura/);
