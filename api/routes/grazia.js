@@ -6,7 +6,7 @@ const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 
-const { getGraziaCatalogRevision, mergeGraziaRanking } = require('../services/graziaCatalog');
+const { getGraziaCatalogRevision, mergeGraziaRanking, canonicalizeGraziaVotes } = require('../services/graziaCatalog');
 
 const router = express.Router();
 
@@ -144,7 +144,7 @@ router.get('/', async (req, res) => {
       classifica,
       catalogRevision: getGraziaCatalogRevision(),
       richieste: [], // Compatibilità legacy, senza esporre voti personali
-      mieiVoti: mieiVoti,
+      mieiVoti: canonicalizeGraziaVotes(mieiVoti, classifica),
       blocco
     });
   } catch (error) {
