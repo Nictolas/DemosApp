@@ -82,6 +82,7 @@ const RateLimitingDashboard: React.FC = () => {
 
   // Pulizia violazioni vecchie
   const handleCleanup = async () => {
+    if (!window.confirm('Eliminare le registrazioni di violazioni più vecchie del periodo selezionato?')) return;
     try {
       setCleanupLoading(true);
       const response = await apiRequest('POST', '/admin/rate-limiting/cleanup', {
