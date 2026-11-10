@@ -21,7 +21,8 @@ test('final-only page reads the source-filtered final-votes endpoint with freshn
 });
 
 test('only administrator can request a live sync of final votes',()=>{
-  assert.match(page,/user\?\.ruolo === "AD"/);
+  assert.match(page,/hasAdminCapability\(user\)/);
+  assert.doesNotMatch(page,/user\?\.ruolo === "AD"/);
   assert.match(page,/sync-votazioni-finali-decisive/);
   assert.doesNotMatch(page,/\/api\/voti-camera\/sync/);
 });
