@@ -92,6 +92,13 @@ test('Grazia keeps title and voting controls fixed; only ranking scrolls', () =>
   assert.ok(!header.includes('href="/vota"'), 'No back-to-Vota route');
   assert.ok(!header.includes('Torna a Vota'), 'No back-to-Vota button');
   assert.ok(!header.includes('<ArrowLeft'), 'No back arrow');
+  const form = read('client/src/pages/Grazia/components/GraziaForm.tsx');
+  const ranking = read('client/src/pages/Grazia/components/ClassificaCarcerati.tsx');
+  assert.match(header, /La grazia condona o commuta la pena:/);
+  assert.match(header, /a chi la concederesti\\?/);
+  assert.doesNotMatch(form, /Il tuo voto|<CardHeader|Voti selezionati:/);
+  assert.match(form, /placeholder="Nome della persona\\.\\.\\."/);
+  assert.doesNotMatch(ranking, /Classifica carcerati|<CardHeader/);
   assert.doesNotMatch(page, /page-with-navbar/);
 });
 
