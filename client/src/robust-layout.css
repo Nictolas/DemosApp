@@ -560,3 +560,15 @@
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
 }
+
+/* Route transitions must propagate a bounded height to their page scrollports. */
+.app-main:has(.gestisci-page) .fade-up-transition,
+.app-main:has(.admin-users-page) .fade-up-transition,
+.app-main:has(.dpo-panel-page) .fade-up-transition {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
