@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
+import { hasAdminCapability } from "@/lib/admin-access";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
@@ -12,10 +13,13 @@ import { BlockedWarning } from "./components/BlockedWarning";
 import { GraziaForm } from "./components/GraziaForm";
 import { ClassificaCarcerati } from "./components/ClassificaCarcerati";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { GraziaAvatarDialog } from "./components/GraziaAvatarDialog";
 
 export default function Grazia() {
   const authReady = useAuthReady();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isSessionVerified } = useAuth();
+  const [editingAvatarName, setEditingAvatarName] = useState<string | null>(null);
+  const canEditAvatar = isSessionVerified && hasAdminCapability(user);
 
   const { data, isLoadingData, error, saveVotiMutation } = useGraziaData(user);
   const { 
@@ -111,12 +115,23 @@ export default function Grazia() {
                   isPending={saveVotiMutation.isPending}
                   onToggleSelezione={toggleSelezioneClassifica}
                   hasReachedLimit={hasReachedLimit}
+                  canEditAvatar={canEditAvatar}
+                  onEditAvatar={canEditAvatar ? setEditingAvatarName : undefined}
                 />
               )}
             </div>
           </div>
         )}
       </div>
+
+      {canEditAvatar && editingAvatarName && (
+        <GraziaAvatarDialog
+          key={editingAvatarName}
+          nome={editingAvatarName}
+          avatarConfig={data?.classifica.find(item => item.nome === editingAvatarName)?.avatar_config}
+          onClose={() => setEditingAvatarName(null)}
+        />
+      )}
 
       {/* Dialog separato dalla classifica scorrevole. */}
       {showRemoveDialog && (
