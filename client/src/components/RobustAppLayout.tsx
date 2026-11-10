@@ -56,7 +56,7 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
 
         {showDesktopHeader && <DesktopAppHeader />}
 
-        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : location === '/notifiche-totali' ? ' app-main--admin-notifiche' : location === '/eventi' ? ' app-main--eventi' : location === '/attivisti' || location === '/organizzazioni' ? ' app-main--directory' : location === '/profilo' || location.startsWith('/profilo/') ? ' app-main--profile' : ''}${isScrollableContentPage ? ' app-main--scroll-content' : ''}`}>
+        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : location === '/notifiche-totali' ? ' app-main--admin-notifiche' : location === '/admin/ops-center' ? ' app-main--admin-ops' : location === '/eventi' ? ' app-main--eventi' : location === '/attivisti' || location === '/organizzazioni' ? ' app-main--directory' : location === '/profilo' || location.startsWith('/profilo/') ? ' app-main--profile' : ''}${isScrollableContentPage ? ' app-main--scroll-content' : ''}`}>
           <ErrorBoundary>
             <div className="app-main__inner">{children}</div>
           </ErrorBoundary>
