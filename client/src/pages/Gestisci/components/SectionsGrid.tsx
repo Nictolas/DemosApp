@@ -83,11 +83,11 @@ export const SectionsGrid: React.FC<{ dpoReadOnly?: boolean }> = ({ dpoReadOnly 
         <p className="mt-1 max-w-3xl text-sm text-slate-600">
           {dpoReadOnly
             ? "Esplora le aree in sola lettura. Nessuna modifica ai dati o accesso alle configurazioni tecniche."
-            : "Le funzioni amministrative sono raccolte in cinque aree, oltre al pannello privacy. Gli strumenti tecnici sono nell’Ops Center."}
+            : "Le funzioni amministrative sono raccolte in quattro aree, oltre al pannello privacy. Gli strumenti tecnici sono nell’Ops Center."}
         </p>
       </div>
 
-      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <button
           type="button"
           onClick={() => { window.location.href = "/dpo"; }}
