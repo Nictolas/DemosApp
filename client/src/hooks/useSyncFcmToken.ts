@@ -15,13 +15,21 @@ export function useSyncFcmToken() {
     if (!user?.id || !enabled) return;
 
     if (permission === null || permission === 'default') {
-      const permissionStorageKey = `push_permission_requested_${transport}`;
-      const hasRequested = localStorage.getItem(permissionStorageKey);
-      if (!hasRequested) {
-        void requestPermission();
-        localStorage.setItem(permissionStorageKey, 'true');
+      // Android asks only after explicit consent in the civic onboarding.
+      // Another native hook may own the permission dialog; its successful
+      // registration event can still yield a token on this hook instance.
+      // Receiving that native FCM token proves registration succeeded.
+      if (transport === 'native') {
+        if (!fcmToken) return;
+      } else {
+        const permissionStorageKey = `push_permission_requested_${transport}`;
+        const hasRequested = localStorage.getItem(permissionStorageKey);
+        if (!hasRequested) {
+          void requestPermission();
+          localStorage.setItem(permissionStorageKey, 'true');
+        }
+        return;
       }
-      return;
     }
 
     if (permission === 'denied') return;

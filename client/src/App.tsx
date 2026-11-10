@@ -7,6 +7,7 @@ import { WebAppUpdateNotice } from "@/components/WebAppUpdateNotice";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RegistrationProvider } from "@/hooks/use-registration";
 import { useSyncFcmToken } from "@/hooks/useSyncFcmToken";
+import { CivicNotificationOnboarding } from "@/components/CivicNotificationOnboarding";
 import { queryClient } from "./lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -302,6 +303,7 @@ export default function App() {
           <div className="App">
             <AuthProvider>
               <FCMTokenSync />
+              <CivicNotificationOnboarding />
               <RegistrationProvider>
                 <RobustAppLayout>
                   <AppWrapper>
