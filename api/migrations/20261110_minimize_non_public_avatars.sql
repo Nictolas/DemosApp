@@ -8,7 +8,7 @@ CREATE TEMP TABLE avatar_cleanup_ineligible_users ON COMMIT DROP AS
 SELECT u.id
 FROM users u
 WHERE COALESCE(u.is_admin, FALSE) = FALSE
-  AND COALESCE(u.is_dpo, FALSE) = FALSE
+  AND COALESCE((to_jsonb(u)->>'is_dpo')::boolean, FALSE) = FALSE
   AND COALESCE(u.ruolo, 'E') NOT IN
       ('AD', 'Admin', 'P', 'Politico', 'C', 'Candidato', 'CP', 'Candidato Politico')
   AND NOT EXISTS (
@@ -33,10 +33,21 @@ FROM avatar_cleanup_ineligible_users i
 WHERE up.user_id = i.id
   AND up.avatar_config IS NOT NULL;
 
-UPDATE users u
-SET avatar_config = NULL
-FROM avatar_cleanup_ineligible_users i
-WHERE u.id = i.id
-  AND u.avatar_config IS NOT NULL;
+-- Some staging schemas do not have users.avatar_config.
+DO $cleanup$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='users' AND column_name='avatar_config'
+  ) THEN
+    EXECUTE '
+      UPDATE public.users u
+      SET avatar_config = NULL
+      FROM avatar_cleanup_ineligible_users i
+      WHERE u.id = i.id AND u.avatar_config IS NOT NULL
+    ';
+  END IF;
+END
+$cleanup$;
 
 COMMIT;
