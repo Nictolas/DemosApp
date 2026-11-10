@@ -138,7 +138,7 @@ export default function DpoPanel() {
   if (!canViewDpo) return <Redirect to="/preferiti" />;
 
   return (
-    <main className="min-h-[calc(100vh-10rem)] bg-[radial-gradient(circle_at_top_left,_#eff4ff_0%,_#f8fbff_40%,_#ffffff_90%)] px-4 pb-16 pt-6 sm:px-6 lg:pt-9" aria-labelledby="dpo-heading">
+    <main className="dpo-panel-page min-h-[calc(100vh-10rem)] bg-[radial-gradient(circle_at_top_left,_#eff4ff_0%,_#f8fbff_40%,_#ffffff_90%)] px-4 pb-16 pt-6 sm:px-6 lg:pt-9" aria-labelledby="dpo-heading">
       <div className="mx-auto w-full max-w-6xl">
         <a href="/gestisci" className="inline-flex items-center gap-2 rounded-lg px-1 py-2 text-sm font-semibold text-indigo-700 transition-colors hover:text-indigo-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Torna a Gestisci
