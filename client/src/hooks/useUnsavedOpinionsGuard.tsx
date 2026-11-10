@@ -10,14 +10,15 @@ import {
 } from "@/components/ui/alert-dialog";
 
 /**
- * Protegge le quattro pagine delle opinioni da navigazioni involontarie.
+ * Protegge gli editor delle opinioni da navigazioni involontarie.
  * Un avviso personalizzato gestisce le navigazioni SPA; per chiudere la
  * scheda/ricaricare, i browser consentono soltanto l'avviso nativo.
  */
 export function useUnsavedOpinionsGuard(
   isDirty: boolean,
   navigate: (path: string) => void,
-  save: () => void
+  save: () => void,
+  options: { backPath?: string; stayAfterSave?: boolean } = {}
 ) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const pendingDestination = useRef<string | null>(null);
@@ -110,8 +111,9 @@ export function useUnsavedOpinionsGuard(
 
   const onSaveSuccess = () => {
     allowNavigation.current = true;
-    const destination = pendingDestination.current || "/opinioni";
+    const destination = pendingDestination.current || (options.stayAfterSave ? null : (options.backPath || "/opinioni"));
     pendingDestination.current = null;
+    allowNavigation.current = destination !== null;
     setDialogOpen(false);
     return destination;
   };
@@ -122,7 +124,7 @@ export function useUnsavedOpinionsGuard(
   };
 
   const discardAndLeave = () => {
-    const destination = pendingDestination.current || "/opinioni";
+    const destination = pendingDestination.current || options.backPath || "/opinioni";
     pendingDestination.current = null;
     allowNavigation.current = true;
     setDialogOpen(false);
@@ -158,5 +160,5 @@ export function useUnsavedOpinionsGuard(
     </AlertDialog>
   );
 
-  return { onBack: () => askBeforeLeaving("/opinioni"), onSaveSuccess, onSaveError, dialog };
+  return { onBack: () => askBeforeLeaving(options.backPath || "/opinioni"), onSaveSuccess, onSaveError, dialog };
 }
