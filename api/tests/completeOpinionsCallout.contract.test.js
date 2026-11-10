@@ -40,6 +40,8 @@ test('completion count includes only published opinions and separates missing fr
   assert.match(card, /if \(status === "unanswered"\) unanswered\+\+/);
   assert.match(card, /if \(counts\.total === 0\) return null/);
   assert.match(card, /Sei ancora indeciso su \{counts\.total\} opinioni/);
-  assert.match(card, /\/opinioni-argomento\/\$\{topicId\}/);
+  assert.match(card, /href="\\/opinioni-da-completare"/);
+  assert.doesNotMatch(card, /onClick=|aria-expanded|<ul|<select/);
+  assert.match(card, /<ChevronRight /);
   assert.doesNotMatch(card, /localStorage|sessionStorage|apiRequest|fetch\(/);
 });
