@@ -4,74 +4,82 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import apiRequest from "@/lib/api-request";
-import { Shield, Activity, Scale, Database, HardDrive, Bell, ArrowRight, SlidersHorizontal, PieChart, Gauge, Bot, ChevronDown } from "lucide-react";
+import { Shield, Activity, Scale, Database, HardDrive, Bell, ArrowRight, SlidersHorizontal, PieChart, Gauge, ChevronDown, ShieldCheck, RefreshCw } from "lucide-react";
 
-type SecurityAgentHealth = {
-  generatedAt?: string;
-  shield?: {
-    color?: string;
-    state?: string;
-    reason?: string;
-  };
-  agent?: {
-    enabled?: boolean;
-    running?: boolean;
-    inFlight?: boolean;
-    lastRunAt?: string | null;
-    lastRunStatus?: string;
-    runCount?: number;
-    failureCount?: number;
-  };
-  openIncidentCount?: number;
-  highestOpenSeverity?: string | null;
+type SystemHealth = {
+  status: "HEALTHY" | "DEGRADED" | "UNHEALTHY" | "CRITICAL";
+  timestamp?: string;
+  summary?: { total: number; passed: number; failed: number; warnings: number };
+  checks?: Record<string, { status: string; message?: string }>;
 };
 
-const securityStateLabel = (state?: string) => {
-  switch (state) {
-    case "healthy": return "Regolare";
-    case "attention": return "Attenzione";
-    case "critical": return "Critico";
-    case "disabled": return "Disattivato";
-    default: return state || "Sconosciuto";
+type LiveSecurityStatus = {
+  health: SystemHealth | null;
+  performanceMonitoring: boolean | null;
+  violationMonitoring: boolean | null;
+  lastCheckedAt: string | null;
+};
+
+const statusLabel = (status: SystemHealth["status"] | undefined): string => {
+  switch (status) {
+    case "HEALTHY": return "Controlli regolari";
+    case "DEGRADED": return "Attenzione";
+    case "UNHEALTHY":
+    case "CRITICAL": return "Problemi rilevati";
+    default: return "Non verificabile";
   }
 };
 
+const monitoringLabel = (value: boolean | null) =>
+  value === null ? "non verificabile" : value ? "attivo" : "disattivato";
+
 const OpsCenter: React.FC = () => {
   const [, setLocation] = useLocation();
-  const [securityAgent, setSecurityAgent] = useState<SecurityAgentHealth | null>(null);
-  const [securityAgentLoading, setSecurityAgentLoading] = useState(true);
-  const [securityAgentUnavailable, setSecurityAgentUnavailable] = useState(false);
+  const [securityStatus, setSecurityStatus] = useState<LiveSecurityStatus>({
+    health: null,
+    performanceMonitoring: null,
+    violationMonitoring: null,
+    lastCheckedAt: null,
+  });
+  const [securityLoading, setSecurityLoading] = useState(true);
+  const [securityRefresh, setSecurityRefresh] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-
-    const loadSecurityAgent = async () => {
-      try {
-        const response = await apiRequest.get<SecurityAgentHealth>("/security-center/health");
-        if (cancelled) return;
-
-        if (response.success && response.data) {
-          setSecurityAgent(response.data);
-          setSecurityAgentUnavailable(false);
-        } else {
-          setSecurityAgent(null);
-          setSecurityAgentUnavailable(true);
-        }
-      } catch (_error) {
-        if (!cancelled) {
-          setSecurityAgent(null);
-          setSecurityAgentUnavailable(true);
-        }
-      } finally {
-        if (!cancelled) setSecurityAgentLoading(false);
-      }
+    const loadStatus = async () => {
+      setSecurityLoading(true);
+      // These are existing Admin-only endpoints. No AI service, new worker or
+      // automatic incident action is started by opening the dashboard.
+      const results = await Promise.allSettled([
+        apiRequest.get<SystemHealth>("/admin/monitoring/health"),
+        apiRequest.get<{ isMonitoring: boolean }>("/admin/monitoring/status"),
+        apiRequest.get<{ status: { isRunning: boolean } }>("/admin/violations/monitoring/status"),
+      ]);
+      if (cancelled) return;
+      const healthResult = results[0].status === "fulfilled" ? results[0].value : null;
+      const performanceResult = results[1].status === "fulfilled" ? results[1].value : null;
+      const violationsResult = results[2].status === "fulfilled" ? results[2].value : null;
+      const health = healthResult?.success === true &&
+        healthResult.data?.checks && healthResult.data?.summary &&
+        typeof healthResult.data?.status === "string"
+        ? healthResult.data : null;
+      const performanceMonitoring = performanceResult?.success === true &&
+        typeof performanceResult.data?.isMonitoring === "boolean"
+        ? performanceResult.data.isMonitoring : null;
+      const violationMonitoring = violationsResult?.success === true &&
+        typeof violationsResult.data?.status?.isRunning === "boolean"
+        ? violationsResult.data.status.isRunning : null;
+      setSecurityStatus({
+        health,
+        performanceMonitoring,
+        violationMonitoring,
+        lastCheckedAt: health ? health.timestamp || new Date().toISOString() : null,
+      });
+      setSecurityLoading(false);
     };
-
-    loadSecurityAgent();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void loadStatus();
+    return () => { cancelled = true; };
+  }, [securityRefresh]);
 
   return (
     <div className="admin-ops-page w-full mx-auto max-w-6xl px-4 py-5 pb-12 md:px-6 bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f6f9ff_36%,_#ffffff_72%)]">
@@ -180,37 +188,45 @@ const OpsCenter: React.FC = () => {
         <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-3 md:grid-cols-2 xl:grid-cols-3">
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> AI Cybersecurity Agent</CardTitle>
-              <CardDescription>Riepilogo reale del Security Center, in sola lettura.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> Stato della sicurezza</CardTitle>
+              <CardDescription>Controlli reali del backend DEMOS. Nessun agente AI autonomo.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {securityAgentLoading ? (
-                <Badge variant="outline">Verifica stato...</Badge>
-              ) : securityAgentUnavailable ? (
-                <>
-                  <Badge variant="outline">Non disponibile</Badge>
-                  <p className="text-sm text-slate-600">
-                    Il Security Center non e esposto in questo ambiente oppure la lettura non e disponibile.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">{securityStateLabel(securityAgent?.shield?.state)}</Badge>
-                    <Badge variant="outline">{securityAgent?.agent?.enabled ? "Agent attivo" : "Agent disattivato"}</Badge>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    Incidenti aperti: {securityAgent?.openIncidentCount ?? 0}
-                    {securityAgent?.highestOpenSeverity ? ` · Severita massima: ${securityAgent.highestOpenSeverity}` : ""}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Ultimo ciclo: {securityAgent?.agent?.lastRunStatus || "never"}
-                    {securityAgent?.agent?.lastRunAt ? ` · ${new Date(securityAgent.agent.lastRunAt).toLocaleString("it-IT")}` : ""}
-                  </p>
-                </>
+              <div role="status" aria-live="polite" className="flex flex-wrap gap-2">
+                <Badge variant="outline">
+                  Salute: {securityLoading ? "verifica in corso" : statusLabel(securityStatus.health?.status)}
+                </Badge>
+                <Badge variant="outline">
+                  Prestazioni: {securityLoading ? "verifica in corso" : monitoringLabel(securityStatus.performanceMonitoring)}
+                </Badge>
+                <Badge variant="outline">
+                  Rilevamento violazioni: {securityLoading ? "verifica in corso" : monitoringLabel(securityStatus.violationMonitoring)}
+                </Badge>
+              </div>
+              {securityStatus.health?.summary && (
+                <p className="text-sm text-slate-600">
+                  Verifiche superate: {securityStatus.health.summary.passed}/{securityStatus.health.summary.total}.
+                  {securityStatus.health.summary.failed > 0 ? ` Errori: ${securityStatus.health.summary.failed}.` : ""}
+                  {securityStatus.health.summary.warnings > 0 ? ` Avvisi: ${securityStatus.health.summary.warnings}.` : ""}
+                </p>
               )}
-              <Button className="w-full justify-between" onClick={() => setLocation("/security-dashboard")}>
-                Apri Security Dashboard <ArrowRight className="h-4 w-4" />
+              <p className="text-xs leading-relaxed text-slate-600">
+                Ultimo controllo della salute: {securityStatus.lastCheckedAt
+                  ? new Date(securityStatus.lastCheckedAt).toLocaleString("it-IT")
+                  : "non disponibile"}.
+                I dati non attestano l'assenza di attacchi. Se un monitor risulta disattivato,
+                non viene avviato automaticamente da questa schermata.
+              </p>
+              <p className="text-xs leading-relaxed text-slate-500">
+                Per analizzare anomalie con ChatGPT, consulta i log ed evita di inviare
+                credenziali o dati personali non necessari. Nessun log viene trasmesso automaticamente.
+              </p>
+              <Button variant="outline" className="w-full justify-between" disabled={securityLoading}
+                onClick={() => setSecurityRefresh(value => value + 1)}>
+                <span>Aggiorna stato</span><RefreshCw className="h-4 w-4" />
+              </Button>
+              <Button className="w-full justify-between" onClick={() => setLocation("/monitoring-dashboard/overview")}>
+                Apri monitoraggio <ArrowRight className="h-4 w-4" />
               </Button>
             </CardContent>
           </Card>
