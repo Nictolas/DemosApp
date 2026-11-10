@@ -12,12 +12,14 @@ const module = { exports: {} };
 runInNewContext(code, { module, exports: module.exports });
 const { canEditPersonalAvatar, isPublicAvatarRole } = module.exports;
 
-test("only active admins, DPOs, politicians and candidates can edit an avatar", () => {
+test("only active admins, politicians and candidates can edit an avatar; DPO is excluded", () => {
   const active = { status: "a" };
-  for (const field of ["is_admin", "is_dpo", "is_politician", "is_candidate"]) {
+  for (const field of ["is_admin", "is_politician", "is_candidate"]) {
     assert.equal(canEditPersonalAvatar({ ...active, [field]: true }), true, field);
     assert.equal(canEditPersonalAvatar({ status: "s", [field]: true }), false, "inactive " + field);
   }
+  assert.equal(canEditPersonalAvatar({ ...active, is_dpo: true }), false);
+  assert.equal(canEditPersonalAvatar({ ...active, is_dpo: true, is_politician: true }), false);
   for (const role of ["E", "A", "I", "O"]) {
     assert.equal(canEditPersonalAvatar({ ...active, ruolo: role }), false, role);
   }
@@ -52,8 +54,8 @@ test("avatar endpoint rejects users without DB-authorized roles before writing",
   const route = api.slice(start, end);
   assert.ok(start >= 0 && end > start);
   assert.match(route, /getAccountSubject\(pool, userId\)/);
-  assert.match(route, /AS is_dpo, u\.is_admin, u\.status FROM users u WHERE u\.id = \$1/);
-  assert.match(route, /if \(!hasPoliticalOrAdminCapability && !hasDpoCapability\)/);
+  assert.match(route, /AS is_dpo FROM users u WHERE u\.id = \$1/);
+  assert.match(route, /if \(!hasPoliticalOrAdminCapability \|\| dpoResult\.rows\[0\]\?\.is_dpo === true\)/);
   assert.ok(route.indexOf("res.status(403)") < route.indexOf("UPDATE users SET avatar_config"));
 });
 
@@ -64,7 +66,7 @@ test("admin editing endpoint cannot assign avatars to electors", () => {
   assert.ok(start >= 0);
   assert.match(route, /if \(updateData\?\.avatar_config != null\)/);
   assert.match(route, /getAccountSubject\(pool, userId\)/);
-  assert.match(route, /if \(!allowed\)/);
+  assert.match(route, /if \(!allowed \|\| rows\[0\]\?\.is_dpo === true\)/);
   assert.ok(route.indexOf("res.status(403)") < route.indexOf("UPDATE users SET"));
 });
 
@@ -89,6 +91,10 @@ test("profile summary cache rejects voter avatar config", () => {
   const { storeProfileSummary, readProfileSummary } = cacheModule.exports;
   storeProfileSummary("voter", { id: "voter", ruolo: "E", avatar_config: '{"hair":"blue"}' });
   assert.equal(readProfileSummary("voter").user.avatar_config, undefined);
-  storeProfileSummary("dpo", { id: "dpo", ruolo: "E", can_have_avatar: true, avatar_config: '{"hair":"blue"}' });
-  assert.ok(readProfileSummary("dpo").user.avatar_config);
+  storeProfileSummary("dpo", { id: "dpo", ruolo: "E", can_have_avatar: false, avatar_config: '{"hair":"blue"}' });
+  assert.equal(readProfileSummary("dpo").user.avatar_config, undefined);
+  storeProfileSummary("dpo-politician", { id: "dpo-politician", ruolo: "P", can_have_avatar: false, avatar_config: '{"hair":"blue"}' });
+  assert.equal(readProfileSummary("dpo-politician").user.avatar_config, undefined);
+  storeProfileSummary("politician", { id: "politician", ruolo: "P", can_have_avatar: true, avatar_config: '{"hair":"blue"}' });
+  assert.ok(readProfileSummary("politician").user.avatar_config);
 });
