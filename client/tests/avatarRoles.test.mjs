@@ -52,7 +52,7 @@ test("avatar endpoint rejects users without DB-authorized roles before writing",
   const route = api.slice(start, end);
   assert.ok(start >= 0 && end > start);
   assert.match(route, /getAccountSubject\(pool, userId\)/);
-  assert.match(route, /SELECT is_dpo, is_admin, status FROM users WHERE id = \$1/);
+  assert.match(route, /AS is_dpo, u\.is_admin, u\.status FROM users u WHERE u\.id = \$1/);
   assert.match(route, /if \(!hasPoliticalOrAdminCapability && !hasDpoCapability\)/);
   assert.ok(route.indexOf("res.status(403)") < route.indexOf("UPDATE users SET avatar_config"));
 });
