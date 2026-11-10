@@ -6,7 +6,8 @@ const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 
-const { getGraziaCatalogRevision, mergeGraziaRanking, canonicalizeGraziaVotes, displayGraziaName, isHiddenGraziaName } = require('../services/graziaCatalog');
+const { getGraziaCatalogRevision, mergeGraziaRanking, canonicalizeGraziaVotes, displayGraziaName, isHiddenGraziaName, normalizeGraziaName, getStaticGraziaEntries } = require('../services/graziaCatalog');
+const { parseGraziaAvatarConfig } = require('../services/graziaAvatarConfig');
 
 const router = express.Router();
 
@@ -74,6 +75,18 @@ router.get('/', async (req, res) => {
       pool.query('SELECT id, nome, attivo FROM grazia_carcerati')
     ]);
     const classifica = mergeGraziaRanking(votesResult.rows, approvedResult.rows);
+    const avatarNames = classifica.map(item => normalizeGraziaName(item.nome));
+    const avatarRows = avatarNames.length
+      ? await pool.query(
+        'SELECT nome_key, avatar_config FROM public.grazia_avatar_configs WHERE nome_key = ANY($1::text[])',
+        [avatarNames]
+      )
+      : { rows: [] };
+    const avatarsByName = new Map(avatarRows.rows.map(row => [row.nome_key, row.avatar_config]));
+    const classificaConAvatar = classifica.map(item => ({
+      ...item,
+      avatar_config: avatarsByName.get(normalizeGraziaName(item.nome)) || null
+    }));
 
     // Recupera i voti dell'utente se autenticato
     let mieiVoti = [];
@@ -141,7 +154,7 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      classifica,
+      classifica: classificaConAvatar,
       catalogRevision: getGraziaCatalogRevision(),
       richieste: [], // Compatibilità legacy, senza esporre voti personali
       mieiVoti: canonicalizeGraziaVotes(mieiVoti, classifica),
@@ -154,6 +167,47 @@ router.get('/', async (req, res) => {
       error: 'Errore nel recuperare richieste grazia',
       details: error.message
     });
+  }
+});
+
+// PUT /api/grazia/avatar — Configurazione editor grafico, solo Admin verificato.
+// Il nome viene associato a una voce già presente nella classifica pubblica;
+// mai creare un profilo utente fittizio o serializzare una preferenza individuale.
+router.put('/avatar', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  const rawName = req.body?.nome;
+  const avatarConfig = parseGraziaAvatarConfig(req.body?.avatar_config);
+  if (typeof rawName !== 'string' || rawName.length > 150 || !rawName.trim() || !avatarConfig) {
+    return res.status(400).json({ success: false, error: 'Configurazione avatar non valida' });
+  }
+  const name = displayGraziaName(rawName.normalize('NFKC').trim().replace(/\s+/g, ' '));
+  if (isHiddenGraziaName(name)) {
+    return res.status(404).json({ success: false, error: 'Soggetto non disponibile' });
+  }
+  try {
+    const namesResult = await pool.query(
+      `SELECT nome FROM public.grazia_carcerati WHERE attivo = true
+       UNION SELECT DISTINCT BTRIM(nome) AS nome FROM public.voti_grazia
+       WHERE NULLIF(BTRIM(nome), '') IS NOT NULL`
+    );
+    const known = [
+      ...getStaticGraziaEntries().filter(item => item.attivo).map(item => item.nome),
+      ...namesResult.rows.map(row => row.nome)
+    ];
+    if (!known.some(value => normalizeGraziaName(displayGraziaName(value)) === normalizeGraziaName(name))) {
+      return res.status(404).json({ success: false, error: 'Soggetto non disponibile' });
+    }
+    await pool.query(
+      `INSERT INTO public.grazia_avatar_configs (nome_key, avatar_config, updated_at)
+       VALUES ($1, $2::jsonb, now())
+       ON CONFLICT (nome_key) DO UPDATE
+       SET avatar_config = EXCLUDED.avatar_config, updated_at = now()`,
+      [normalizeGraziaName(name), JSON.stringify(avatarConfig)]
+    );
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Errore salvataggio avatar Grazia (dettagli omessi)');
+    return res.status(503).json({ success: false, error: 'Salvataggio avatar non disponibile' });
   }
 });
 
