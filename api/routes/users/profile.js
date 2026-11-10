@@ -128,11 +128,10 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     
     // Non trasferire agli elettori configurazioni avatar superflue.
     // I permessi politici vengono dal middleware autenticato, non dal ruolo in cache.
-    const canReadOwnAvatar = req.user.status === 'a' && (
+    const canReadOwnAvatar = req.user.status === 'a' && user.is_dpo !== true && (
       req.user.isAdmin === true ||
       req.user.isPolitician === true ||
-      req.user.isCandidate === true ||
-      (user.is_dpo === true && req.user.isAdmin !== true)
+      req.user.isCandidate === true
     );
     let avatarConfig = null;
     if (canReadOwnAvatar && user.avatar_config) {
@@ -231,19 +230,14 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
     const capabilities = subject.capabilities || {};
     const hasPoliticalOrAdminCapability = capabilities.isAdmin === true ||
       capabilities.isPolitician === true || capabilities.isCandidate === true;
-    let hasDpoCapability = false;
-    if (!hasPoliticalOrAdminCapability) {
-      const dpoResult = await pool.query(
-        'SELECT COALESCE((to_jsonb(u)->>\'is_dpo\')::boolean, FALSE) AS is_dpo, u.is_admin, u.status FROM users u WHERE u.id = $1',
-        [userId]
-      );
-      const row = dpoResult.rows[0];
-      hasDpoCapability = row?.status === 'a' && row?.is_dpo === true && row?.is_admin !== true;
-    }
-    if (!hasPoliticalOrAdminCapability && !hasDpoCapability) {
+    const dpoResult = await pool.query(
+      'SELECT COALESCE((to_jsonb(u)->>\'is_dpo\')::boolean, FALSE) AS is_dpo FROM users u WHERE u.id = $1',
+      [userId]
+    );
+    if (!hasPoliticalOrAdminCapability || dpoResult.rows[0]?.is_dpo === true) {
       return res.status(403).json({
         success: false,
-        error: 'Avatar riservato ad Admin, DPO, politici e candidati'
+        error: 'Avatar riservato ad Admin, politici e candidati'
       });
     }
 
