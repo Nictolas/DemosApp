@@ -11,7 +11,7 @@ type StoredSummary = { savedAt: number; user: UserInfo };
 const ALLOWED_FIELDS = [
   "id", "ruolo", "status", "data_nascita", "cittadinanza",
   "paese_residenza", "regione_residenza", "provincia_residenza",
-  "comune_residenza", "avatar_config",
+  "comune_residenza", "can_have_avatar", "avatar_config",
 ] as const;
 const safeKey = (userId: string) => PREFIX + encodeURIComponent(userId);
 
@@ -27,13 +27,15 @@ export function stripSensitiveProfileFields(user: UserInfo): UserInfo {
   for (const field of ALLOWED_FIELDS) {
     const value = user[field];
     if (typeof value === "string" && value.length <= 400) clean[field] = value;
+    if (field === "can_have_avatar" && typeof value === "boolean") clean[field] = value;
   }
   clean.id = user.id;
   clean.ruolo = user.ruolo;
   clean.data_nascita = yearOnly(user.data_nascita);
-  // Avatar artwork is harmless, but limit its encoded payload size.
+  // Never persist voter/other non-public avatar configs, including old caches.
   const avatar = user.avatar_config;
-  if (avatar && JSON.stringify(avatar).length < 8000) clean.avatar_config = avatar;
+  const allowedAvatar = user.can_have_avatar === true || ["AD", "P", "C", "CP"].includes(user.ruolo);
+  if (allowedAvatar && avatar && JSON.stringify(avatar).length < 8000) clean.avatar_config = avatar;
   // Public names are displayed only for politician/candidate profiles.
   if (["P", "C", "CP"].includes(user.ruolo)) {
     if (typeof user.nome === "string" && user.nome.length < 100) clean.nome = user.nome;
@@ -54,8 +56,12 @@ export function readProfileSummary(userId: string): StoredSummary | null {
       window.localStorage.removeItem(safeKey(userId));
       return null;
     }
-    // Apply the allowlist AGAIN so an old/corrupt cache cannot inject choices.
-    return { savedAt: item.savedAt, user: stripSensitiveProfileFields(item.user) };
+    // Rewrite stale cached avatars away as well as filtering the in-memory view.
+    const user = stripSensitiveProfileFields(item.user);
+    if (item.user.avatar_config && !user.avatar_config) {
+      window.localStorage.setItem(safeKey(userId), JSON.stringify({ savedAt: item.savedAt, user }));
+    }
+    return { savedAt: item.savedAt, user };
   } catch {
     window.localStorage.removeItem(safeKey(userId));
     return null;
