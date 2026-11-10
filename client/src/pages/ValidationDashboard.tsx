@@ -49,10 +49,10 @@ const ValidationDashboard: React.FC = () => {
   const loadValidationStats = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('/admin/validation/stats', 'GET');
+      const response = await apiRequest('GET', '/admin/validation/stats');
       
-      if (response.success) {
-        setStats(response.data);
+      if (response.ok && response.data?.success === true) {
+        setStats(response.data.data);
         setError(null);
       } else {
         setError('Errore nel caricamento delle statistiche');
@@ -68,10 +68,10 @@ const ValidationDashboard: React.FC = () => {
   // Carica dettagli fallimento
   const loadFailureDetails = async (failureId: string) => {
     try {
-      const response = await apiRequest(`/admin/validation/failure/${failureId}`, 'GET');
+      const response = await apiRequest('GET', `/admin/validation/failure/${failureId}`);
       
-      if (response.success) {
-        setSelectedFailure(response.data);
+      if (response.ok && response.data?.success === true) {
+        setSelectedFailure(response.data.data);
       } else {
         alert('Errore nel caricamento dei dettagli');
       }
@@ -84,12 +84,12 @@ const ValidationDashboard: React.FC = () => {
   // Pulisci fallimenti vecchi
   const handleCleanup = async () => {
     try {
-      const response = await apiRequest('/admin/validation/cleanup', 'POST', {
+      const response = await apiRequest('POST', '/admin/validation/cleanup', {
         retentionDays: 30
       });
       
-      if (response.success) {
-        alert(`Pulizia completata: rimossi ${response.data.deletedCount} fallimenti`);
+      if (response.ok && response.data?.success === true) {
+        alert(`Pulizia completata: rimossi ${response.data.data?.deletedCount ?? 0} fallimenti`);
         loadValidationStats(); // Ricarica i dati
       } else {
         alert('Errore nella pulizia');
