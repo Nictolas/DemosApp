@@ -73,7 +73,7 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
               aria-label={`Rifiuta proposta: ${op.testo}`}
               onClick={() => {
                 if (window.confirm("Rifiutare questa proposta? Verranno rimossi anche i voti collegati.")) {
-                  processPropostaMutation.mutate({ id: op.id, action: "rifiuta" });
+                  processPropostaMutation.mutate({ id: op.id, action: 'rifiuta' });
                 }
               }}
               disabled={processPropostaMutation.isPending}
