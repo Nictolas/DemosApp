@@ -48,135 +48,22 @@ html.demos-desktop-layout .App {
   min-height: 0;
 }
 
-/* Disabilita overscroll su tutti gli elementi */
-* {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
+/* Scroll chaining: no blanket overscroll lock on children or nested scrollers.
+   The fixed outer shell already stops document rubber-banding, while actual
+   scrollports need to receive native gestures and pass them to ancestors. */
 
-/* Disabilita overscroll su tutti gli elementi scrollabili */
-[class*="overflow-y-auto"],
-[class*="overflow-x-auto"],
-[class*="overflow-auto"],
-[class*="overflow-y-scroll"],
-[class*="overflow-x-scroll"],
-[class*="overflow-scroll"],
-div[style*="overflow-y"],
-div[style*="overflow-x"],
-div[style*="overflow"],
-pre[class*="overflow"],
-pre[style*="overflow"],
-dialog,
-[role="dialog"],
-[data-state="open"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su elementi con classi Tailwind overflow */
-.overflow-y-auto,
-.overflow-x-auto,
-.overflow-auto,
-.overflow-y-scroll,
-.overflow-x-scroll,
-.overflow-scroll {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su dialog, modal e popup */
-[data-radix-dialog-content],
-[data-radix-dialog-overlay],
-dialog,
-[role="dialog"],
-.modal,
-.popup,
-.DialogContent {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su elementi con max-height e overflow */
-[style*="max-height"][style*="overflow"],
-[class*="max-h-"][class*="overflow"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su ScrollArea e componenti Radix */
-[data-radix-scroll-area-viewport],
-[data-radix-scroll-area-root],
-.scroll-area,
-[class*="ScrollArea"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su contenitori flex con overflow */
-.flex-1[class*="overflow"],
-[class*="flex"][class*="overflow"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su tutti i div con overflow inline style */
-div[style*="overflow-y: auto"],
-div[style*="overflow-y: scroll"],
-div[style*="overflow-x: auto"],
-div[style*="overflow-x: scroll"],
-div[style*="overflow: auto"],
-div[style*="overflow: scroll"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su pre, code e tabelle */
-pre[class*="overflow"],
-code[class*="overflow"],
-table[class*="overflow"],
-tbody[class*="overflow"],
-thead[class*="overflow"],
-tr[class*="overflow"],
-td[class*="overflow"],
-th[class*="overflow"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su elementi con min-h-screen e overflow */
-[class*="min-h-screen"][class*="overflow"],
-[class*="h-screen"][class*="overflow"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Prevenzione scroll orizzontale su mobile */
+/* Do not force pan-y on every mobile child. On Android it prevents horizontal
+   controls and can cause gestures to be ignored when started on nested content.
+   Allow the WebView to choose the nearest real scrollport. */
 @media (max-width: 768px) {
-  * {
-    touch-action: pan-y !important;
-  }
-  
-  .overflow-x-auto {
-    touch-action: pan-y !important;
-  }
-}
-
-/* I grafici a barre scorrevoli in Statistiche Utenti gestiscono
-   orizzontalmente touchmove, lasciando nativo soltanto lo scroll verticale. */
-@media (max-width: 768px) {
-  .utenti-horizontal-chart-scroll,
-  .utenti-horizontal-chart-scroll * {
-    touch-action: pan-y !important;
+  body.android-device .app-main,
+  body.android-device .app-main .app-page-scroll,
+  body.android-device .app-main .overflow-y-auto,
+  body.android-device .app-main .overflow-auto,
+  body.android-device .app-main [data-radix-scroll-area-viewport] {
+    touch-action: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: auto;
   }
 }
 
