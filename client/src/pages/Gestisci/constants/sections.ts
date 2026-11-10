@@ -27,13 +27,13 @@ export const gestisciSections: GestisciSection[] = [
   {
     id: "opinioni",
     category: "amministrazione",
-    title: "Gestisci Opinioni",
-    description: "Aggiungi o elimina le opinioni disponibili per gli utenti",
+    title: "Proposte di opinioni",
+    description: "Classifica delle proposte votate dagli utenti e catalogo ufficiale in sola lettura",
     icon: BookOpen,
     color: "text-cyan-600 group-hover:text-cyan-800",
     buttonColor: "bg-cyan-500 hover:bg-cyan-600",
     route: "/gestisci-opinioni",
-    buttonText: "Gestisci Opinioni"
+    buttonText: "Consulta proposte"
   },
   {
     id: "proposte-soggetti",
