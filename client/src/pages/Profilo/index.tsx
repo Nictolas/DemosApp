@@ -66,7 +66,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
     fetchAllProfileData,
     isLoading,
     authReady
-  } = useProfileData(profileTargetId, { ...openPanels, opinions: wantsCompletion || openPanels.opinions, edit: isEditing });
+  } = useProfileData(profileTargetId, { ...openPanels, representatives: true, government: true, opinions: wantsCompletion || openPanels.opinions, edit: isEditing });
 
   // Determina se l'utente sta visualizzando il proprio profilo o quello di un altro
   const isViewingOwnProfile = !userId || userId === user?.id;
@@ -235,11 +235,10 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 {/* Mobile: le selezioni restano consultabili ma non allungano il profilo. */}
                 <div className="min-w-0 space-y-3">
                   {isViewingOwnProfile && userInfo && userInfo.ruolo !== "I" && (
-                    <details onToggle={(event) => setPanel("representatives", event.currentTarget.open)} className="group rounded-xl border border-slate-100 bg-white shadow-sm">
-                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 [&::-webkit-details-marker]:hidden">
+                    <section aria-label="Rappresentanti selezionati" className="rounded-xl border border-slate-100 bg-white shadow-sm">
+                      <h3 className="px-4 py-3 text-sm font-semibold text-slate-900">
                         Rappresentanti selezionati
-                        <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
-                      </summary>
+                      </h3>
                       <div className="border-t border-slate-100 px-4 pb-4 pt-3">
                         <Link href="/rappresentanti" className="mb-3 inline-flex text-sm font-semibold text-blue-700 hover:underline">
                           Scegli Rappresentanti
@@ -257,7 +256,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                           />
                         )}
                       </div>
-                    </details>
+                    </section>
                   )}
 
                   {isViewingOwnProfile && userInfo && userInfo.ruolo !== "I" && (
@@ -292,9 +291,8 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                   {isViewingOwnProfile && (
                     <ProfileGovernoIdeale
                       governoIdeale={governoIdeale}
-                      onExpandedChange={(expanded) => setPanel("government", expanded)}
                       isLoading={sectionsLoading.government}
-                      hasLoaded={openPanels.government && consentChecked}
+                      consentGranted={consentGranted}
                     />
                   )}
                 </div>

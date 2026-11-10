@@ -67,6 +67,10 @@ test('civic headers use the centered fixed directory style and a single top-righ
     if (page === 'Amnistia') {
       // This category deliberately has a visible, compact explanatory subtitle.
       assert.match(header, /L’amnistia estingue il reato/);
+    } else if (page === 'Grazia') {
+      // Grazia now has a visible two-line subtitle rather than sr-only text.
+      assert.match(header, /La grazia condona o commuta la pena:/);
+      assert.match(header, /a chi la concederesti\?/);
     } else {
       assert.match(header, /className="sr-only"/);
     }

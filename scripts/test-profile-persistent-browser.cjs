@@ -109,10 +109,14 @@ async function test() {
         assert.equal(await page.getByRole('link').filter({ has: page.getByText('Grazia', { exact: true }) }).count(), 1,
           'The empty Grazia row must be navigable');
       }
-      for (const title of [
-        'Rappresentanti selezionati', 'Candidati selezionati',
-        'Il tuo Governo ideale', 'Opinioni politiche',
-      ]) {
+      // These two sections must always be visible and never be collapsible.
+      for (const title of ['Rappresentanti selezionati', 'Il tuo Governo ideale']) {
+        const section = page.getByRole('region', { name: title });
+        assert.equal(await section.count(), 1, title + ' must be a permanent profile section');
+        assert.equal(await section.locator('summary').count(), 0,
+          title + ' must not have a collapse control');
+      }
+      for (const title of ['Candidati selezionati', 'Opinioni politiche']) {
         const d = page.locator('details').filter({ has: page.getByText(title, { exact: false }) }).first();
         await d.locator('summary').click();
       }
