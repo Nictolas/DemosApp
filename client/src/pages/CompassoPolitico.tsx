@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { ArrowLeft, Compass } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { PoliticalCompassPreview } from "./Profilo/components/PoliticalCompassPreview";
+import { CompleteOpinionsCallout } from "./Profilo/components/CompleteOpinionsCallout";
 import { CLOSED_PROFILE_PANELS, useProfileData } from "./Profilo/hooks/useProfileData";
 
 // Solo il titolare del profilo, dopo verifica del consenso politico,
@@ -9,6 +10,7 @@ import { CLOSED_PROFILE_PANELS, useProfileData } from "./Profilo/hooks/useProfil
 export default function CompassoPolitico() {
   const {
     userOpinions,
+    opinionQuestions,
     opinionsError,
     consentChecked,
     consentGranted,
@@ -65,6 +67,7 @@ export default function CompassoPolitico() {
             ) : (
               <>
                 <PoliticalCompassPreview answers={userOpinions} standalone />
+                <CompleteOpinionsCallout answers={userOpinions} questions={opinionQuestions} visible={opinionQuestions.length > 0} />
                 <Link href="/opinioni" className="block rounded-xl border border-indigo-200 bg-white px-4 py-3 text-center text-sm font-semibold text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
                   Esprimi o modifica le tue Opinioni
                 </Link>
