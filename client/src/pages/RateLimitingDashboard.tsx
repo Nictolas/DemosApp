@@ -64,10 +64,10 @@ const RateLimitingDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('/admin/rate-limiting/dashboard', 'GET');
+      const response = await apiRequest('GET', '/admin/rate-limiting/dashboard');
       
-      if (response.success) {
-        setDashboardData(response.data);
+      if (response.ok && response.data?.success === true) {
+        setDashboardData(response.data.data);
         setError(null);
       } else {
         setError('Errore nel caricamento dei dati');
@@ -82,14 +82,15 @@ const RateLimitingDashboard: React.FC = () => {
 
   // Pulizia violazioni vecchie
   const handleCleanup = async () => {
+    if (!window.confirm('Eliminare le registrazioni di violazioni più vecchie del periodo selezionato?')) return;
     try {
       setCleanupLoading(true);
-      const response = await apiRequest('/admin/rate-limiting/cleanup', 'POST', {
+      const response = await apiRequest('POST', '/admin/rate-limiting/cleanup', {
         retentionDays: cleanupDays
       });
       
-      if (response.success) {
-        alert(`Pulizia completata: rimosse ${response.data.deletedCount} violazioni`);
+      if (response.ok && response.data?.success === true) {
+        alert(`Pulizia completata: rimosse ${response.data.data?.deletedCount ?? 0} violazioni`);
         loadDashboardData(); // Ricarica i dati
       } else {
         alert('Errore nella pulizia');

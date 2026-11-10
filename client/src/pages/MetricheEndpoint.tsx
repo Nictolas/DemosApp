@@ -3,6 +3,7 @@ import { Redirect, useLocation } from "wouter";
 import { ArrowLeft, ChartPie, RefreshCw, RotateCcw, Timer, Activity, AlertTriangle } from "lucide-react";
 import { Pie, PieChart, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useAuth } from "@/hooks/use-auth";
+import { hasAdminCapability } from "@/lib/admin-access";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,7 +68,7 @@ export default function MetricheEndpoint() {
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isAdmin = user?.ruolo === "AD" || user?.role === "AD";
+  const isAdmin = hasAdminCapability(user);
 
   const loadSnapshot = async () => {
     try {
