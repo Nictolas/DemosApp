@@ -31,7 +31,7 @@ export const ProfileInfo = ({
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
   const [showEditConfirmation, setShowEditConfirmation] = useState(false);
 
-  // Un elettore non ha avatar. Admin e DPO possono gestire il proprio,
+  // Elettori e DPO non hanno avatar; Admin può gestire il proprio,
   // mentre gli avatar dei politici/candidati sono visibili pubblicamente.
   const canShowAvatar = isOwnProfile ? allowOwnAvatar : isPublicAvatarRole(userInfo.ruolo);
   const canShowFullName = ["P", "Politico", "C", "Candidato", "CP", "Candidato Politico"].includes(userInfo.ruolo);
