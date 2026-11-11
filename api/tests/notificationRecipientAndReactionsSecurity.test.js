@@ -36,11 +36,14 @@ test('both personal reaction readers require JWT and enforce self ownership', ()
   assert.match(source, /router\.get\('\/batch', async/);
 });
 
-test('only Admin can read aggregated Grazia ranking; no raw voter rows are returned', () => {
+test('Grazia ranking exposes only published names to ordinary users, never raw voter rows', () => {
   const source = read('api/routes/grazia.js');
-  const protectedRoute = source.split("router.get('/', verifyToken, requireAdmin, async (req, res) => {")[1]?.split("// GET /api/grazia/richieste")[0];
-  assert.ok(protectedRoute, 'Admin-only route must exist');
+  const protectedRoute = source.split("router.get('/', verifyToken, async (req, res) => {")[1]?.split("// GET /api/grazia/richieste")[0];
+  assert.ok(protectedRoute, 'authenticated filtered route must exist');
   assert.match(protectedRoute, /private, no-store, max-age=0/);
+  assert.match(protectedRoute, /allClassifica\.filter\(item => publicNames\.has/);
+  assert.match(protectedRoute, /item\.pubblicato === true/);
+  assert.match(protectedRoute, /isAdmin \? mieiVoti : mieiVoti\.filter/);
   assert.doesNotMatch(protectedRoute, /SELECT \*\s+FROM voti_grazia/, 'no SELECT * of personal preferences in ranking');
   assert.doesNotMatch(protectedRoute, /richieste: result\.rows/, 'no personal vote rows in JSON');
   assert.match(protectedRoute, /(?:COUNT\(\*\)::bigint|COUNT\(v\.id\)::integer) AS richieste/, 'aggregated ranking is preserved for Admin');

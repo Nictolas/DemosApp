@@ -59,12 +59,15 @@ test('Grazia retains suppression and deduplicates whitespace or case without los
 
 test('Grazia API keeps individual votes in Postgres and only publishes aggregated result data', () => {
   const route = read('api/routes/grazia.js');
-  const reader = route.split("router.get('/', verifyToken, requireAdmin, async (req, res) => {")[1]?.split('// GET /api/grazia/richieste')[0];
+  const reader = route.split("router.get('/', verifyToken, async (req, res) => {")[1]?.split('// GET /api/grazia/richieste')[0];
   assert.ok(reader);
   assert.match(route, /router\.post\('\/', verifyToken, requireAdmin, validateInput/);
-  assert.match(route, /router\.post\('\/vota', verifyToken, requireAdmin,/);
+  assert.match(route, /router\.post\('\/vota', verifyToken, requireVerifiedCivicIdentity,/);
   assert.match(reader, /private, no-store, max-age=0/);
   assert.match(reader, /const userId = req\.userId/);
+  assert.match(reader, /const isAdmin = req\.user\?\.isAdmin === true/);
+  assert.match(reader, /publicNames\.has\(normalizeGraziaName\(item\.nome\)\)/);
+  assert.match(reader, /approvedResult\.rows[\s\S]*item\.pubblicato === true/);
   assert.match(reader, /COUNT\(\*\)::bigint AS richieste/);
   assert.match(reader, /FROM voti_grazia/);
   assert.match(reader, /FROM grazia_carcerati/);
@@ -115,7 +118,7 @@ test('Roggero is displayed as Mario Roggero without altering historical votes, R
   const route = read('api/routes/grazia.js');
   assert.match(route, /requestedVotes\.some\(isHiddenGraziaName\)/);
   assert.match(route, /displayGraziaName\(String\(nome\)\.trim\(\)\)/);
-  assert.match(route, /canonicalizeGraziaVotes\(mieiVoti, classifica\)/);
+  assert.match(route, /isAdmin \? mieiVoti : mieiVoti\.filter/);
 });
 
 
@@ -133,12 +136,13 @@ test('Grazia avatars are restricted to Admin and editable solely with verified A
   assert.match(route, /published\.some\(item => normalizeGraziaName/);
   assert.match(route, /INSERT INTO public\.grazia_avatar_configs/);
   assert.match(route, /SELECT nome_key, avatar_config FROM public\.grazia_avatar_configs/);
-  assert.match(route, /avatar_config: avatarsByName\.get/);
+  assert.match(route, /avatar_config: isAdmin \?/);
   assert.match(profile, /isSessionVerified && hasAdminCapability\(user\)/);
-  assert.match(profile, /if \(!canViewGrazia\)/);
-  assert.match(read('client/src/pages/Grazia/hooks/useGraziaData.ts'), /enabled: !!user && adminVerified/);
+  assert.match(profile, /const togglePublication = \(item: Classifica\)/);
+  assert.match(read('client/src/pages/Grazia/hooks/useGraziaData.ts'), /enabled: !!user && !!localStorage/);
   assert.match(profile, /canEditAvatar && editingAvatarName/);
   assert.match(list, /canEditAvatar=\{canEditAvatar\}/);
+  assert.match(list, /onTogglePublication/);
   assert.match(card, /canEditAvatar && onEditAvatar/);
   assert.match(card, /<CustomAvatar config=\{item\.avatar_config\}/);
   assert.match(card, /onClick=\{\(\) => onEditAvatar\(item\.nome\)\}/);
@@ -147,6 +151,21 @@ test('Grazia avatars are restricted to Admin and editable solely with verified A
   assert.match(migration, /ALTER TABLE public\.grazia_avatar_configs ENABLE ROW LEVEL SECURITY/);
   assert.match(migration, /REVOKE ALL ON TABLE public\.grazia_avatar_configs FROM PUBLIC, anon, authenticated/);
   assert.doesNotMatch(migration, /INSERT INTO public\.voti_grazia|ALTER TABLE public\.users/);
+});
+
+test('Per-person publication starts private and can only be changed by Admin after confirmation', () => {
+  const route = read('api/routes/grazia.js');
+  const migration = read('api/migrations/20261111_grazia_person_publication.sql');
+  const page = read('client/src/pages/Grazia/index.tsx');
+  assert.match(route, /router\.put\('\/pubblicazione', verifyToken, requireAdmin/);
+  assert.match(route, /verifiche_confermate !== true/);
+  assert.match(route, /INSERT INTO public\.grazia_carcerati \(nome, attivo, pubblicato\)/);
+  assert.match(route, /publicVote\.rows\[0\]\?\.allowed !== true/);
+  assert.match(route, /avatar_config: isAdmin \?/);
+  assert.match(migration, /pubblicato boolean NOT NULL DEFAULT false/);
+  assert.match(migration, /REVOKE ALL ON TABLE public\.grazia_carcerati FROM PUBLIC, anon, authenticated/);
+  assert.match(page, /Nessun nominativo pubblicato al momento/);
+  assert.match(page, /publicationMutation\.mutate\(item\)/);
 });
 
 test('Grazia only stores safe SVG editor controls and rejects extra data', () => {

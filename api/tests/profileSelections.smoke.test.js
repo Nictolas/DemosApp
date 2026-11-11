@@ -61,7 +61,8 @@ test('mounted at an authenticated, rate-limited private endpoint',()=>{
   assert.match(source,/WHERE u\.id = \$1/);
   assert.match(source,/FROM voti_capo_stato v/);
   assert.match(source,/FROM voti_grazia v/);
-  assert.match(source,/FROM voti_grazia v\s+WHERE v.userid = u.id AND \$2::boolean/);
+  assert.match(source,/FROM voti_grazia v[\s\S]*AND \(\$2::boolean OR EXISTS/);
+  assert.match(source,/gc\.attivo = TRUE AND gc\.pubblicato = TRUE/);
   assert.match(source,/FROM voti_amnistia v/);
   assert.match(source,/FROM voti_iniziative_popolari v/);
   assert.match(source,/LEFT JOIN users a ON a\.id = u\.attivisti/);
@@ -78,7 +79,7 @@ test('returns only actual selections, with private no-store headers',async()=>{
   assert.equal(r.data.data.organizzazione,null);
   assert.equal(r.data.data.attivista.nome,'Attivista Fittizio');
 });
-test('Grazia selections are returned only to Admin',async()=>{
+test('Grazia selections are visible to Admin, or to owners after individual publication',async()=>{
   const admin=await execute('synthetic-owner',true);
   assert.equal(admin.status,200);
   assert.deepEqual(Array.from(admin.data.data.grazia),['Persona riservata']);

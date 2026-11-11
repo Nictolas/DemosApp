@@ -4,13 +4,13 @@ import { GraziaData } from "../types";
 import { useToast } from "@/hooks/use-toast";
 import { getRemainingVotes } from "@/config/votingLimits";
 
-export const useGraziaData = (user: any, adminVerified: boolean) => {
+export const useGraziaData = (user: any) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   // Query per caricare i dati
   const { data, isLoading: isLoadingData, error } = useQuery<GraziaData>({
-    queryKey: ['graziaData'],
+    queryKey: ['graziaData', user?.id || 'anonymous'],
     queryFn: async () => {
       try {
         console.log('🔍 DEBUG useGraziaData - Inizio fetch');
@@ -44,8 +44,9 @@ export const useGraziaData = (user: any, adminVerified: boolean) => {
         throw err;
       }
     },
-    enabled: !!user && adminVerified && !!localStorage.getItem('auth_token'),
+    enabled: !!user && !!localStorage.getItem('auth_token'),
     retry: 1,
+    staleTime: 0,
     refetchOnWindowFocus: false
   });
 

@@ -1,4 +1,8 @@
 import React, { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import type { Classifica } from "./types";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { hasAdminCapability } from "@/lib/admin-access";
@@ -20,9 +24,40 @@ export default function Grazia() {
   const { user, isLoading, isSessionVerified } = useAuth();
   const [editingAvatarName, setEditingAvatarName] = useState<string | null>(null);
   const canEditAvatar = isSessionVerified && hasAdminCapability(user);
-  const canViewGrazia = canEditAvatar;
-
-  const { data, isLoadingData, error, saveVotiMutation } = useGraziaData(user, canViewGrazia);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data, isLoadingData, error, saveVotiMutation } = useGraziaData(user);
+  const publicationMutation = useMutation({
+    mutationFn: async (item: Classifica) => {
+      const pubblicato = item.pubblicato !== true;
+      const response = await apiRequest("PUT", "/api/grazia/pubblicazione", {
+        nome: item.nome,
+        pubblicato,
+        verifiche_confermate: pubblicato
+      });
+      if (!response.ok || response.data?.success !== true) {
+        throw new Error(response.data?.error || "Impossibile aggiornare la visibilità");
+      }
+      return pubblicato;
+    },
+    onSuccess: (pubblicato) => {
+      toast({
+        title: pubblicato ? "Nominativo pubblicato" : "Nominativo oscurato",
+        description: "La visibilità è stata aggiornata per questa sola persona."
+      });
+      queryClient.invalidateQueries({ queryKey: ["graziaData"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Aggiornamento non riuscito", description: error.message, variant: "destructive" });
+    }
+  });
+  const togglePublication = (item: Classifica) => {
+    if (!canEditAvatar || publicationMutation.isPending) return;
+    if (!item.pubblicato && !window.confirm(
+      "Confermi di aver verificato la volontà della persona interessata e la liceità della pubblicazione? Il consenso dei familiari da solo potrebbe non bastare."
+    )) return;
+    publicationMutation.mutate(item);
+  };
   const { 
     votingState, 
     updateField, 
@@ -37,7 +72,7 @@ export default function Grazia() {
     votoToRemove,
     confirmRemove,
     cancelRemove
-  } = useGraziaVoting(data, saveVotiMutation);
+  } = useGraziaVoting(data, saveVotiMutation, canEditAvatar);
 
 
   if (!authReady || isLoading) {
@@ -60,18 +95,6 @@ export default function Grazia() {
     );
   }
 
-  if (!canViewGrazia) {
-    return (
-      <PageContainer className="bg-gray-50">
-        <section className="mx-auto max-w-2xl px-4 py-10 text-center" role="status">
-          <h1 className="mb-3 text-2xl font-semibold text-slate-900">Grazia</h1>
-          <p className="text-slate-700">
-            La sezione è temporaneamente sospesa per verifiche sulla tutela della riservatezza.
-          </p>
-        </section>
-      </PageContainer>
-    );
-  }
 
   return (
     <PageContainer className="overflow-hidden bg-gray-50">
@@ -79,9 +102,11 @@ export default function Grazia() {
       <div className="grazia-page__fixed-header shrink-0 border-b border-slate-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
         <div className="relative mx-auto w-full max-w-6xl">
           <Header />
-          <div className="absolute right-0 top-0 z-10">
-            <ProposeSubjectButton category="grazia" />
-          </div>
+          {canEditAvatar && (
+            <div className="absolute right-0 top-0 z-10">
+              <ProposeSubjectButton category="grazia" />
+            </div>
+          )}
           {data?.blocco.isBlocked && (
             <BlockedWarning unlockDate={data.blocco.unlockDate} />
           )}
@@ -93,6 +118,11 @@ export default function Grazia() {
           <div className="rounded border-l-4 border-red-500 bg-red-100 p-4 text-red-800">
             <strong>Errore nel caricamento dei dati:</strong> {error.message}
           </div>
+        ) : !isLoadingData && !canEditAvatar && (data?.classifica?.length || 0) === 0 ? (
+          <section className="mx-auto mt-6 max-w-xl rounded-xl bg-white p-6 text-center text-slate-700" role="status">
+            <p className="font-semibold">Nessun nominativo pubblicato al momento.</p>
+            <p className="mt-2 text-sm">Le persone saranno rese visibili singolarmente dopo le verifiche necessarie.</p>
+          </section>
         ) : (
           <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 md:grid-cols-2 md:grid-rows-1 lg:gap-6">
             {/* I controlli di voto restano visibili quando si scorre la lista. */}
@@ -138,6 +168,9 @@ export default function Grazia() {
                   hasReachedLimit={hasReachedLimit}
                   canEditAvatar={canEditAvatar}
                   onEditAvatar={canEditAvatar ? setEditingAvatarName : undefined}
+                  canManagePublication={canEditAvatar}
+                  publicationPending={publicationMutation.isPending}
+                  onTogglePublication={canEditAvatar ? togglePublication : undefined}
                 />
               )}
             </div>

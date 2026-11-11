@@ -19,6 +19,9 @@ interface ClassificaCarceratiProps {
   hasReachedLimit: boolean;
   canEditAvatar?: boolean;
   onEditAvatar?: (nome: string) => void;
+  canManagePublication?: boolean;
+  publicationPending?: boolean;
+  onTogglePublication?: (item: Classifica) => void;
 }
 
 export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
@@ -29,7 +32,10 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
   onToggleSelezione,
   hasReachedLimit,
   canEditAvatar = false,
-  onEditAvatar
+  onEditAvatar,
+  canManagePublication = false,
+  publicationPending = false,
+  onTogglePublication
 }) => {
   if (!classifica || classifica.length === 0) {
     return (
@@ -40,7 +46,7 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
               <Trophy className="h-6 w-6 text-gray-400 sm:h-10 sm:w-10" />
             </div>
             <p className="text-sm font-medium text-gray-600 sm:text-lg">Nessuna classifica disponibile al momento</p>
-            <p className="text-sm text-gray-500 mt-2">Riprova più tardi</p>
+            <p className="text-sm text-gray-500 mt-2">I nominativi vengono pubblicati singolarmente dopo le verifiche</p>
           </div>
         </CardContent>
       </Card>
@@ -68,6 +74,9 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
                 canEditAvatar={canEditAvatar}
 
                 onEditAvatar={onEditAvatar}
+                canManagePublication={canManagePublication}
+                publicationPending={publicationPending}
+                onTogglePublication={onTogglePublication}
                 disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
               />
             ))}
@@ -88,6 +97,9 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
                   canEditAvatar={canEditAvatar}
 
                   onEditAvatar={onEditAvatar}
+                  canManagePublication={canManagePublication}
+                  publicationPending={publicationPending}
+                  onTogglePublication={onTogglePublication}
                   disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
                 />
               ))}
