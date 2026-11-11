@@ -5,6 +5,7 @@
  * There are no calls to production services, no real personal records and no writes.
  * Uses the compiled app, real React routes and real CSS (not an HTML fixture).
  * Chromium mobile viewports approximate layout; physical touch validation is separate.
+ * Uses a synthetic Admin account because Grazia is temporarily Admin-only.
  */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
@@ -13,7 +14,7 @@ const ORIGIN = 'http://localhost:4173';
 const USER_ID = '00000000-0000-4000-8000-000000007777';
 const TOKEN = [
   'eyJhbGciOiJub25lIn0',
-  Buffer.from(JSON.stringify({ userId: USER_ID, role: 'E', exp: 4102444800 })).toString('base64url'),
+  Buffer.from(JSON.stringify({ userId: USER_ID, role: 'AD', exp: 4102444800 })).toString('base64url'),
   'synthetic-civic-scroll-only',
 ].join('.');
 
@@ -91,8 +92,9 @@ async function main() {
 
         if (url.pathname === '/api/auth/me') {
           return respond(route, { success: true, user: {
-            id: USER_ID, email: 'civic-scroll@example.invalid', role: 'E',
-            ruolo: 'E', status: 'A', account_type: 'E',
+            id: USER_ID, email: 'civic-scroll@example.invalid', role: 'AD',
+            ruolo: 'AD', status: 'a', account_type: 'E', is_admin: true,
+            political_consent: { granted: true },
           }});
         }
         if (url.pathname === '/api/amnistia') {
