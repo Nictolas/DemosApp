@@ -126,6 +126,15 @@ html:has(.landing-mobile) #root,
   margin: 0 auto;
 }
 
+/* On iPhone, the OAuth configuration loads after first paint. Reserve
+   the final three-button area so the vertically centered login does not
+   shift when Google/Apple appear. This is NOT an overflow lock. */
+@supports (-webkit-touch-callout: none) {
+  .landing-mobile .auth-card-compact__methods {
+    min-height: 10.55rem;
+  }
+}
+
 .landing-mobile .auth-card-compact button {
   height: 3.1rem;
   min-height: 3.1rem;

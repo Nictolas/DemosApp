@@ -52,8 +52,8 @@ export function AuthCard({ embedded = false, compact = false }: AuthCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent className={compact ? "space-y-2.5 p-0" : "space-y-4"}>
-        {oauthConfigLoading && (
+      <CardContent className={compact ? "auth-card-compact__methods space-y-2.5 p-0" : "space-y-4"}>
+        {oauthConfigLoading && (!compact || !showAnyAuth) && (
           <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-2">
             <Loader2 className="h-4 w-4 animate-spin" />
             Caricamento metodi di accesso…
