@@ -39,13 +39,15 @@ router.post('/', verifyToken, requireAdmin, validateInput(['nome_carcerato', 'mo
 });
 
 // GET /api/grazia - Ottieni richieste di grazia
-router.get('/', verifyToken, requireAdmin, async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     console.log('🔍 DEBUG: Chiamata endpoint /api/grazia');
 
-    // Solo Admin: nessun dato Grazia viene restituito ad altri utenti.
+    // Tutti gli utenti autenticati possono aprire Grazia, ma il catalogo
+    // privato e i relativi avatar sono visibili soltanto all'Admin.
     const userId = req.userId;
+    const isAdmin = req.user?.isAdmin === true;
 
     // Il feed pubblico espone soltanto risultati aggregati. I voti personali
     // (userid, timestamp e preferenze) non devono essere restituiti a terzi.
@@ -62,10 +64,17 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     `;
     const [votesResult, approvedResult] = await Promise.all([
       pool.query(votiCountQuery),
-      pool.query('SELECT id, nome, attivo FROM grazia_carcerati')
+      pool.query('SELECT id, nome, attivo, pubblicato FROM grazia_carcerati')
     ]);
-    const classifica = mergeGraziaRanking(votesResult.rows, approvedResult.rows);
-    const avatarNames = classifica.map(item => normalizeGraziaName(item.nome));
+    const allClassifica = mergeGraziaRanking(votesResult.rows, approvedResult.rows);
+    // Default PRIVATO, anche per nomi nel codice o presenti in voti storici.
+    const publicNames = new Set(approvedResult.rows
+      .filter(item => item.attivo === true && item.pubblicato === true)
+      .map(item => normalizeGraziaName(displayGraziaName(item.nome))));
+    const classifica = isAdmin
+      ? allClassifica
+      : allClassifica.filter(item => publicNames.has(normalizeGraziaName(item.nome)));
+    const avatarNames = isAdmin ? classifica.map(item => normalizeGraziaName(item.nome)) : [];
     const avatarRows = avatarNames.length
       ? await pool.query(
         'SELECT nome_key, avatar_config FROM public.grazia_avatar_configs WHERE nome_key = ANY($1::text[])',
@@ -75,7 +84,9 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     const avatarsByName = new Map(avatarRows.rows.map(row => [row.nome_key, row.avatar_config]));
     const classificaConAvatar = classifica.map(item => ({
       ...item,
-      avatar_config: avatarsByName.get(normalizeGraziaName(item.nome)) || null
+      ...(isAdmin ? { pubblicato: publicNames.has(normalizeGraziaName(item.nome)) } : {}),
+      // Fino a verifica distinta del diritto all'immagine, nessun avatar al pubblico.
+      avatar_config: isAdmin ? (avatarsByName.get(normalizeGraziaName(item.nome)) || null) : null
     }));
 
     // Recupera i voti dell'utente se autenticato
@@ -147,16 +158,60 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
       classifica: classificaConAvatar,
       catalogRevision: getGraziaCatalogRevision(),
       richieste: [], // Compatibilità legacy, senza esporre voti personali
-      mieiVoti: canonicalizeGraziaVotes(mieiVoti, classifica),
+      mieiVoti: canonicalizeGraziaVotes(
+        isAdmin ? mieiVoti : mieiVoti.filter(nome =>
+          publicNames.has(normalizeGraziaName(displayGraziaName(nome)))),
+        classifica
+      ),
       blocco
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare richieste grazia:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare richieste grazia',
-      details: error.message
+      error: 'Errore nel recuperare richieste grazia'
     });
+  }
+});
+
+// PUT /api/grazia/pubblicazione — Rende visibile soltanto il nominativo autorizzato.
+// La verifica di autorizzazioni e base giuridica resta un atto dell'Admin: mai
+// pubblicare automaticamente da votazioni, cataloghi statici o proposte utenti.
+router.put('/pubblicazione', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  const rawName = req.body?.nome;
+  const pubblicato = req.body?.pubblicato;
+  if (typeof rawName !== 'string' || !rawName.trim() || rawName.length > 150 ||
+      typeof pubblicato !== 'boolean' ||
+      (pubblicato && req.body?.verifiche_confermate !== true)) {
+    return res.status(400).json({ success: false, error: 'Dati o conferma delle verifiche mancanti' });
+  }
+  const name = displayGraziaName(rawName.normalize('NFKC').trim().replace(/\\s+/g, ' '));
+  if (isHiddenGraziaName(name)) {
+    return res.status(404).json({ success: false, error: 'Soggetto non disponibile' });
+  }
+  try {
+    const [votesResult, approvedResult] = await Promise.all([
+      pool.query(`SELECT BTRIM(nome) AS nome, COUNT(*)::bigint AS richieste
+        FROM public.voti_grazia WHERE NULLIF(BTRIM(nome), '') IS NOT NULL GROUP BY BTRIM(nome)`),
+      pool.query('SELECT id, nome, attivo FROM public.grazia_carcerati')
+    ]);
+    const ranking = mergeGraziaRanking(votesResult.rows, approvedResult.rows);
+    if (!ranking.some(item => normalizeGraziaName(item.nome) === normalizeGraziaName(name))) {
+      return res.status(404).json({ success: false, error: 'Soggetto non disponibile' });
+    }
+    const result = await pool.query(
+      `INSERT INTO public.grazia_carcerati (nome, attivo, pubblicato)
+       VALUES ($1, TRUE, $2)
+       ON CONFLICT (lower(btrim(nome))) DO UPDATE
+       SET pubblicato = EXCLUDED.pubblicato
+       RETURNING pubblicato`,
+      [name, pubblicato]
+    );
+    return res.json({ success: true, pubblicato: result.rows[0]?.pubblicato === true });
+  } catch (error) {
+    console.error('Aggiornamento visibilità Grazia non disponibile (dettagli omessi)');
+    return res.status(503).json({ success: false, error: 'Aggiornamento visibilità non disponibile' });
   }
 });
 
@@ -226,7 +281,7 @@ router.get('/richieste', verifyToken, requireAdmin, async (req, res) => {
 });
 
 // POST /api/grazia/vota - Salva voti grazia
-router.post('/vota', verifyToken, requireAdmin, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
   console.log('🚨🚨🚨 POST /api/grazia/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
 
   try {
@@ -303,9 +358,23 @@ router.post('/vota', verifyToken, requireAdmin, requireVerifiedCivicIdentity, re
     console.log('🔍 DEBUG - Colonna timestamp usata:', timestampColumn);
 
     const requestedVotes = voti.slice(0, 1).map((nome) => displayGraziaName(String(nome).trim())).filter(Boolean);
-    // Evita di ripubblicare una voce ritirata semplicemente riscrivendola.
+    // Le votazioni degli utenti ordinari possono riguardare SOLO nomi già
+    // pubblicati singolarmente. Nessuna proposta privata va resa nota via API.
     if (requestedVotes.some(isHiddenGraziaName)) {
       return res.status(400).json({ success: false, error: 'Nome non disponibile nella classifica Grazia' });
+    }
+    if (!req.user?.isAdmin && requestedVotes.length > 0) {
+      const publicVote = await pool.query(
+        `SELECT EXISTS (
+           SELECT 1 FROM public.grazia_carcerati
+           WHERE attivo = TRUE AND pubblicato = TRUE
+             AND lower(btrim(nome)) = lower(btrim($1))
+         ) AS allowed`,
+        [requestedVotes[0]]
+      );
+      if (publicVote.rows[0]?.allowed !== true) {
+        return res.status(403).json({ success: false, error: 'Puoi votare solo persone pubblicate' });
+      }
     }
     const existingResult = await pool.query(
       `SELECT nome, ${timestampColumn} AS changed_at
