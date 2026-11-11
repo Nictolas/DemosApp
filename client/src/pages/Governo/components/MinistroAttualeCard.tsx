@@ -1,10 +1,11 @@
 import React from "react";
 import { Edit3, User } from "lucide-react";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
+import { GovernmentVoteName } from "./GovernmentVoteName";
 import { colorMap } from "../constants/ministeri";
 import { ruoloToCategoria, ruoloToColor } from "../constants/ruolo-to-categoria";
 import { ruoloToEmoji } from "../constants/ministri-attuali";
-import { Ministero } from "../types";
+import { Ministero, VotiData } from "../types";
 import { ministeri } from "../constants/ministeri";
 
 interface MinistroAttualeCardProps {
@@ -17,10 +18,7 @@ interface MinistroAttualeCardProps {
     email_utente: string | null;
     avatar_config?: any;
   } | null;
-  votiData?: {
-    classifiche?: Record<string, Array<{ nome: string; voti: number }>>;
-    mieiVoti?: Record<string, string>;
-  };
+  votiData?: VotiData;
   isAdmin: boolean;
   isAdminAD?: boolean;
   onEdit: () => void;
@@ -177,7 +175,7 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
           <h4 className="text-xs font-semibold text-gray-800 mb-2">Il Più Votato</h4>
           <div className="text-gray-600">
             {piuVotato ? (
-              <div className="text-sm font-medium text-gray-900">{piuVotato.nome}</div>
+              <GovernmentVoteName name={piuVotato.nome} avatarPerNome={votiData?.avatarPerNome} />
             ) : (
               <div className="text-xs text-gray-500">Nessun voto ancora</div>
             )}
@@ -189,7 +187,7 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
           <h4 className="text-xs font-semibold text-gray-800 mb-2">Il Tuo Voto</h4>
           <div className="text-gray-600 mb-3">
             {mioVoto ? (
-              <div className="text-sm font-medium text-gray-900">{mioVoto}</div>
+              <GovernmentVoteName name={mioVoto} avatarPerNome={votiData?.avatarPerNome} />
             ) : (
               <div className="text-xs text-gray-500">Non hai ancora votato</div>
             )}
