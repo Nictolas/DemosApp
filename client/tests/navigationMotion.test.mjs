@@ -50,6 +50,6 @@ test('reduced motion and loading skeleton are available', () => {
 });
 
 test('swipe and keyboard back from Compass return to Profile', () => {
-  assert.match(app, /'\\/compasso-politico': '\\/profilo'/);
-  assert.match(browserNavigation, /'\\/compasso-politico': '\\/profilo'/);
+  assert.ok(app.includes("'/compasso-politico': '/profilo'"));
+  assert.ok(browserNavigation.includes("'/compasso-politico': '/profilo'"));
 });
