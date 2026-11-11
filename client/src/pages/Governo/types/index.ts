@@ -6,6 +6,7 @@ export interface Classifica {
 export interface VotiData {
   classifiche: { [categoria: string]: Classifica[] };
   mieiVoti: { [categoria: string]: string };
+  avatarPerNome?: Record<string, any>;
   blocco: {
     isBlocked: boolean;
     unlockDate?: string;

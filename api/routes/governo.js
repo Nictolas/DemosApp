@@ -5,6 +5,7 @@ const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { getPool } = require('../config/database');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
+const { loadGovernmentVoteAvatars } = require('../services/governoVoteAvatars');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -97,6 +98,20 @@ router.get('/voti', verifyToken, async (req, res) => {
       }
     }
 
+    // Resolve only the winner and the current user's choice for each ministry.
+    // One bounded lookup is shared by all the cards (no extra HTTP calls).
+    let avatarPerNome = {};
+    try {
+      const votedNames = [
+        ...Object.values(classifiche).map((classifica) => classifica[0]?.nome).filter(Boolean),
+        ...Object.values(mieiVoti)
+      ];
+      avatarPerNome = await loadGovernmentVoteAvatars(pool, votedNames);
+    } catch (error) {
+      // An optional image must never prevent the votes from loading.
+      console.warn('Avatar delle preferenze di governo non disponibili:', error.message);
+    }
+
     console.log('🔍 DEBUG - Risposta API governo/voti:');
     console.log('📊 Classifiche:', Object.keys(classifiche).length, 'ministeri');
     console.log('👤 Miei voti:', Object.keys(mieiVoti).length, 'voti utente');
@@ -107,6 +122,7 @@ router.get('/voti', verifyToken, async (req, res) => {
     res.json({
       classifiche,
       mieiVoti,
+      avatarPerNome,
       blocchi,
       blocco: {
         isBlocked: activeBlocks.length > 0,
