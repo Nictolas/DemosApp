@@ -2,6 +2,8 @@ import { Archive, Building2, ChevronRight, Crown, FileText, Scale, UserRound, ty
 import { Link } from "wouter";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import type { ProfileChosenVotes } from "../utils/encryptedProfileVault";
+import { getLeggeEmoji } from "@/pages/Amnistia/utils/amnistiaUtils";
+import { getInitiativeChoiceEmoji } from "../utils/initiativeChoiceEmoji";
 
 export type ChosenPreferencesStatus = "ready" | "loading" | "unavailable" | "consent-required";
 type Row = { key: string; label: string; values: string[]; icon: LucideIcon; path: string };
@@ -62,6 +64,15 @@ export function ProfileChosenPreferences({
                         {avatarFor(key, value) && (
                           <span className="shrink-0" aria-hidden="true" data-testid="profile-other-choice-avatar">
                             <CustomAvatar config={avatarFor(key, value)} size={24} />
+                          </span>
+                        )}
+                        {(key === "amnistia" || key === "iniziativa") && (
+                          <span
+                            className="shrink-0 text-xl leading-none"
+                            aria-hidden="true"
+                            data-testid="profile-other-choice-emoji"
+                          >
+                            {key === "amnistia" ? getLeggeEmoji(value) : getInitiativeChoiceEmoji(value)}
                           </span>
                         )}
                         <span className="min-w-0 break-words text-sm font-semibold text-slate-900">{value}</span>

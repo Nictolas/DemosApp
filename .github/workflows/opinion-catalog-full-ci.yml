@@ -46,6 +46,9 @@ on:
       - 'client/src/pages/Profilo/components/PoliticalCompassPreview.tsx' # required catalog-contract for compass UI changes
       - 'client/src/pages/Profilo/index.tsx' # owner opinion completion UI
       - 'client/src/pages/Profilo/components/ProfileGovernoIdeale.tsx'
+      - 'client/src/pages/Profilo/components/ProfileChosenPreferences.tsx' # choice emojis and avatars
+      - 'client/src/pages/Profilo/utils/initiativeChoiceEmoji.ts'
+      - 'api/tests/profileOtherChoicesEmojis.contract.test.js'
       - 'client/src/pages/Profilo/hooks/useProfileData.ts'
       - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
       - 'api/tests/profileIdealGovernmentAvatars.contract.test.js'
@@ -125,6 +128,8 @@ jobs:
         run: node --test api/tests/ministerProfileTransition.contract.test.js
       - name: Validate Profile ideal-government avatars and encrypted cache compatibility
         run: node --test api/tests/profileIdealGovernmentAvatars.contract.test.js api/tests/governoVoteAvatars.test.js
+      - name: Validate Profile amnesty and popular initiative emojis and avatar isolation
+        run: node --test api/tests/profileOtherChoicesEmojis.contract.test.js api/tests/profileOtherChoicesAvatars.contract.test.js
       - name: TypeScript and Vite frontend build (no release)
         run: npm run build --prefix client
       - name: Install isolated Chromium browser test dependency
