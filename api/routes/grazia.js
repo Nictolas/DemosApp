@@ -186,7 +186,7 @@ router.put('/pubblicazione', verifyToken, requireAdmin, async (req, res) => {
       (pubblicato && req.body?.verifiche_confermate !== true)) {
     return res.status(400).json({ success: false, error: 'Dati o conferma delle verifiche mancanti' });
   }
-  const name = displayGraziaName(rawName.normalize('NFKC').trim().replace(/\\s+/g, ' '));
+  const name = displayGraziaName(rawName.normalize('NFKC').trim().replace(/\s+/g, ' '));
   if (isHiddenGraziaName(name)) {
     return res.status(404).json({ success: false, error: 'Soggetto non disponibile' });
   }
