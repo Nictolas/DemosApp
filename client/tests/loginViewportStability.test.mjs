@@ -26,6 +26,7 @@ test("login fixes do not bypass onboarding or alter the registration wizard", ()
   const auth = read("hooks/useAuthLogin.ts");
   const wizard = read("pages/registrazione-consensi.tsx");
   const shell = read("components/RobustAppLayout.tsx");
+  assert.match(shell, /useLayoutEffect\(\(\) => \{\s*document\.documentElement\.classList\.toggle/);
   assert.match(auth, /localStorage\.setItem\("registrazione_oauth_flow", "1"\)/);
   assert.match(auth, /navigate\("\/registrazione-consensi"\)/);
   assert.match(auth, /window\.location\.href = "\/profilo"/);
