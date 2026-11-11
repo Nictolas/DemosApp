@@ -1,5 +1,6 @@
 import { Archive, Building2, ChevronRight, Crown, FileText, Scale, UserRound, type LucideIcon } from "lucide-react";
 import { Link } from "wouter";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import type { ProfileChosenVotes } from "../utils/encryptedProfileVault";
 
 export type ChosenPreferencesStatus = "ready" | "loading" | "unavailable" | "consent-required";
@@ -13,10 +14,24 @@ const selectedNames = (values: string[] | undefined): string[] =>
 export function ProfileChosenPreferences({
   choices,
   status,
+  canViewRestrictedAvatars = false,
 }: {
   choices: ProfileChosenVotes | null;
   status: ChosenPreferencesStatus;
+  canViewRestrictedAvatars?: boolean;
 }) {
+  // Show only existing avatars. Names in Capo di Stato and Grazia are resolved
+  // separately; the two selected directory subjects are matched by account ID.
+  const avatarFor = (key: string, name: string): any | null => {
+    const normalizedName = name.trim().replace(/\\s+/g, " ").toLowerCase();
+    if (key === "capo") return choices?.capoStatoAvatars?.[normalizedName] || null;
+    if (key === "grazia") return canViewRestrictedAvatars
+      ? choices?.graziaAvatars?.[normalizedName] || null : null;
+    if (key === "attivista") return choices?.attivistaAvatar || null;
+    if (key === "organizzazione") return choices?.organizzazioneAvatar || null;
+    return null; // Amnesty and initiatives are not subjects with portrait avatars.
+  };
+
   // All six choices are navigable even when the user has not yet voted.
   // Only display saved choices when the authenticated political consent is verified.
   const rows: Row[] = [
@@ -43,7 +58,14 @@ export function ProfileChosenPreferences({
                 values.length > 0 ? (
                   <div className="space-y-0.5">
                     {values.map((value, index) => (
-                      <p key={index} className="break-words text-sm font-semibold text-slate-900">{value}</p>
+                      <div key={index} className="flex min-w-0 items-center gap-1.5">
+                        {avatarFor(key, value) && (
+                          <span className="shrink-0" aria-hidden="true">
+                            <CustomAvatar config={avatarFor(key, value)} size={24} />
+                          </span>
+                        )}
+                        <span className="min-w-0 break-words text-sm font-semibold text-slate-900">{value}</span>
+                      </div>
                     ))}
                   </div>
                 ) : (
