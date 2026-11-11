@@ -23,7 +23,7 @@ export function ProfileChosenPreferences({
   // Show only existing avatars. Names in Capo di Stato and Grazia are resolved
   // separately; the two selected directory subjects are matched by account ID.
   const avatarFor = (key: string, name: string): any | null => {
-    const normalizedName = name.trim().replace(/\\s+/g, " ").toLowerCase();
+    const normalizedName = name.trim().replace(/\s+/g, " ").toLowerCase();
     if (key === "capo") return choices?.capoStatoAvatars?.[normalizedName] || null;
     if (key === "grazia") return canViewRestrictedAvatars
       ? choices?.graziaAvatars?.[normalizedName] || null : null;
