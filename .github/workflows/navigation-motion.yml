@@ -1,0 +1,54 @@
+name: Navigation motion and Compass regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/components/PageTransition.tsx'
+      - 'client/src/App.tsx'
+      - 'client/src/hooks/useBrowserNavigation.ts'
+      - 'client/src/hooks/useSmoothNavigation.ts'
+      - 'client/src/pages/Profilo/index.tsx'
+      - 'client/src/pages/CompassoPolitico.tsx'
+      - 'client/src/index.css'
+      - 'client/tests/navigationMotion.test.mjs'
+      - '.github/workflows/navigation-motion.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'client/src/components/PageTransition.tsx'
+      - 'client/src/App.tsx'
+      - 'client/src/hooks/useBrowserNavigation.ts'
+      - 'client/src/hooks/useSmoothNavigation.ts'
+      - 'client/src/pages/Profilo/index.tsx'
+      - 'client/src/pages/CompassoPolitico.tsx'
+      - 'client/src/index.css'
+      - 'client/tests/navigationMotion.test.mjs'
+      - '.github/workflows/navigation-motion.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  navigation-motion:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Verify navigation, private Compass and Profile contract
+        run: |
+          node --test \
+            client/tests/navigationMotion.test.mjs \
+            api/tests/politicalCompassPrototype.smoke.test.js \
+            api/tests/completeOpinionsCallout.contract.test.js \
+            client/tests/androidDocumentScroll.test.mjs
+      - name: Install frontend
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build production frontend
+        run: npm run build --prefix client

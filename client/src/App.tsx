@@ -231,6 +231,7 @@ function useTouchNavigation() {
       '/menu': '/preferiti',
       '/preferiti': '/',
       '/profilo': '/preferiti',
+      '/compasso-politico': '/profilo',
       '/menu/profilo': '/preferiti',
         '/opinioni': '/preferiti',
         '/rappresentanti': '/preferiti',

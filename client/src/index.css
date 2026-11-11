@@ -1743,3 +1743,109 @@ html.demos-mobile-preview-active body {
     height: 3.5rem !important;
   }
 }
+
+
+/* DEMOS navigation motion v2: no delayed hidden pages, blur or scroll locks.
+   Animations only affect composited opacity/transform; scrollports remain native. */
+.page-transition.demos-route-enter,
+.fade-up-transition.demos-route-enter,
+.fade-side-transition.demos-route-enter {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  transition: none;
+  will-change: auto;
+  animation: demos-route-appear 190ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.fade-side-transition.demos-route-enter,
+.demos-compass-page {
+  animation: demos-route-slide 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes demos-route-appear {
+  from { opacity: 0.88; transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes demos-route-slide {
+  from { opacity: 0.9; transform: translate3d(14px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The source button morphs into the Compass title in capable browsers.
+   If unsupported, the ordinary 220ms page entrance above still works. */
+@supports (view-transition-name: demos-compass) {
+  .demos-compass-source,
+  .demos-compass-destination {
+    view-transition-name: demos-compass;
+  }
+}
+
+:root[data-demos-navigation] .demos-route-enter,
+:root[data-demos-navigation] .demos-compass-page {
+  animation: none !important;
+}
+
+:root[data-demos-navigation="forward"]::view-transition-old(root) {
+  animation: demos-vt-forward-out 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+:root[data-demos-navigation="forward"]::view-transition-new(root) {
+  animation: demos-vt-forward-in 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+:root[data-demos-navigation="back"]::view-transition-old(root) {
+  animation: demos-vt-back-out 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+:root[data-demos-navigation="back"]::view-transition-new(root) {
+  animation: demos-vt-back-in 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+::view-transition-group(demos-compass) {
+  animation-duration: 270ms;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes demos-vt-forward-out {
+  to { opacity: 0.82; transform: translateX(-14px); }
+}
+@keyframes demos-vt-forward-in {
+  from { opacity: 0.85; transform: translateX(14px); }
+}
+@keyframes demos-vt-back-out {
+  to { opacity: 0.82; transform: translateX(14px); }
+}
+@keyframes demos-vt-back-in {
+  from { opacity: 0.85; transform: translateX(-14px); }
+}
+
+/* Stagger only the Compass cards, never its scroll container. */
+.demos-compass-content > :not(.demos-compass-skeleton) {
+  animation: demos-compass-card-appear 190ms ease-out both;
+}
+.demos-compass-content > :nth-child(2) { animation-delay: 45ms; }
+.demos-compass-content > :nth-child(3) { animation-delay: 90ms; }
+
+@keyframes demos-compass-card-appear {
+  from { opacity: 0.85; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition.demos-route-enter,
+  .fade-up-transition.demos-route-enter,
+  .fade-side-transition.demos-route-enter,
+  .demos-compass-page,
+  .demos-compass-content > *,
+  .demos-compass-skeleton .animate-pulse {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-group(demos-compass) {
+    animation-duration: 0.01ms !important;
+  }
+}
