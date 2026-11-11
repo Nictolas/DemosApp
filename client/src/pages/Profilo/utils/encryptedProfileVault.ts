@@ -48,11 +48,18 @@ export type EncryptedOpinionCategory = {
 
 export type OpinionCategorySection = "opinionE" | "opinionN" | "opinionR" | "opinionCO";
 
+// Versioned to distinguish new avatar-aware caches from older name-only snapshots.
+export type CachedIdealGovernment = {
+  version: 2;
+  votes: Record<string, string>;
+  avatarPerNome: Record<string, any>;
+};
+
 export type PersistedProfile = {
   version: 1;
   consent: { granted: boolean; timestamp: string | null } | null;
   full: Record<string, unknown> | null;
-  government: Record<string, string> | null;
+  government: Record<string, string> | CachedIdealGovernment | null;
   representatives: Record<string, unknown> | null;
   candidates: Record<string, unknown> | null;
   opinions: { questions: unknown[]; userAnswers: Record<string, string>; answersLoaded?: boolean } | null;
