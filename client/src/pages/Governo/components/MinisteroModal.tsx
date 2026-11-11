@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { X, Edit3 } from "lucide-react";
 import { colorMap } from "../constants/ministeri";
 import { MinisteroModalProps } from "../types";
+import { GovernmentVoteName } from "./GovernmentVoteName";
 
 export const MinisteroModal: React.FC<MinisteroModalProps> = ({
   ministero,
@@ -60,7 +61,7 @@ export const MinisteroModal: React.FC<MinisteroModalProps> = ({
             <div className="text-gray-600">
               {piuVotato ? (
                 <div>
-                  <div className="font-medium text-gray-900">{piuVotato.nome}</div>
+                  <GovernmentVoteName name={piuVotato.nome} avatarPerNome={data?.avatarPerNome} />
                   <div className="text-sm text-gray-500">{piuVotato.voti} voti</div>
                 </div>
               ) : (
@@ -75,7 +76,7 @@ export const MinisteroModal: React.FC<MinisteroModalProps> = ({
             <div className="text-gray-600">
               {mioVoto ? (
                 <div>
-                  <div className="font-medium text-gray-900">{mioVoto}</div>
+                  <GovernmentVoteName name={mioVoto} avatarPerNome={data?.avatarPerNome} />
                   <div className="text-sm text-gray-500">Voto registrato</div>
                 </div>
               ) : (
