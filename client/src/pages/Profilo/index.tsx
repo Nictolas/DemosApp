@@ -305,6 +305,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               <ProfileChosenPreferences
                 choices={consentGranted ? chosenVotes : null}
                 status={chosenPreferencesStatus}
+                canViewRestrictedAvatars={hasAdminCapability(user)}
               />
             )}
 

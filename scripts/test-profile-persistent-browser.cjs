@@ -14,6 +14,13 @@ const fullCompassAnswers = Object.fromEntries(
 assert.equal(Object.keys(fullCompassAnswers).length, 28);
 
 const ORIGIN = 'http://localhost:4173';
+const syntheticAvatar = {
+  skinColor:'#fddbc4', hairStyle:'short', hairColor:'#333333',
+  mustacheColor:'#333333', mustacheStyle:'none',
+  beardColor:'#333333', beardStyle:'none', noseStyle:'normal',
+  suitColor:'#345678', tieColor:'#cc3333',
+  glassesColor:'#222222', glassesStyle:'none',
+};
 const OWNER = '00000000-0000-4000-8000-000000000101';
 const token = [
   'eyJhbGciOiJub25lIn0',
@@ -65,13 +72,20 @@ async function test() {
           }});
         case '/api/user/profile-selections':
           return fulfill(route, { success:true, data: allSelectionsEmpty ? {
+            version: 2,
             capoStato: [], grazia: [], amnistia: [], iniziativaPopolare: [],
             attivista: null, organizzazione: null,
+            capoStatoAvatars:{}, graziaAvatars:{},
+            attivistaAvatar:null, organizzazioneAvatar:null,
           } : {
+            version: 2,
             capoStato: ['Presidente Inventato'], grazia: [],
             amnistia: ['Reato Inventato'], iniziativaPopolare: [initiativeTitle],
             attivista: { id:'synthetic-activist',nome:'Attivista Inventato' },
             organizzazione: { id:'synthetic-org',nome:'Associazione Inventata' },
+            capoStatoAvatars:{'presidente inventato':syntheticAvatar},
+            graziaAvatars:{},
+            attivistaAvatar:syntheticAvatar, organizzazioneAvatar:syntheticAvatar,
           }});
         case '/api/governo/ideale':
           return fulfill(route, { success: true, data: { Primo_Ministro: 'Ministra Inventata' } });
@@ -102,6 +116,9 @@ async function test() {
       await page.getByText('Comune Inventato').first().waitFor({ timeout: 30000 });
       if (political) {
         await page.getByText('Attivista Inventato').first().waitFor({timeout:15000});
+        const chosenSection = page.locator('section[aria-label="Le mie altre scelte"]');
+        assert.equal(await chosenSection.getByTestId('profile-other-choice-avatar').count(), 3,
+          'Only the three selected subjects with a real config have portraits; legal proposals remain text-only');
         assert.equal(await page.getByText('Grazia', { exact:true }).count(), 1,
           'Grazia must remain visible when no vote has been selected');
         assert.equal(await page.getByText('Nessun voto selezionato', { exact: true }).count(), 1,

@@ -134,7 +134,10 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
           // Catalog-only snapshots created by older releases had no personal
           // answers; never treat their empty map as a verified result.
           ["opinions", snapshot.opinions?.answersLoaded === true ? snapshot.opinions : null],
-          ["preferences", legacyInitiativeId ? null : snapshot.preferences || null],
+          // A prior app build cached names only. Refresh this section once
+          // for avatars, preserving the same per-owner consent epoch.
+          ["preferences", legacyInitiativeId || snapshot.preferences?.version !== 2
+            ? null : snapshot.preferences],
         ] as const;
         for (const [section, payload] of sections) {
           if (payload !== null) client.setQueryData(

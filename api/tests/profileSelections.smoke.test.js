@@ -10,16 +10,29 @@ const handlers = {};
 let consentGranted = true;
 let queryCount = 0;
 let queriedSql;
+const publicAvatar = { skinColor: '#ffffff', hairStyle: 'short' };
+const graziaAvatar = {
+  skinColor: '#ffffff', hairStyle: 'short',
+  hairColor: '#111111', mustacheColor: '#111111', beardColor: '#111111',
+  suitColor: '#111111', tieColor: '#111111', glassesColor: '#111111',
+  mustacheStyle: 'none', beardStyle: 'none', noseStyle: 'normal', glassesStyle: 'none'
+};
 const pool = {
   async query(sql, params) {
     queryCount++;
     queriedSql = sql;
+    if (sql.includes('public.grazia_avatar_configs')) {
+      assert.deepEqual(Array.from(params[0]), ['persona riservata']);
+      return { rows: [{ nome_key:'persona riservata', avatar_config:graziaAvatar }] };
+    }
     assert.deepEqual(Array.from(params), ['synthetic-owner', Boolean(params[1])]);
     return { rows: [{
       capo_stato: ['Una persona inventata'], grazia: params[1] ? ['Persona riservata'] : [],
       amnistia: ['Norma inventata'], iniziativa_popolare: [],
       attivista: { id:'fake-activist', nome:'Attivista Fittizio' },
       organizzazione: null,
+      attivista_avatar_config: publicAvatar,
+      organizzazione_avatar_config: null,
     }] };
   },
 };
@@ -33,6 +46,18 @@ const mockRequire = name => {
   };
   if (name === '../../middleware/politicalConsent') return {
     requirePoliticalConsent: (req,res,next) => consentGranted ? next() : res.status(403).json({success:false}),
+  };
+  if (name === '../../services/governoVoteAvatars') return {
+    loadGovernmentVoteAvatars: async (_pool,names) => names.length
+      ? {'una persona inventata':publicAvatar} : {},
+    parseExistingAvatar: value => value?.skinColor && value?.hairStyle ? value : null,
+  };
+  if (name === '../../services/graziaCatalog') return {
+    displayGraziaName: name => name,
+    normalizeGraziaName: name => name.trim().toLowerCase(),
+  };
+  if (name === '../../services/graziaAvatarConfig') return {
+    parseGraziaAvatarConfig: value => value?.skinColor ? value : null,
   };
   throw Error('unexpected import '+name);
 };
@@ -78,13 +103,22 @@ test('returns only actual selections, with private no-store headers',async()=>{
   assert.deepEqual(Array.from(r.data.data.grazia),[]);
   assert.equal(r.data.data.organizzazione,null);
   assert.equal(r.data.data.attivista.nome,'Attivista Fittizio');
+  assert.equal(r.data.data.version,2);
+  assert.equal(r.data.data.capoStatoAvatars['una persona inventata'].hairStyle,'short');
+  assert.equal(r.data.data.attivistaAvatar.hairStyle,'short');
+  assert.equal(r.data.data.organizzazioneAvatar,null);
+  assert.equal(Object.keys(r.data.data.graziaAvatars).length,0,
+    'Non-Admin must never receive private Grazia avatars');
 });
 test('Grazia selections are visible to Admin, or to owners after individual publication',async()=>{
   const admin=await execute('synthetic-owner',true);
   assert.equal(admin.status,200);
   assert.deepEqual(Array.from(admin.data.data.grazia),['Persona riservata']);
+  assert.equal(admin.data.data.graziaAvatars['persona riservata'].hairStyle,'short',
+    'Only Admin can see a separately curated Grazia portrait');
   const ordinary=await execute('synthetic-owner',false);
   assert.deepEqual(Array.from(ordinary.data.data.grazia),[]);
+  assert.equal(Object.keys(ordinary.data.data.graziaAvatars).length,0);
 });
 test('initiative votes resolve a human title from the canonical civic-process catalog', () => {
   assert.match(source, /FROM civic_processes cp/);

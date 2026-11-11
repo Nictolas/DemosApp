@@ -19,12 +19,19 @@ let clearingAllVault = false;
 const clearingOwners = new Set<string>();
 
 export type ProfileChosenVotes = {
+  // Version 2 adds only already-existing subject portraits. Older encrypted
+  // name-only snapshots are deliberately refreshed once during migration.
+  version?: 2;
   capoStato: string[];
   grazia: string[];
   amnistia: string[];
   iniziativaPopolare: string[];
   attivista: { id: string; nome: string } | null;
   organizzazione: { id: string; nome: string } | null;
+  capoStatoAvatars?: Record<string, any>;
+  graziaAvatars?: Record<string, any>; // restricted to current Admin
+  attivistaAvatar?: any | null;
+  organizzazioneAvatar?: any | null;
 };
 
 export type ProfileCacheSection =
