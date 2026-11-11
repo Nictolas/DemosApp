@@ -54,6 +54,11 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   const isMobileLayout = useMobileLayout();
   const androidScrollPage = androidPageNeedsScroll(location);
   const showAppNav = shouldShowAppNav(location);
+  // Stable route-level marker survives temporary login loaders and auth redirects.
+  // Do not include registration: its wizard keeps its own scrollable viewport.
+  const isAuthEntryPage = location === '/' || location === '/auth';
+  const isStableAuthViewportRoute = isAuthEntryPage ||
+    location === '/profilo' || location.startsWith('/profilo/');
   const showMobileNavbar = isMobileLayout && showAppNav;
   // Su PC nessuna sidebar: Preferiti è l'hub. Navbar solo su cellulare.
   const showDesktopSidebar = false;
@@ -68,7 +73,7 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   }, [isMobileLayout]);
 
   return (
-    <div className={`robust-app-layout ${showDesktopSidebar ? 'robust-app-layout--desktop' : ''}`}>
+    <div className={`robust-app-layout${showDesktopSidebar ? ' robust-app-layout--desktop' : ''}${isStableAuthViewportRoute ? ' robust-app-layout--stable-auth-profile' : ''}`}>
       {showDesktopSidebar && <DesktopSidebar />}
 
       <div className="robust-app-layout__content">
@@ -76,7 +81,7 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
 
         {showDesktopHeader && <DesktopAppHeader />}
 
-        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : location === '/notifiche-totali' ? ' app-main--admin-notifiche' : location === '/admin/ops-center' ? ' app-main--admin-ops' : location === '/eventi' ? ' app-main--eventi' : location === '/attivisti' || location === '/organizzazioni' ? ' app-main--directory' : location === '/profilo' || location.startsWith('/profilo/') ? ' app-main--profile' : ''}${isScrollableContentPage ? ' app-main--scroll-content' : ''}${androidScrollPage ? ' app-main--android-document-scroll' : ''}`}>
+        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : location === '/notifiche-totali' ? ' app-main--admin-notifiche' : location === '/admin/ops-center' ? ' app-main--admin-ops' : location === '/eventi' ? ' app-main--eventi' : location === '/attivisti' || location === '/organizzazioni' ? ' app-main--directory' : location === '/profilo' || location.startsWith('/profilo/') ? ' app-main--profile' : ''}${isAuthEntryPage ? ' app-main--auth-entry' : ''}${isScrollableContentPage ? ' app-main--scroll-content' : ''}${androidScrollPage ? ' app-main--android-document-scroll' : ''}`}>
           <ErrorBoundary>
             <div className="app-main__inner">{children}</div>
           </ErrorBoundary>
