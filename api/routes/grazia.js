@@ -12,7 +12,7 @@ const { parseGraziaAvatarConfig } = require('../services/graziaAvatarConfig');
 const router = express.Router();
 
 // POST /api/grazia - Crea richiesta di grazia
-router.post('/', verifyToken, validateInput(['nome_carcerato', 'motivo']), async (req, res) => {
+router.post('/', verifyToken, requireAdmin, validateInput(['nome_carcerato', 'motivo']), async (req, res) => {
   try {
     const { nome_carcerato, motivo } = req.body;
     const userId = req.userId;
@@ -39,23 +39,13 @@ router.post('/', verifyToken, validateInput(['nome_carcerato', 'motivo']), async
 });
 
 // GET /api/grazia - Ottieni richieste di grazia
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     console.log('🔍 DEBUG: Chiamata endpoint /api/grazia');
 
-    // Recupera userId se autenticato (opzionale)
-    let userId = null;
-    if (req.headers.authorization) {
-      try {
-        const jwt = require('jsonwebtoken');
-        const token = req.headers.authorization.replace('Bearer ', '');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        userId = decoded.userId;
-        console.log(`🔍 DEBUG: Utente autenticato: ${userId}`);
-      } catch (authError) {
-        console.log('⚠️ Token non valido o assente, continuando senza autenticazione');
-      }
-    }
+    // Solo Admin: nessun dato Grazia viene restituito ad altri utenti.
+    const userId = req.userId;
 
     // Il feed pubblico espone soltanto risultati aggregati. I voti personali
     // (userid, timestamp e preferenze) non devono essere restituiti a terzi.
@@ -236,7 +226,7 @@ router.get('/richieste', verifyToken, requireAdmin, async (req, res) => {
 });
 
 // POST /api/grazia/vota - Salva voti grazia
-router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+router.post('/vota', verifyToken, requireAdmin, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
   console.log('🚨🚨🚨 POST /api/grazia/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
 
   try {

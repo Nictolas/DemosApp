@@ -20,8 +20,9 @@ export default function Grazia() {
   const { user, isLoading, isSessionVerified } = useAuth();
   const [editingAvatarName, setEditingAvatarName] = useState<string | null>(null);
   const canEditAvatar = isSessionVerified && hasAdminCapability(user);
+  const canViewGrazia = canEditAvatar;
 
-  const { data, isLoadingData, error, saveVotiMutation } = useGraziaData(user);
+  const { data, isLoadingData, error, saveVotiMutation } = useGraziaData(user, canViewGrazia);
   const { 
     votingState, 
     updateField, 
@@ -51,6 +52,26 @@ export default function Grazia() {
     return <Redirect to="/auth" />;
   }
 
+  if (hasAdminCapability(user) && !isSessionVerified) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!canViewGrazia) {
+    return (
+      <PageContainer className="bg-gray-50">
+        <section className="mx-auto max-w-2xl px-4 py-10 text-center" role="status">
+          <h1 className="mb-3 text-2xl font-semibold text-slate-900">Grazia</h1>
+          <p className="text-slate-700">
+            La sezione è temporaneamente sospesa per verifiche sulla tutela della riservatezza.
+          </p>
+        </section>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer className="overflow-hidden bg-gray-50">

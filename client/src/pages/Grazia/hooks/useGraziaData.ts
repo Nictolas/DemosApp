@@ -4,7 +4,7 @@ import { GraziaData } from "../types";
 import { useToast } from "@/hooks/use-toast";
 import { getRemainingVotes } from "@/config/votingLimits";
 
-export const useGraziaData = (user: any) => {
+export const useGraziaData = (user: any, adminVerified: boolean) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -44,7 +44,7 @@ export const useGraziaData = (user: any) => {
         throw err;
       }
     },
-    enabled: !!user && !!localStorage.getItem('auth_token'),
+    enabled: !!user && adminVerified && !!localStorage.getItem('auth_token'),
     retry: 1,
     refetchOnWindowFocus: false
   });
