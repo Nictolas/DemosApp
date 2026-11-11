@@ -295,11 +295,22 @@ router.get('/ideale', verifyToken, async (req, res) => {
       }
     }
     
+    // A single batched lookup for existing public avatars, not one query per minister.
+    // Preserve the legacy data shape for mobile clients that expect names only.
+    let avatarPerNome = {};
+    try {
+      avatarPerNome = await loadGovernmentVoteAvatars(pool, Object.values(governoIdeale));
+    } catch (error) {
+      // An optional portrait must never prevent the ideal government from loading.
+      console.warn('Avatar del Governo ideale non disponibili:', error.message);
+    }
+
     console.log('🔍 DEBUG - Governo ideale recuperato:', governoIdeale);
-    
+
     res.json({
       success: true,
-      data: governoIdeale
+      data: governoIdeale,
+      avatarPerNome
     });
   } catch (error) {
     console.error('❌ Errore nel recupero governo ideale:', error);
