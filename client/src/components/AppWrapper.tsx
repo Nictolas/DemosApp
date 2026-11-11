@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Redirect, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { hasAdminCapability, hasDpoCapability, isAdminOnlyPath, isGestisciHomePath } from '@/lib/admin-access';
@@ -9,13 +9,10 @@ interface AppWrapperProps {
 }
 
 export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
-  const [location, setLocation] = useLocation();
+  const [location] = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
-  useEffect(() => {
-    if (!isAuthLoading && user && location === '/') {
-      setLocation('/profilo');
-    }
-  }, [isAuthLoading, user, location, setLocation]);
+  // LandingPage already redirects authenticated visitors to /profilo.
+  // A second effect-level redirect here triggers a duplicate navigation.
 
   // F12-36: nuova superficie semanticamente distinta dalla vecchia priorità referendum.
   // È gestita qui finché il router legacy di App.tsx non viene modularizzato.
