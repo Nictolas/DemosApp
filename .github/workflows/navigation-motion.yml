@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'client/src/components/PageTransition.tsx'
+      - 'client/src/App.tsx'
+      - 'client/src/hooks/useBrowserNavigation.ts'
       - 'client/src/hooks/useSmoothNavigation.ts'
       - 'client/src/pages/Profilo/index.tsx'
       - 'client/src/pages/CompassoPolitico.tsx'
@@ -15,6 +17,8 @@ on:
     branches: [main]
     paths:
       - 'client/src/components/PageTransition.tsx'
+      - 'client/src/App.tsx'
+      - 'client/src/hooks/useBrowserNavigation.ts'
       - 'client/src/hooks/useSmoothNavigation.ts'
       - 'client/src/pages/Profilo/index.tsx'
       - 'client/src/pages/CompassoPolitico.tsx'
