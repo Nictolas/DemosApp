@@ -36,5 +36,5 @@ test('profile initiative category mapping stays aligned with the existing public
   const getEmoji = vm.runInNewContext(compile + '\ngetInitiativeChoiceEmoji;');
   assert.equal(getEmoji('BASTA QUORUM PER I REFERENDUM! CHI VOTA DECIDE.'), '🗳️');
   assert.equal(getEmoji('Diritto alla salute'), '🏥');
-  assert.equal(getEmoji('Iniziativa senza categoria'), '📋');
+  assert.equal(getEmoji('Proposta neutra'), '📋');
 });
