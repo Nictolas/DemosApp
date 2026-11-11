@@ -7,7 +7,8 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export const useGraziaVoting = (
   data: GraziaData | undefined,
-  saveVotiMutation: UseMutationResult<any, any, string[], any>
+  saveVotiMutation: UseMutationResult<any, any, string[], any>,
+  isAdmin: boolean
 ) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -60,8 +61,16 @@ export const useGraziaVoting = (
 
   const addNomeLocal = (e: React.FormEvent) => {
     e.preventDefault();
-    const nomePulito = votingState.nomeInput.trim();
-    if (!nomePulito) return;
+    const requestedName = votingState.nomeInput.trim();
+    if (!requestedName) return;
+    const publishedMatch = data?.classifica.find(item =>
+      item.nome.toLocaleLowerCase('it') === requestedName.toLocaleLowerCase('it'));
+    // I normali utenti non possono votare o creare nomi non ancora pubblicati.
+    if (!isAdmin && !publishedMatch) {
+      toast({ title: "Persona non disponibile", description: "Puoi votare soltanto nominativi già pubblicati." });
+      return;
+    }
+    const nomePulito = publishedMatch?.nome || requestedName;
     if (votingState.selectedVoti.includes(nomePulito)) {
       toast({ title: "Richiesta già selezionata" });
       return;
