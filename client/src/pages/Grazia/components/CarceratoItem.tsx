@@ -18,7 +18,10 @@ export const CarceratoItem: React.FC<CarceratoItemProps> = ({
   onToggleSelezione,
   disabled,
   canEditAvatar = false,
-  onEditAvatar
+  onEditAvatar,
+  canManagePublication = false,
+  publicationPending = false,
+  onTogglePublication
 }) => {
   const carceratoStyle = getCarceratoStyle(isTopThree);
   const numberStyle = getCarceratoNumberStyle(isTopThree);
@@ -56,6 +59,14 @@ export const CarceratoItem: React.FC<CarceratoItemProps> = ({
         <div className="min-w-0 flex-1">
           <p className="break-words text-sm font-semibold leading-snug text-gray-900">{item.nome}</p>
           <p className="mt-0.5 text-xs text-gray-500">{item.richieste} richieste</p>
+          {canManagePublication && onTogglePublication && (
+            <button type="button"
+              disabled={publicationPending}
+              className="mt-1 text-xs font-semibold text-blue-700 underline disabled:opacity-50"
+              onClick={() => onTogglePublication(item)}>
+              {item.pubblicato ? "Pubblico · Oscura" : "Solo Admin · Pubblica"}
+            </button>
+          )}
         </div>
         <Button
           variant="outline"
@@ -87,6 +98,14 @@ export const CarceratoItem: React.FC<CarceratoItemProps> = ({
               <Trophy className={`mr-2 h-4 w-4 shrink-0 ${trophyColor}`} />
               {item.richieste} richieste
             </p>
+            {canManagePublication && onTogglePublication && (
+              <button type="button"
+                disabled={publicationPending}
+                className="mt-2 text-xs font-semibold text-blue-700 underline disabled:opacity-50"
+                onClick={() => onTogglePublication(item)}>
+                {item.pubblicato ? "Pubblico · Oscura" : "Solo Admin · Pubblica"}
+              </button>
+            )}
           </div>
         </div>
         <Button
