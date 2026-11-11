@@ -8,6 +8,7 @@ on:
       - 'api/services/opinionCatalog.js'
       - 'api/routes/**'
       - 'api/services/**'
+      - 'api/app.js' # API origin policy/global error changes must satisfy required catalog-contract
       - 'api/tests/opinionCatalog*.test.js'
       - 'api/tests/opinionTopics.contract.test.js'
       - 'api/tests/opinionTopicsBrowser.e2e.test.js'
