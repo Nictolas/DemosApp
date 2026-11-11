@@ -1030,9 +1030,9 @@ div.demos-dash-brand {
   -webkit-transform: translateZ(0);
 }
 
-/* Login and authenticated Profile stay in the same physical position.
-   Other pages, especially the registration wizard, keep their own transitions. */
-.demos-mobile-layout .app-main .fade-up-transition:has(> .landing-mobile),
+/* Route-scoped login + Profile transitions: includes the temporary auth
+   loader, which has no .landing-mobile child. Registration is not affected. */
+.demos-mobile-layout .app-main.app-main--auth-entry .fade-up-transition,
 .demos-mobile-layout .app-main.app-main--profile .fade-up-transition {
   transition: opacity 0.15s ease-out !important;
   transform: none !important;
