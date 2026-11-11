@@ -36,19 +36,36 @@ test("login fixes do not bypass onboarding or alter the registration wizard", ()
   assert.match(shell, /location\.startsWith\('\/registrazione'\)/);
 });
 
-test("iOS login/profile viewport is stable without locking registration scroll", () => {
+test("iOS login/profile viewport remains stable even while showing OAuth loaders", () => {
+  const layout = read("components/RobustAppLayout.tsx");
   const shell = read("robust-layout.css");
   const css = read("index.css");
   const landing = read("pages/landing-mobile.css");
+  assert.match(layout, /const isAuthEntryPage = location === '\/' \|\| location === '\/auth'/);
+  assert.match(layout, /isStableAuthViewportRoute = isAuthEntryPage/);
+  assert.match(layout, /location === '\/profilo' \|\| location\.startsWith\('\/profilo\/'\)/);
+  assert.match(layout, /robust-app-layout--stable-auth-profile/);
+  assert.match(layout, /app-main--auth-entry/);
   assert.match(shell, /@supports \(-webkit-touch-callout: none\) and \(height: 100svh\)/);
-  assert.match(shell, /\.robust-app-layout:has\(\.landing-mobile\)/);
-  assert.match(shell, /\.robust-app-layout:has\(\.app-main--profile\)/);
-  assert.doesNotMatch(shell, /\.robust-app-layout:has\(\.registrazione/);
+  assert.match(shell, /\.demos-mobile-layout \.robust-app-layout--stable-auth-profile/);
+  assert.doesNotMatch(shell, /\.robust-app-layout:has\(\.landing-mobile\)/);
   assert.doesNotMatch(shell, /transition: all 0\.3s cubic-bezier/);
-  assert.match(css, /\.fade-up-transition:has\(> \.landing-mobile\)/);
+  assert.match(css, /\.app-main\.app-main--auth-entry \.fade-up-transition/);
   assert.match(css, /\.app-main\.app-main--profile \.fade-up-transition/);
   assert.match(css, /transform: none !important/);
   assert.doesNotMatch(css, /\.app-main:has\(\.registrazione/);
   assert.match(landing, /overflow-y: auto/);
   assert.match(landing, /-webkit-overflow-scrolling: touch/);
+});
+
+test("iPhone login methods reserve height while OAuth configuration arrives", () => {
+  const card = read("components/AuthCard.tsx");
+  const landing = read("pages/landing-mobile.css");
+  const wizard = read("pages/registrazione-consensi.tsx");
+  assert.match(card, /auth-card-compact__methods space-y-2\.5 p-0/);
+  assert.match(card, /oauthConfigLoading && \(!compact \|\| !showAnyAuth\)/);
+  assert.match(landing, /@supports \(-webkit-touch-callout: none\)/);
+  assert.match(landing, /\.landing-mobile \.auth-card-compact__methods/);
+  assert.match(landing, /min-height: 10\.55rem/);
+  assert.doesNotMatch(wizard, /auth-card-compact__methods/);
 });
