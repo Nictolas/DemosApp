@@ -17,6 +17,7 @@ export interface Classifica {
   nome: string;
   richieste: number;
   avatar_config?: GraziaAvatarConfig | null;
+  pubblicato?: boolean;
 }
 
 export interface GraziaData {
@@ -55,4 +56,7 @@ export interface CarceratoItemProps {
   disabled: boolean;
   canEditAvatar?: boolean;
   onEditAvatar?: (nome: string) => void;
+  canManagePublication?: boolean;
+  publicationPending?: boolean;
+  onTogglePublication?: (item: Classifica) => void;
 }
