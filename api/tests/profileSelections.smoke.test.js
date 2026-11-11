@@ -14,9 +14,9 @@ const pool = {
   async query(sql, params) {
     queryCount++;
     queriedSql = sql;
-    assert.deepEqual(Array.from(params), ['synthetic-owner']);
+    assert.deepEqual(Array.from(params), ['synthetic-owner', Boolean(params[1])]);
     return { rows: [{
-      capo_stato: ['Una persona inventata'], grazia: [],
+      capo_stato: ['Una persona inventata'], grazia: params[1] ? ['Persona riservata'] : [],
       amnistia: ['Norma inventata'], iniziativa_popolare: [],
       attivista: { id:'fake-activist', nome:'Attivista Fittizio' },
       organizzazione: null,
@@ -39,10 +39,10 @@ const mockRequire = name => {
 vm.runInNewContext(source, {
   require:mockRequire, module:{ exports:{} }, console,
 });
-function execute(userId) {
+function execute(userId, isAdmin = false) {
   return new Promise((resolve,reject) => {
     let status = 200,headers={},done=false;
-    const req={userId};
+    const req={userId,user:{isAdmin}};
     const res={
       set:(k,v)=>{headers[k]=v;return res;},
       status:(s)=>{status=s;return res;},
@@ -61,6 +61,7 @@ test('mounted at an authenticated, rate-limited private endpoint',()=>{
   assert.match(source,/WHERE u\.id = \$1/);
   assert.match(source,/FROM voti_capo_stato v/);
   assert.match(source,/FROM voti_grazia v/);
+  assert.match(source,/FROM voti_grazia v\s+WHERE v.userid = u.id AND \$2::boolean/);
   assert.match(source,/FROM voti_amnistia v/);
   assert.match(source,/FROM voti_iniziative_popolari v/);
   assert.match(source,/LEFT JOIN users a ON a\.id = u\.attivisti/);
@@ -76,6 +77,13 @@ test('returns only actual selections, with private no-store headers',async()=>{
   assert.deepEqual(Array.from(r.data.data.grazia),[]);
   assert.equal(r.data.data.organizzazione,null);
   assert.equal(r.data.data.attivista.nome,'Attivista Fittizio');
+});
+test('Grazia selections are returned only to Admin',async()=>{
+  const admin=await execute('synthetic-owner',true);
+  assert.equal(admin.status,200);
+  assert.deepEqual(Array.from(admin.data.data.grazia),['Persona riservata']);
+  const ordinary=await execute('synthetic-owner',false);
+  assert.deepEqual(Array.from(ordinary.data.data.grazia),[]);
 });
 test('initiative votes resolve a human title from the canonical civic-process catalog', () => {
   assert.match(source, /FROM civic_processes cp/);
