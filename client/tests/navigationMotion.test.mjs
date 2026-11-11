@@ -8,6 +8,8 @@ const helper = read('../src/hooks/useSmoothNavigation.ts');
 const profile = read('../src/pages/Profilo/index.tsx');
 const compass = read('../src/pages/CompassoPolitico.tsx');
 const styles = read('../src/index.css');
+const app = read('../src/App.tsx');
+const browserNavigation = read('../src/hooks/useBrowserNavigation.ts');
 
 test('route changes never delay rendering or retain an old route', () => {
   assert.match(transition, /demos-route-enter/);
@@ -45,4 +47,9 @@ test('reduced motion and loading skeleton are available', () => {
   assert.match(compass, /role="status"/);
   assert.match(compass, /sr-only">Caricamento delle tue Opinioni/);
   assert.match(styles, /demos-compass-content > :nth-child\(3\)/);
+});
+
+test('swipe and keyboard back from Compass return to Profile', () => {
+  assert.match(app, /'\\/compasso-politico': '\\/profilo'/);
+  assert.match(browserNavigation, /'\\/compasso-politico': '\\/profilo'/);
 });
