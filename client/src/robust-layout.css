@@ -19,12 +19,12 @@
   z-index: 1;
 }
 
-/* Safari iOS changes 100dvh as the URL toolbar expands/collapses.
-   Stabilize only login and profile. Registration keeps its own dynamic
-   viewport and scrollable forms; do not put an overflow lock on the wizard. */
+/* On iOS, 100dvh responds to Safari's toolbar movement. Bind the
+   small viewport to the ROUTE rather than visible children: during OAuth
+   validation LandingPage can briefly render only a loader. Registration
+   deliberately retains dynamic height and its own scrollable content. */
 @supports (-webkit-touch-callout: none) and (height: 100svh) {
-  .demos-mobile-layout .robust-app-layout:has(.landing-mobile),
-  .demos-mobile-layout .robust-app-layout:has(.app-main--profile) {
+  .demos-mobile-layout .robust-app-layout--stable-auth-profile {
     height: 100svh;
   }
 }
