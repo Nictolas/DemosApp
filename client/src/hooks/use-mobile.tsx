@@ -5,8 +5,10 @@ const MOBILE_BREAKPOINT = 768;
 
 export function useMobile() {
   const viewMode = useViewModeOptional();
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(
-    undefined,
+  // Vite renders on the client: read the viewport before the first paint.
+  // Starting as "desktop" on phones makes the login and shell jump on mount.
+  const [isMobile, setIsMobile] = React.useState<boolean>(() =>
+    typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT,
   );
 
   React.useEffect(() => {

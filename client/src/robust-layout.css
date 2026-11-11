@@ -19,6 +19,16 @@
   z-index: 1;
 }
 
+/* Safari iOS changes 100dvh as the URL toolbar expands/collapses.
+   Stabilize only login and profile. Registration keeps its own dynamic
+   viewport and scrollable forms; do not put an overflow lock on the wizard. */
+@supports (-webkit-touch-callout: none) and (height: 100svh) {
+  .demos-mobile-layout .robust-app-layout:has(.landing-mobile),
+  .demos-mobile-layout .robust-app-layout:has(.app-main--profile) {
+    height: 100svh;
+  }
+}
+
 /* Layout desktop: sidebar sinistra + contenuto */
 .robust-app-layout--desktop {
   flex-direction: row;
@@ -483,11 +493,13 @@ html.demos-mobile-layout body.android-device .app-main.app-main--android-documen
 
 /* ===== ANIMAZIONI FLUIDE ===== */
 
+/* Do not tween the height, position or grid rows of the fixed shell.
+   Changing from login (no nav) to profile (nav) must be one stable layout pass. */
 .robust-app-layout,
 .app-header,
 .app-main,
 .app-navbar {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* ===== FOCUS E ACCESSIBILITÀ ===== */

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useLayoutEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAndroidDetection } from '@/hooks/useAndroidDetection';
 import { useMobileLayout } from '@/hooks/useMobileLayout';
@@ -61,7 +61,8 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
 
   useAndroidDetection();
 
-  useEffect(() => {
+  // Apply the mobile shell classes before paint to avoid a desktop-to-mobile flash.
+  useLayoutEffect(() => {
     document.documentElement.classList.toggle('demos-desktop-layout', !isMobileLayout);
     document.documentElement.classList.toggle('demos-mobile-layout', isMobileLayout);
   }, [isMobileLayout]);

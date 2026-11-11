@@ -40,7 +40,7 @@ jobs:
           node --test api/tests/retiredMenuNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js api/tests/adminCompactWorkflow.smoke.test.js api/tests/adminFourTilesAndOpsScroll.smoke.test.js api/tests/adminRuntimeCorrections.smoke.test.js api/tests/adminSecurityStatus.smoke.test.js api/tests/adminNotificheScroll.smoke.test.js api/tests/dpoGestisciNavigation.smoke.test.js api/tests/clientUsersReadonly.smoke.test.js api/tests/legacyManualApprovalRetirement.smoke.test.js api/tests/adminAccountDeletion.smoke.test.js api/tests/utentiCanonicalSexTable.smoke.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
-      - name: Profile tab, persistent summary and privacy regression
-        run: node --test client/tests/profileNavLocalCache.test.mjs
+      - name: Profile, login viewport and registration safety regression
+        run: node --test client/tests/profileNavLocalCache.test.mjs client/tests/loginViewportStability.test.mjs
       - name: Build frontend
         run: npm run build --prefix client

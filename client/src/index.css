@@ -1030,6 +1030,15 @@ div.demos-dash-brand {
   -webkit-transform: translateZ(0);
 }
 
+/* Login and authenticated Profile stay in the same physical position.
+   Other pages, especially the registration wizard, keep their own transitions. */
+.demos-mobile-layout .app-main .fade-up-transition:has(> .landing-mobile),
+.demos-mobile-layout .app-main.app-main--profile .fade-up-transition {
+  transition: opacity 0.15s ease-out !important;
+  transform: none !important;
+  filter: none !important;
+}
+
 /* Gestione migliorata per le transizioni su mobile */
 @media (max-width: 768px) {
   .page-transition {
