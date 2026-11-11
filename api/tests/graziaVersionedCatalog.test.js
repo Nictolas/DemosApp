@@ -136,7 +136,7 @@ test('Grazia avatars are restricted to Admin and editable solely with verified A
   assert.match(route, /published\.some\(item => normalizeGraziaName/);
   assert.match(route, /INSERT INTO public\.grazia_avatar_configs/);
   assert.match(route, /SELECT nome_key, avatar_config FROM public\.grazia_avatar_configs/);
-  assert.match(route, /avatar_config: avatarsByName\.get/);
+  assert.match(route, /avatar_config: isAdmin \?/);
   assert.match(profile, /isSessionVerified && hasAdminCapability\(user\)/);
   assert.match(profile, /const togglePublication = \(item: Classifica\)/);
   assert.match(read('client/src/pages/Grazia/hooks/useGraziaData.ts'), /enabled: !!user && !!localStorage/);
