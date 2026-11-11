@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { pool, verifyToken } = require('../../middleware/auth');
 const { requirePoliticalConsent } = require('../../middleware/politicalConsent');
+const { loadGovernmentVoteAvatars, parseExistingAvatar } = require('../../services/governoVoteAvatars');
+const { displayGraziaName, normalizeGraziaName } = require('../../services/graziaCatalog');
+const { parseGraziaAvatarConfig } = require('../../services/graziaAvatarConfig');
 
 // Only the authenticated owner's existing selections. No leaderboards,
 // personal data of other supporters, or speculative "favourites".
@@ -72,7 +75,13 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
         CASE WHEN o.id IS NOT NULL
           THEN jsonb_build_object('id', o.id, 'nome',
             COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', o.nome, o.cognome)), ''), 'Organizzazione'))
-          ELSE NULL END AS organizzazione
+          ELSE NULL END AS organizzazione,
+        -- Avatars for the two selected subject IDs come from the SAME private
+        -- owner query. Never look up names here: IDs avoid homonym matches.
+        CASE WHEN LOWER(COALESCE(a.status, '')) IN ('a', 'v')
+          THEN to_jsonb(a)->'avatar_config' ELSE NULL END AS attivista_avatar_config,
+        CASE WHEN LOWER(COALESCE(o.status, '')) IN ('a', 'v')
+          THEN to_jsonb(o)->'avatar_config' ELSE NULL END AS organizzazione_avatar_config
       FROM users u
       LEFT JOIN users a ON a.id = u.attivisti
       LEFT JOIN users o ON o.id = u.organizzazioni
@@ -83,15 +92,53 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Utente non trovato' });
     }
     const selection = rows[0];
+    const isAdmin = req.user?.isAdmin === true;
+
+    // At most one additional public-profile lookup for all Capo di Stato
+    // choices; never one database query or HTTP request per row.
+    let avatarPerNome = {};
+    try {
+      avatarPerNome = await loadGovernmentVoteAvatars(pool, selection.capo_stato || []);
+    } catch (error) {
+      console.warn('Avatar delle altre scelte non disponibili:', error.message);
+    }
+
+    // Grazia portraits remain restricted to Admin until image permissions
+    // are cleared. The public profile must never return them.
+    if (isAdmin && selection.grazia?.length) {
+      try {
+        const keys = [...new Set(selection.grazia.map(name =>
+          normalizeGraziaName(displayGraziaName(name))
+        ))].filter(Boolean);
+        const { rows: portraits } = await pool.query(
+          'SELECT nome_key, avatar_config FROM public.grazia_avatar_configs WHERE nome_key = ANY($1::text[])',
+          [keys]
+        );
+        const byKey = new Map(portraits.map(row => [
+          row.nome_key, parseGraziaAvatarConfig(row.avatar_config)
+        ]));
+        for (const name of selection.grazia) {
+          const portrait = byKey.get(normalizeGraziaName(displayGraziaName(name)));
+          if (portrait) avatarPerNome[name.trim().replace(/\\s+/g, ' ').toLowerCase()] = portrait;
+        }
+      } catch (error) {
+        console.warn('Avatar Grazia non disponibili:', error.message);
+      }
+    }
+
     return res.json({
       success: true,
       data: {
+        version: 2,
         capoStato: selection.capo_stato || [],
         grazia: selection.grazia || [],
         amnistia: selection.amnistia || [],
         iniziativaPopolare: selection.iniziativa_popolare || [],
         attivista: selection.attivista || null,
         organizzazione: selection.organizzazione || null,
+        avatarPerNome,
+        attivistaAvatar: parseExistingAvatar(selection.attivista_avatar_config),
+        organizzazioneAvatar: parseExistingAvatar(selection.organizzazione_avatar_config),
       },
     });
   } catch (error) {
