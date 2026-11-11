@@ -44,6 +44,10 @@ on:
       - 'client/tests/parliamentFinalSourceFeed.test.mjs'
       - 'client/src/pages/Profilo/components/PoliticalCompassPreview.tsx' # required catalog-contract for compass UI changes
       - 'client/src/pages/Profilo/index.tsx' # owner opinion completion UI
+      - 'client/src/pages/Profilo/components/ProfileGovernoIdeale.tsx'
+      - 'client/src/pages/Profilo/hooks/useProfileData.ts'
+      - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
+      - 'api/tests/profileIdealGovernmentAvatars.contract.test.js'
       - 'client/src/pages/Profilo/components/CompleteOpinionsCallout.tsx'
       - 'client/src/pages/CompassoPolitico.tsx'
       - 'client/src/pages/Proponi.tsx' # signature navigation
@@ -118,6 +122,8 @@ jobs:
         run: node --test api/tests/opinionCatalogPostgres.integration.test.js
       - name: Guard ministry to Profile navigation against stale routes
         run: node --test api/tests/ministerProfileTransition.contract.test.js
+      - name: Validate Profile ideal-government avatars and encrypted cache compatibility
+        run: node --test api/tests/profileIdealGovernmentAvatars.contract.test.js api/tests/governoVoteAvatars.test.js
       - name: TypeScript and Vite frontend build (no release)
         run: npm run build --prefix client
       - name: Install isolated Chromium browser test dependency

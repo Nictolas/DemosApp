@@ -8,7 +8,7 @@ import type { OpinionQuestion } from "../types";
 import { extractBaseOpinions } from "../utils/opinionUtils";
 import {
   loadEncryptedProfile, patchEncryptedProfile, clearEncryptedProfile, profileSectionRevision,
-  filterPersistedFullProfile, type ProfileChosenVotes,
+  filterPersistedFullProfile, type ProfileChosenVotes, type CachedIdealGovernment,
 } from "../utils/encryptedProfileVault";
 import {
   PROFILE_SUMMARY_TTL_MS,
@@ -125,7 +125,10 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
           value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim())
         ) === true;
         const sections = [
-          ["government", snapshot.government],
+          // Old encrypted snapshots have only names. Refresh once to obtain
+          // existing public avatars; do not fetch anything on later openings.
+          ["government", snapshot.government && "version" in snapshot.government &&
+            snapshot.government.version === 2 ? snapshot.government : null],
           ["representatives", snapshot.representatives],
           ["candidates", snapshot.candidates],
           // Catalog-only snapshots created by older releases had no personal
@@ -221,12 +224,17 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     refetchOnWindowFocus: false,
   });
 
-  const government = useQuery<Record<string, string>>({
+  const government = useQuery<CachedIdealGovernment>({
     queryKey: ["profilePolitical", ownerId, politicalEpoch, "government"],
     enabled: enabled && vaultReady && politicalAllowed && panels.government,
     queryFn: async () => {
       const revision = profileSectionRevision(ownerId, "government");
-      const result = (await getPayload("/api/governo/ideale")).data || {};
+      const payload = await getPayload("/api/governo/ideale");
+      const result: CachedIdealGovernment = {
+        version: 2,
+        votes: payload.data || {},
+        avatarPerNome: payload.avatarPerNome || {},
+      };
       await patchEncryptedProfile(ownerId, { government: result }, { government: revision });
       return result;
     },
@@ -318,7 +326,8 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     opinionsError: politicalAllowed && panels.opinions && opinions.isError,
     opinionQuestions: politicalAllowed && panels.opinions ? (opinions.data?.questions || []) : [],
     avatarConfig: avatarFrom(userInfo),
-    governoIdeale: politicalAllowed && panels.government ? (government.data || {}) : {},
+    governoIdeale: politicalAllowed && panels.government ? (government.data?.votes || {}) : {},
+    governoIdealeAvatars: politicalAllowed && panels.government ? (government.data?.avatarPerNome || {}) : {},
     rappresentantiDetails: politicalAllowed && panels.representatives ? (representatives.data || {}) : {},
     candidatiDetails: politicalAllowed && panels.candidates ? (candidates.data || {}) : {},
     sectionsLoading: {

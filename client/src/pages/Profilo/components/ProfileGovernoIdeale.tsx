@@ -1,5 +1,6 @@
 import { Crown } from "lucide-react";
 import { Link } from "wouter";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 // A recognizable emoji for each government portfolio. Keep the mapping in
 // one place so labels and visuals remain consistent in the profile.
@@ -25,12 +26,13 @@ const emojiMinistero = (categoria: string): string =>
 
 interface ProfileGovernoIdealeProps {
   governoIdeale: Record<string, string>;
+  avatarPerNome?: Record<string, any>;
   canEdit?: boolean;
   isLoading?: boolean;
   consentGranted?: boolean;
 }
 
-export const ProfileGovernoIdeale = ({ governoIdeale, canEdit = true, isLoading = false, consentGranted = false }: ProfileGovernoIdealeProps) => {
+export const ProfileGovernoIdeale = ({ governoIdeale, avatarPerNome = {}, canEdit = true, isLoading = false, consentGranted = false }: ProfileGovernoIdealeProps) => {
   const entries = Object.entries(governoIdeale || {}).filter(([, nome]) => Boolean(nome));
   const readableRole = (role: string) =>
     role.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -67,7 +69,14 @@ export const ProfileGovernoIdeale = ({ governoIdeale, canEdit = true, isLoading 
                   </span>
                   <span className="break-words">{readableRole(categoria)}</span>
                 </dt>
-                <dd className="min-w-0 break-words font-semibold text-slate-900">{nome}</dd>
+                <dd className="flex min-w-0 items-center gap-1.5 font-semibold text-slate-900">
+                  {avatarPerNome[nome.trim().replace(/\\s+/g, " ").toLowerCase()] && (
+                    <span className="shrink-0" aria-hidden="true">
+                      <CustomAvatar config={avatarPerNome[nome.trim().replace(/\\s+/g, " ").toLowerCase()]} size={24} />
+                    </span>
+                  )}
+                  <span className="min-w-0 break-words">{nome}</span>
+                </dd>
               </div>
             ))}
           </dl>
