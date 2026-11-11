@@ -19,7 +19,7 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
         ARRAY(
           SELECT DISTINCT BTRIM(v.nome)
           FROM voti_grazia v
-          WHERE v.userid = u.id AND NULLIF(BTRIM(v.nome), '') IS NOT NULL
+          WHERE v.userid = u.id AND $2::boolean AND NULLIF(BTRIM(v.nome), '') IS NOT NULL
           ORDER BY BTRIM(v.nome)
         ) AS grazia,
         ARRAY(
@@ -70,7 +70,7 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
       LEFT JOIN users a ON a.id = u.attivisti
       LEFT JOIN users o ON o.id = u.organizzazioni
       WHERE u.id = $1
-    `, [req.userId]);
+    `, [req.userId, req.user?.isAdmin === true]);
 
     if (!rows.length) {
       return res.status(404).json({ success: false, error: 'Utente non trovato' });
