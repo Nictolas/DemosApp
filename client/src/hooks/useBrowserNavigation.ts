@@ -123,6 +123,7 @@ export function useBrowserNavigation() {
     const pathMap: { [key: string]: string } = {
       '/menu': '/preferiti',
       '/profilo': '/preferiti',
+      '/compasso-politico': '/profilo',
       '/opinioni': '/preferiti',
       '/rappresentanti': '/preferiti',
       '/governo': '/preferiti',
