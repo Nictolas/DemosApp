@@ -60,7 +60,7 @@ export function ProfileChosenPreferences({
                     {values.map((value, index) => (
                       <div key={index} className="flex min-w-0 items-center gap-1.5">
                         {avatarFor(key, value) && (
-                          <span className="shrink-0" aria-hidden="true">
+                          <span className="shrink-0" aria-hidden="true" data-testid="profile-other-choice-avatar">
                             <CustomAvatar config={avatarFor(key, value)} size={24} />
                           </span>
                         )}
