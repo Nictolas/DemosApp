@@ -88,3 +88,20 @@ test('operational alert feed is limited to recipient in both feed and latest end
   const broadcast = read('api/routes/comunicazioni.js');
   assert.match(broadcast, /SELECT id FROM notifiche_demos WHERE titolo LIKE 'Notifica Demos:%'/);
 });
+
+test('canonical API origin is allowed in all three CORS checks', () => {
+  assert.equal((app.match(/'https:\/\/api\.demos\.community'/g) || []).length, 3);
+  assert.match(app, /'https:\/\/www\.demos\.community'/);
+  assert.match(app, /'https:\/\/demos\.community'/);
+  assert.match(app, /'https:\/\/demos-frontend-r3so\.onrender\.com'/);
+});
+
+test('denied browser origins return 403 before routes, without CRITICAL notifications', () => {
+  const preflightIndex = app.indexOf("app.options('*'");
+  const corsGuard = app.slice(app.indexOf('// Middleware CORS aggiuntivo'), preflightIndex);
+  assert.ok(preflightIndex > 0);
+  assert.match(corsGuard, /else if \(origin\) \{[\s\S]*return res\.status\(403\)\.json\(\{ success: false, error: 'CORS_ORIGIN_DENIED' \}\);/);
+  const globalHandler = app.slice(app.indexOf('app.use((error, req, res, next) => {'));
+  assert.match(globalHandler, /if \(error && error\.message === 'Non autorizzato da CORS'\)/);
+  assert.ok(globalHandler.indexOf("error: 'CORS_ORIGIN_DENIED'") < globalHandler.indexOf('logger.logError(error, req,'));
+});

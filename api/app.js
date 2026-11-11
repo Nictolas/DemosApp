@@ -157,6 +157,7 @@ const corsOptions = {
     const allowedOrigins = [
       'https://www.demos.community',
       'https://demos.community',
+      'https://api.demos.community',
       'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
       'https://demos-frontend-r3so.onrender.com', // Frontend Render di DEMOS
       'http://localhost:3000',
@@ -185,12 +186,12 @@ const corsOptions = {
 // Middleware CORS aggiuntivo per garantire che gli header siano sempre impostati
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  console.log('ðŸŒ CORS Middleware - Origin:', origin);
   
   // Lista degli origin consentiti
   const allowedOrigins = [
     'https://www.demos.community',
     'https://demos.community',
+    'https://api.demos.community',
     'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
     'https://demos-frontend-r3so.onrender.com', // Frontend Render di DEMOS
     'http://localhost:3000',
@@ -204,9 +205,10 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-    console.log('âœ… CORS: Header impostati per origin:', origin);
   } else if (origin) {
-    console.log('ðŸš¨ CORS: Origin non autorizzato:', origin);
+    // Il rifiuto di un'Origin esterna è un normale diniego HTTP, non un guasto del server.
+    console.warn('CORS: origine rifiutata');
+    return res.status(403).json({ success: false, error: 'CORS_ORIGIN_DENIED' });
   }
   
   next();
@@ -221,6 +223,7 @@ app.options('*', (req, res) => {
   const allowedOrigins = [
     'https://www.demos.community',
     'https://demos.community',
+    'https://api.demos.community',
     'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
     'https://demos-frontend-r3so.onrender.com', // Frontend Render di DEMOS
     'http://localhost:3000',
@@ -519,6 +522,11 @@ app.use('*', (req, res) => {
 
 // Middleware gestione errori globale (riceve errori da route async grazie a express-async-errors)
 app.use((error, req, res, next) => {
+  // Difesa aggiuntiva: un diniego CORS non deve creare falsi incidenti CRITICAL.
+  if (error && error.message === 'Non autorizzato da CORS') {
+    if (res.headersSent) return next(error);
+    return res.status(403).json({ success: false, error: 'CORS_ORIGIN_DENIED' });
+  }
   console.error('ðŸ’¥ Errore globale:', error);
   if (error && error.stack) console.error('ðŸ’¥ Stack:', error.stack);
 
