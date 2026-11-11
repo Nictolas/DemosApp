@@ -54,6 +54,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
     opinionsError,
     avatarConfig,
     governoIdeale,
+    governoIdealeAvatars,
     opinionQuestions,
     rappresentantiDetails,
     candidatiDetails,
@@ -291,6 +292,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                   {isViewingOwnProfile && (
                     <ProfileGovernoIdeale
                       governoIdeale={governoIdeale}
+                      avatarPerNome={governoIdealeAvatars}
                       isLoading={sectionsLoading.government}
                       consentGranted={consentGranted}
                     />
