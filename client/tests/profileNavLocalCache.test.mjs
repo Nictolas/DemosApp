@@ -264,8 +264,8 @@ test("authenticated app startup consistently opens Profile and not Favorites", (
   const wrapper = read("components/AppWrapper.tsx");
   const landing = read("pages/LandingPage.tsx");
   const auth = read("pages/auth-page.tsx");
-  assert.ok(wrapper.includes("if (!isAuthLoading && user && location === '/')"));
-  assert.ok(wrapper.includes("setLocation('/profilo');"));
+  assert.ok(!wrapper.includes("if (!isAuthLoading && user && location === '/')"), "no duplicate home redirect");
+  assert.ok(!wrapper.includes("setLocation('/profilo');"), "LandingPage owns the home redirect");
   assert.ok(!wrapper.includes("setLocation('/preferiti');"));
   assert.ok(landing.includes('return <Redirect to="/profilo" />;'));
   assert.ok(auth.includes('return <Redirect to="/profilo" />;'));
@@ -286,7 +286,8 @@ test("startup shows no timed React splash and Android has no artificial launch d
   for (const stale of ["SplashScreen", "showSplash", "isAppReady", "splash_shown", "app_loaded", "setTimeout("]) {
     assert.ok(!wrapper.includes(stale), "stale splash startup code: " + stale);
   }
-  assert.ok(wrapper.includes("setLocation('/profilo');"), "authenticated startup still opens Profile");
+  assert.ok(read("pages/LandingPage.tsx").includes('return <Redirect to="/profilo" />;'),
+    "authenticated startup still opens Profile through LandingPage");
   assert.ok(wrapper.includes("if (isAdminOnlyPath(location))"), "admin route guard remains active");
   assert.ok(wrapper.includes("if (isAuthLoading)"), "auth loading guard remains active");
   assert.ok(!stylesheet.includes(".splash-screen"), "dead splash overlay CSS must be removed");
