@@ -96,15 +96,16 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
 
     // At most one additional public-profile lookup for all Capo di Stato
     // choices; never one database query or HTTP request per row.
-    let avatarPerNome = {};
+    let capoStatoAvatars = {};
     try {
-      avatarPerNome = await loadGovernmentVoteAvatars(pool, selection.capo_stato || []);
+      capoStatoAvatars = await loadGovernmentVoteAvatars(pool, selection.capo_stato || []);
     } catch (error) {
       console.warn('Avatar delle altre scelte non disponibili:', error.message);
     }
 
     // Grazia portraits remain restricted to Admin until image permissions
     // are cleared. The public profile must never return them.
+    const graziaAvatars = {};
     if (isAdmin && selection.grazia?.length) {
       try {
         const keys = [...new Set(selection.grazia.map(name =>
@@ -119,7 +120,7 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
         ]));
         for (const name of selection.grazia) {
           const portrait = byKey.get(normalizeGraziaName(displayGraziaName(name)));
-          if (portrait) avatarPerNome[name.trim().replace(/\\s+/g, ' ').toLowerCase()] = portrait;
+          if (portrait) graziaAvatars[name.trim().replace(/\\s+/g, ' ').toLowerCase()] = portrait;
         }
       } catch (error) {
         console.warn('Avatar Grazia non disponibili:', error.message);
@@ -136,7 +137,8 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
         iniziativaPopolare: selection.iniziativa_popolare || [],
         attivista: selection.attivista || null,
         organizzazione: selection.organizzazione || null,
-        avatarPerNome,
+        capoStatoAvatars,
+        graziaAvatars,
         attivistaAvatar: parseExistingAvatar(selection.attivista_avatar_config),
         organizzazioneAvatar: parseExistingAvatar(selection.organizzazione_avatar_config),
       },
