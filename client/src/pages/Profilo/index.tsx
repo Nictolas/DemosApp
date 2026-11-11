@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Redirect, useLocation, useParams } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -8,6 +8,7 @@ import { ProfileCandidates } from "@/components/ProfileCandidates";
 import { PageContainer } from "@/components/PageContainer";
 import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
 import { ChevronDown, Settings, RefreshCcw, Compass, ArrowRight } from "lucide-react";
+import { clearProfileScrollToRestore, getProfileScrollToRestore, isPlainNavigationClick, rememberProfileScroll, useSmoothNavigation } from "@/hooks/useSmoothNavigation";
 
 // Componenti modulari
 import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
@@ -32,6 +33,8 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const params = useParams();
+  const navigateSmoothly = useSmoothNavigation();
+  const scrollRegionRef = useRef<HTMLElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [openPanels, setOpenPanels] = useState<ProfilePanels>(CLOSED_PROFILE_PANELS);
   const setPanel = (key: keyof ProfilePanels, expanded: boolean) =>
@@ -82,6 +85,44 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
   // No shared profilo_locale: the hook restores only the allowlisted per-account
   // summary from device storage, never political answers or selection IDs.
   const displayUserInfo: UserInfo | null = userInfo;
+
+  // Restore the exact nested scroll position after coming back from the
+  // Compass. Profile panels load asynchronously, so retry as they grow.
+  useEffect(() => {
+    if (!isViewingOwnProfile || isEditing || isLoading || isLoadingInfo || !displayUserInfo) return;
+    const target = getProfileScrollToRestore();
+    const scrollport = scrollRegionRef.current;
+    if (target === null || !scrollport) return;
+
+    let observer: ResizeObserver | undefined;
+    let timeout: number | undefined;
+    let active = true;
+    const restore = () => {
+      if (!active) return;
+      const maximum = Math.max(0, scrollport.scrollHeight - scrollport.clientHeight);
+      scrollport.scrollTop = Math.min(target, maximum);
+      if (maximum + 2 >= target) {
+        clearProfileScrollToRestore();
+        observer?.disconnect();
+        if (timeout !== undefined) window.clearTimeout(timeout);
+      }
+    };
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(restore);
+      observer.observe(scrollport.firstElementChild ?? scrollport);
+    }
+    const frame = window.requestAnimationFrame(restore);
+    timeout = window.setTimeout(() => {
+      clearProfileScrollToRestore();
+      observer?.disconnect();
+    }, 2000);
+    return () => {
+      active = false;
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+      if (timeout !== undefined) window.clearTimeout(timeout);
+    };
+  }, [isViewingOwnProfile, isEditing, isLoading, isLoadingInfo, displayUserInfo]);
 
   // Gestione modifica immagine
   const handleModificaImmagine = () => {
@@ -191,7 +232,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
         </div>
 
         {/* Scorre soltanto il contenuto sotto l'intestazione e i dati di base. */}
-        <section className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6 pt-3 sm:px-4 lg:px-8" role="region" aria-label="Sezioni del profilo" tabIndex={0}>
+        <section ref={scrollRegionRef} className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6 pt-3 sm:px-4 lg:px-8" role="region" aria-label="Sezioni del profilo" tabIndex={0}>
         <div className="space-y-4">
         {/* Stati di caricamento e errore */}
         <ProfileLoadingStates
@@ -337,15 +378,21 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
 
         {/* Pulsante volutamente in fondo al contenuto scrollabile del profilo personale. */}
         {isViewingOwnProfile && !isEditing && displayUserInfo && !isLoading && !isLoadingInfo && !error && (
-          <Link
+          <a
             href="/compasso-politico"
             data-testid="profilo-compasso-politico-link"
-            className="flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-indigo-700 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+            className="demos-compass-source flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-indigo-700 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+            onClick={(event) => {
+              if (!isPlainNavigationClick(event)) return;
+              event.preventDefault();
+              rememberProfileScroll(scrollRegionRef.current?.scrollTop ?? 0);
+              navigateSmoothly("/compasso-politico", "forward");
+            }}
           >
             <Compass aria-hidden="true" className="h-5 w-5 shrink-0" />
             <span>Vai al compasso politico</span>
             <ArrowRight aria-hidden="true" className="h-5 w-5 shrink-0" />
-          </Link>
+          </a>
         )}
 
         {/* Messaggio se nessuna informazione trovata */}
