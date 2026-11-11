@@ -19,7 +19,14 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
         ARRAY(
           SELECT DISTINCT BTRIM(v.nome)
           FROM voti_grazia v
-          WHERE v.userid = u.id AND $2::boolean AND NULLIF(BTRIM(v.nome), '') IS NOT NULL
+          WHERE v.userid = u.id AND NULLIF(BTRIM(v.nome), '') IS NOT NULL
+            AND ($2::boolean OR EXISTS (
+              SELECT 1 FROM public.grazia_carcerati gc
+              WHERE gc.attivo = TRUE AND gc.pubblicato = TRUE
+                AND lower(btrim(gc.nome)) = lower(btrim(
+                  CASE WHEN lower(btrim(v.nome)) = 'roggero' THEN 'Mario Roggero' ELSE v.nome END
+                ))
+            ))
           ORDER BY BTRIM(v.nome)
         ) AS grazia,
         ARRAY(
