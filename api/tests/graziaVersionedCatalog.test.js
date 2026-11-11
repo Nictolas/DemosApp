@@ -59,8 +59,12 @@ test('Grazia retains suppression and deduplicates whitespace or case without los
 
 test('Grazia API keeps individual votes in Postgres and only publishes aggregated result data', () => {
   const route = read('api/routes/grazia.js');
-  const reader = route.split("router.get('/', async (req, res) => {")[1]?.split('// GET /api/grazia/richieste')[0];
+  const reader = route.split("router.get('/', verifyToken, requireAdmin, async (req, res) => {")[1]?.split('// GET /api/grazia/richieste')[0];
   assert.ok(reader);
+  assert.match(route, /router\.post\('\/', verifyToken, requireAdmin, validateInput/);
+  assert.match(route, /router\.post\('\/vota', verifyToken, requireAdmin,/);
+  assert.match(reader, /private, no-store, max-age=0/);
+  assert.match(reader, /const userId = req\.userId/);
   assert.match(reader, /COUNT\(\*\)::bigint AS richieste/);
   assert.match(reader, /FROM voti_grazia/);
   assert.match(reader, /FROM grazia_carcerati/);
@@ -115,7 +119,7 @@ test('Roggero is displayed as Mario Roggero without altering historical votes, R
 });
 
 
-test('Grazia avatars are public only as graphical config, editable solely with verified Admin middleware', () => {
+test('Grazia avatars are restricted to Admin and editable solely with verified Admin middleware', () => {
   const route = read('api/routes/grazia.js');
   const profile = read('client/src/pages/Grazia/index.tsx');
   const card = read('client/src/pages/Grazia/components/CarceratoItem.tsx');
@@ -131,6 +135,8 @@ test('Grazia avatars are public only as graphical config, editable solely with v
   assert.match(route, /SELECT nome_key, avatar_config FROM public\.grazia_avatar_configs/);
   assert.match(route, /avatar_config: avatarsByName\.get/);
   assert.match(profile, /isSessionVerified && hasAdminCapability\(user\)/);
+  assert.match(profile, /if \(!canViewGrazia\)/);
+  assert.match(read('client/src/pages/Grazia/hooks/useGraziaData.ts'), /enabled: !!user && adminVerified/);
   assert.match(profile, /canEditAvatar && editingAvatarName/);
   assert.match(list, /canEditAvatar=\{canEditAvatar\}/);
   assert.match(card, /canEditAvatar && onEditAvatar/);
