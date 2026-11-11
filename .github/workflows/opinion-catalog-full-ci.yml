@@ -33,6 +33,8 @@ on:
       - 'client/src/pages/Amnistia/**' # required catalog-contract for Amnistia UI updates
       - 'client/src/pages/Governo/**' # validate government and ministry mobile scrolling
       - 'client/src/components/RobustAppLayout.tsx' # shared fixed-viewport scroll shell
+      - 'client/src/components/PageTransition.tsx' # route transition must not retain stale pages
+      - 'api/tests/ministerProfileTransition.contract.test.js' # ministry-to-profile white-screen regression
       - 'api/tests/civicScrollContract.test.js' # scroll regression contract
       - 'api/tests/d12AdminRealRecords.contract.test.js'
       - 'client/src/pages/VotiPolitici.tsx' # required catalog-contract for UI-only fix
@@ -114,6 +116,8 @@ jobs:
         env:
           OPINION_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_opinion_ci
         run: node --test api/tests/opinionCatalogPostgres.integration.test.js
+      - name: Guard ministry to Profile navigation against stale routes
+        run: node --test api/tests/ministerProfileTransition.contract.test.js
       - name: TypeScript and Vite frontend build (no release)
         run: npm run build --prefix client
       - name: Install isolated Chromium browser test dependency
