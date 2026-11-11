@@ -1,183 +1,80 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 
 interface PageTransitionProps {
   children: React.ReactNode;
   location?: string;
-  type?: 'default' | 'fade-up' | 'fade-side';
+  type?: "default" | "fade-up" | "fade-side";
   delay?: number;
   showLoader?: boolean;
   loaderDuration?: number;
 }
 
 /**
- * Componente che fornisce transizioni fluide tra le pagine
- * Mostra un effetto di dissolvenza quando si naviga tra le pagine
+ * Keep only the current route mounted during page transitions.
+ *
+ * Previously the exiting route was cached as a React element and rendered
+ * briefly after the URL changed. An old /governo/:slug element could then run
+ * useParams() under /profilo, fail to find its ministry and redirect to
+ * /governo. In rapid navigation, cancelled timers could also leave the next
+ * page permanently transparent.
+ *
+ * The new route always mounts immediately (including its correct route params).
+ * Only its visual entrance is delayed; each route change cancels the prior timer.
  */
-export function PageTransition({ 
-  children, 
-  location, 
-  type = 'default',
+export function PageTransition({
+  children,
+  location,
+  type = "default",
   delay = 80,
   showLoader = false,
   loaderDuration = 400
 }: PageTransitionProps) {
   const [currentLocation] = useLocation();
-  const [isVisible, setIsVisible] = useState(false);
-  const [content, setContent] = useState(children);
-  const [showLoaderState, setShowLoaderState] = useState(false);
-  const isPending = useRef(false);
-  
-  // Se viene passata una location specifica, usiamo quella, altrimenti quella corrente
-  const actualLocation = location || currentLocation;
-  
-  // Mappa del tipo di transizione alle classi CSS
+  const actualLocation = location ?? currentLocation;
+  const [visibleLocation, setVisibleLocation] = useState(actualLocation);
+  const isVisible = visibleLocation === actualLocation;
+
+  useEffect(() => {
+    if (isVisible) return;
+
+    const timer = window.setTimeout(
+      () => setVisibleLocation(actualLocation),
+      Math.max(0, delay + (showLoader ? loaderDuration : 30))
+    );
+    return () => window.clearTimeout(timer);
+  }, [actualLocation, isVisible, delay, showLoader, loaderDuration]);
+
+  // Existing consumers can request that an interrupted animation be revealed.
+  useEffect(() => {
+    const handleForceRerender = () => setVisibleLocation(actualLocation);
+    window.addEventListener("force-rerender", handleForceRerender);
+    return () => window.removeEventListener("force-rerender", handleForceRerender);
+  }, [actualLocation]);
+
   const transitionClasses = {
-    'default': {
-      base: 'page-transition',
-      visible: 'page-visible',
-      hidden: 'page-hidden'
-    },
-    'fade-up': {
-      base: 'fade-up-transition',
-      visible: 'fade-up-visible',
-      hidden: ''
-    },
-    'fade-side': {
-      base: 'fade-side-transition',
-      visible: 'fade-side-visible',
-      hidden: 'fade-side-hidden'
-    }
-  };
-  
-  // Ottieni le classi CSS per il tipo di transizione corrente
+    default: { base: "page-transition", visible: "page-visible", hidden: "page-hidden" },
+    "fade-up": { base: "fade-up-transition", visible: "fade-up-visible", hidden: "" },
+    "fade-side": { base: "fade-side-transition", visible: "fade-side-visible", hidden: "fade-side-hidden" }
+  } as const;
   const classes = transitionClasses[type];
-  
-  // Componente loader elegante
-  const LoaderComponent = () => (
-    <div className="page-loader">
-      <div className="loader-content">
-        <div className="loader-spinner"></div>
-        <div className="loader-text">Caricamento...</div>
-      </div>
-    </div>
-  );
-  
-  // Usa un ref per tracciare l'ultima location e i children per evitare loop infiniti
-  const lastLocationRef = useRef(actualLocation);
-  const isInitializedRef = useRef(false);
-  const childrenRef = useRef(children);
-  
-  // Aggiorna sempre il ref dei children (senza triggerare effetti)
-  childrenRef.current = children;
-  
-  // Inizializza il contenuto al primo render
-  useEffect(() => {
-    if (!isInitializedRef.current) {
-      setContent(childrenRef.current);
-      setIsVisible(true);
-      isInitializedRef.current = true;
-    }
-  }, []); // Solo al mount
-  
-  // Quando cambia la location, facciamo la transizione
-  useEffect(() => {
-    // Se la location non è cambiata, non fare nulla (il contenuto viene aggiornato tramite il ref)
-    if (actualLocation === lastLocationRef.current) {
-      return;
-    }
-    
-    // Location cambiata - inizia transizione
-    if (isPending.current) return;
-    
-    lastLocationRef.current = actualLocation;
-    
-    // Memorizza il nuovo contenuto dal ref
-    const newContent = childrenRef.current;
-    
-    // Inizia la transizione di uscita
-    isPending.current = true;
-    setIsVisible(false);
-    
-    // Mostra il loader se richiesto
-    if (showLoader) {
-      setShowLoaderState(true);
-    }
-    
-    // Aspetta che l'animazione di uscita si completi
-    const hideTimer = setTimeout(() => {
-      // Aggiorna il contenuto 
-      setContent(newContent);
-      
-      // Nasconde il loader dopo il tempo specificato
-      if (showLoader) {
-        setTimeout(() => {
-          setShowLoaderState(false);
-        }, loaderDuration);
-      }
-      
-      // Inizia l'animazione di entrata dopo un breve ritardo
-      const showTimer = setTimeout(() => {
-        setIsVisible(true);
-        isPending.current = false;
-      }, showLoader ? loaderDuration + 50 : 30);
-      
-      return () => clearTimeout(showTimer);
-    }, delay);
-    
-    return () => clearTimeout(hideTimer);
-  }, [actualLocation, delay, showLoader, loaderDuration]); // Rimosso children dalle dipendenze
-  
-  // Gestione eventi di navigazione del browser - solo per reset di emergenza
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      // Reset dello stato prima di lasciare la pagina
-      isPending.current = false;
-    };
-
-    // Listener per forzare il re-render quando necessario
-    const handleForceRerender = () => {
-      console.log('🔄 Force rerender event received in PageTransition');
-      // Forza un aggiornamento del contenuto
-      setContent(childrenRef.current);
-      setIsVisible(true);
-      isPending.current = false;
-      setShowLoaderState(false);
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('force-rerender', handleForceRerender);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('force-rerender', handleForceRerender);
-    };
-  }, []); // Nessuna dipendenza per evitare loop
-
-  // Debug logging solo quando necessario (rimosso per evitare loop infiniti)
-  // useEffect(() => {
-  //   console.log('🔍 PageTransition state:', {
-  //     isVisible,
-  //     isPending: isPending.current,
-  //     showLoader: showLoaderState,
-  //     hasContent: !!content,
-  //     actualLocation
-  //   });
-  // }, [isVisible, showLoaderState, content, actualLocation]);
-
-  // Renderizza sempre i children aggiornati, ma usa content per le transizioni
-  const displayContent = isPending.current ? content : childrenRef.current;
 
   return (
     <>
-      {showLoaderState && <LoaderComponent />}
-      <div 
+      {showLoader && !isVisible && (
+        <div className="page-loader">
+          <div className="loader-content">
+            <div className="loader-spinner" />
+            <div className="loader-text">Caricamento...</div>
+          </div>
+        </div>
+      )}
+      <div
         className={`${classes.base} ${isVisible ? classes.visible : classes.hidden} navigation-safe`}
         aria-live="polite"
       >
-        {displayContent}
+        {children}
       </div>
     </>
   );
 }
-
