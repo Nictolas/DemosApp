@@ -120,7 +120,7 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
         ]));
         for (const name of selection.grazia) {
           const portrait = byKey.get(normalizeGraziaName(displayGraziaName(name)));
-          if (portrait) graziaAvatars[name.trim().replace(/\\s+/g, ' ').toLowerCase()] = portrait;
+          if (portrait) graziaAvatars[name.trim().replace(/\s+/g, ' ').toLowerCase()] = portrait;
         }
       } catch (error) {
         console.warn('Avatar Grazia non disponibili:', error.message);
