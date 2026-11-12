@@ -7,7 +7,6 @@ import { UserInfo } from "@/types/profile";
 interface PersonalDataSectionProps {
   formData: UserInfo & { uid: string };
   onFieldChange: (field: keyof (UserInfo & { uid: string }), value: string) => void;
-  isAdmin?: boolean;
 }
 
 // Nel profilo si conserva soltanto l'anno, anche se esistono date legacy.
@@ -15,6 +14,7 @@ function getBirthYear(value?: string): string {
   const date = String(value || "").trim();
   const iso = date.match(/^(\d{4})(?:-\d{2}-\d{2})?$/);
   if (iso) return iso[1];
+  if (/^\d{1,4}$/.test(date)) return date;
   const italian = date.match(/^\d{1,2}[/\-]\d{1,2}[/\-](\d{4})$/);
   return italian?.[1] || "";
 }
