@@ -240,8 +240,8 @@ test('GPS geographical reference is static, contains all Italian regions, and ha
   }
   assert.ok(records.some((row) => row[0] === 'Pisa' && row[1] === 'Pisa'));
   const manifest = fs.readFileSync(path.join(root, 'client/android/app/src/main/AndroidManifest.xml'), 'utf8');
-  assert.match(manifest, /android\\.permission\\.ACCESS_COARSE_LOCATION/);
-  assert.match(manifest, /android\\.permission\\.ACCESS_FINE_LOCATION/);
+  assert.match(manifest, /android\.permission\.ACCESS_COARSE_LOCATION/);
+  assert.match(manifest, /android\.permission\.ACCESS_FINE_LOCATION/);
   assert.doesNotMatch(manifest, /ACCESS_BACKGROUND_LOCATION/);
 });
 
