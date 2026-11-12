@@ -82,7 +82,7 @@ async function test() {
             version: 4,
             capoStato: ['Presidente Inventato'], grazia: [],
             amnistia: ['Reato Inventato'], iniziativaPopolare: [initiativeTitle],
-            opinioneProposta: 'Proposta civica inventata per test',
+            opinioneProposta: null,
             opinioniProposteVotate: ['Proposta votata sintetica'],
             attivista: { id:'synthetic-activist',nome:'Attivista Inventato' },
             organizzazione: { id:'synthetic-org',nome:'Associazione Inventata' },
@@ -120,8 +120,9 @@ async function test() {
       if (political) {
         await page.getByText('Attivista Inventato').first().waitFor({timeout:15000});
         const chosenSection = page.locator('section[aria-label="Le mie altre scelte"]');
-        await chosenSection.getByText('Proposta civica inventata per test').waitFor({timeout:15000});
-        await chosenSection.getByText('Proposta votata sintetica').waitFor({timeout:15000});
+        await chosenSection.getByText('Proposta votata sintetica', {exact:true}).waitFor({timeout:15000});
+        assert.equal(await chosenSection.getByText('La tua Opinione proposta', {exact:true}).count(), 0,
+          'Voting for a proposal does not imply authorship');
         assert.equal(await chosenSection.getByTestId('profile-other-choice-avatar').count(), 3,
           'Only the three selected subjects with a real config have portraits; legal proposals remain text-only');
         assert.equal(await page.getByText('Grazia', { exact:true }).count(), 1,
