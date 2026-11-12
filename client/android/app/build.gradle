@@ -1,5 +1,30 @@
 apply plugin: 'com.android.application'
 
+// Solo test Android: nessun annuncio reale o SDK inizializzato nelle release.
+// Per provare su emulatore/dispositivo di sviluppo: -PdemosDebugAppOpenAds=true
+// Il publisher ID e le unità di produzione richiedono una PR separata e i gate privacy.
+def demosDebugAppOpenAds = (project.findProperty('demosDebugAppOpenAds') ?: 'false').toString() == 'true'
+// Allows testing DEMOS's UMP message without embedding its App ID in source.
+// The ad unit remains Google's sample unit, and release remains SDK-free.
+def demosDebugAdMobAppId = (project.findProperty('demosDebugAdMobAppId') ?: 'ca-app-pub-3940256099942544~3347511713').toString()
+if (!(demosDebugAdMobAppId ==~ /ca-app-pub-\d{16}~\d{10}/)) {
+    throw new GradleException('Invalid debug-only AdMob application ID format')
+}
+def demosDebugUmpEea = demosDebugAppOpenAds &&
+    (project.findProperty('demosDebugUmpEea') ?: 'false').toString() == 'true'
+// Synthetic adult consent testing is opt-in, EEA-debug-only and NEVER a release capability.
+def demosDebugQaForceAdult = demosDebugUmpEea &&
+    (project.findProperty('demosDebugQaForceAdult') ?: 'false').toString() == 'true'
+// Internal app sharing alone may use DEMOS package. Opt-in DEBUG only:
+// Google Play re-signs for testing; this APK must NEVER be a release.
+def demosDebugQaPlayInternalSharing = demosDebugUmpEea && demosDebugQaForceAdult &&
+    (project.findProperty('demosDebugQaPlayInternalSharing') ?: 'false').toString() == 'true'
+// Separate opt-in QA package for REAL signed-in adult/minor/anonymous checks.
+// Unlike the synthetic UMP tester, it never bypasses authenticated age gates.
+def demosDebugQaRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&
+    (project.findProperty('demosDebugQaRealAge') ?: 'false').toString() == 'true'
+
+
 def keystorePropertiesFile = rootProject.file("keystore.properties")
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
@@ -9,6 +34,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace "community.demos"
     compileSdk rootProject.ext.compileSdkVersion
+    buildFeatures { buildConfig true }
 
     signingConfigs {
         release {
@@ -35,7 +61,30 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Default QA stays isolated from installed DEMOS.
+            // Explicit Play Internal App Sharing build uses matching app package
+            // but is still a signed DEBUG APK with SAMPLE ads; NEVER publish it.
+            if (demosDebugQaRealAge) {
+                applicationIdSuffix '.qaage'
+            } else if (demosDebugUmpEea && !demosDebugQaPlayInternalSharing) {
+                applicationIdSuffix '.qaopen'
+            }
+            // Test IDs ufficiali Google: in debug soltanto, con opt-in esplicito.
+            buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', demosDebugAppOpenAds.toString()
+            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', "\"${demosDebugAdMobAppId}\""
+            buildConfigField 'boolean', 'DEMOS_UMP_DEBUG_EEA', demosDebugUmpEea.toString()
+            buildConfigField 'boolean', 'DEMOS_QA_FORCE_ADULT', demosDebugQaForceAdult.toString()
+            manifestPlaceholders['demosAdMobAppId'] = demosDebugAdMobAppId
+            buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '"ca-app-pub-3940256099942544/9257395921"'
+        }
         release {
+            // Fail closed: nessuna pubblicità in build distribuite ai tester.
+            buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', 'false'
+            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '""'
+            buildConfigField 'boolean', 'DEMOS_UMP_DEBUG_EEA', 'false'
+            buildConfigField 'boolean', 'DEMOS_QA_FORCE_ADULT', 'false'
+            buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '""'
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
@@ -57,6 +106,10 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+
+    // GMA Next-Gen e UMP sono presenti esclusivamente in build DEBUG.
+    debugImplementation 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.6.0'
+    debugImplementation 'com.google.android.ump:user-messaging-platform:4.0.0'
 
     // Login Google nativo: Credential Manager restituisce un Google ID token
     // che viene verificato dal backend DEMOS esistente.
