@@ -561,6 +561,11 @@ export default function Eventi() {
                   Solo il Comune scelto resta su questo dispositivo. Le elezioni e le tue scelte politiche
                   continuano a dipendere dalla residenza.
                 </p>
+                <p className="text-[11px] text-slate-500">
+                  Dati geografici: ISTAT, Garda Informatica e{" "}
+                  <a className="underline" href="https://github.com/RP92/comuni-italiani" target="_blank" rel="noopener noreferrer">RP92/comuni-italiani</a>
+                  {" "}(<a className="underline" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>).
+                </p>
               </div>
             )}
           </div>
