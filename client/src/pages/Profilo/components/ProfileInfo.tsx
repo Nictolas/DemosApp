@@ -99,7 +99,7 @@ export const ProfileInfo = ({
               <>
                 <div className={`flex min-w-0 items-center gap-1 ${canShowFullName ? "mt-1" : ""}`}>
                   <p className="min-w-0 flex-1 break-words text-sm text-slate-600">
-                    {birthYear !== "Non specificato" ? `Nascita: ${birthYear}` : "Anno di nascita non specificato"}
+                    {birthYear !== "Non specificato" ? `${birthYear}` : "Anno di nascita non specificato"}
                     {userInfo.cittadinanza ? ` · ${userInfo.cittadinanza}` : ""}
                   </p>
                   {canEdit && !isEditing && (
