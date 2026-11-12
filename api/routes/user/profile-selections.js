@@ -68,6 +68,15 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
           WHERE v.userid = u.id
             AND NULLIF(BTRIM(v.iniziativa_id), '') IS NOT NULL
         ) AS iniziativa_popolare,
+        -- The authenticated user's one pending proposal. This correlated
+        -- lookup is part of the existing private owner query, not a second
+        -- database read and never exposes another user's proposal.
+        (
+          SELECT NULLIF(BTRIM(p.text), '')
+          FROM opinioni_proposte p
+          WHERE p.id::text = u.opinione_proposta_id::text
+          LIMIT 1
+        ) AS opinione_proposta,
         CASE WHEN a.id IS NOT NULL
           THEN jsonb_build_object('id', a.id, 'nome',
             COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', a.nome, a.cognome)), ''), 'Attivista'))
@@ -130,11 +139,12 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
     return res.json({
       success: true,
       data: {
-        version: 2,
+        version: 3,
         capoStato: selection.capo_stato || [],
         grazia: selection.grazia || [],
         amnistia: selection.amnistia || [],
         iniziativaPopolare: selection.iniziativa_popolare || [],
+        opinioneProposta: selection.opinione_proposta || null,
         attivista: selection.attivista || null,
         organizzazione: selection.organizzazione || null,
         capoStatoAvatars,
