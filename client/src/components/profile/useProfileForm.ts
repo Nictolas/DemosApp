@@ -101,21 +101,17 @@ export function useProfileForm(
 
       // Prima aggiorna il profilo normale
       // apiRequest restituisce già i dati JSON parsati, non un oggetto Response
-      const data = await apiRequest("PUT", "/api/users/me", dataToSend);
-      
-      if (!data.success) {
-        throw new Error(data.error || data.message || "Errore durante l'aggiornamento del profilo");
+      const response = await apiRequest("PUT", "/api/users/me", dataToSend);
+      const data = response.data ?? await response.json();
+      if (!data?.success) {
+        throw new Error(data?.message || data?.error || "Errore durante l'aggiornamento del profilo");
       }
 
       // Aggiorna i dati locali con la risposta del server
       const updatedUser = data.user || formData;
       onProfileUpdated(updatedUser);
       
-      toast({
-        title: "Successo",
-        description: "Profilo aggiornato con successo!",
-      });
-      
+
     } catch (error) {
       console.error("Errore durante l'aggiornamento:", error);
       
