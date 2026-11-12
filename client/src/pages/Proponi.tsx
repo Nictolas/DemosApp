@@ -36,8 +36,8 @@ const signatureOptions = [
     arrowClass: "text-blue-500",
   },
   {
-    title: "Petizioni Parlamentari",
-    description: "Presenta petizioni alle Camere o sottoscrivi quelle disponibili.",
+    title: "Petizione Parlamentare",
+    description: "Firma qui per chiedere ai politici di intervenire su un tema.",
     href: "/petizioni-parlamentari",
     icon: Landmark,
     tone: "warning",
