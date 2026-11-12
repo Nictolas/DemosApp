@@ -87,11 +87,13 @@ export default function IniziativePopolari() {
     if (deepLinkHandled.current || isLoading || isError || !user) return;
     const id = new URLSearchParams(window.location.search).get("initiative");
     if (!id) return;
-    deepLinkHandled.current = true;
     const item = filteredAndSortedIniziative.find(
       entry => String(entry.id_ministero ?? entry.id) === id
     );
-    if (item) startEditView(item);
+    if (item) {
+      deepLinkHandled.current = true;
+      startEditView(item);
+    }
   }, [filteredAndSortedIniziative, isLoading, isError, user]);
 
   // Redirect se non autenticato
