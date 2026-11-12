@@ -72,16 +72,18 @@ async function test() {
           }});
         case '/api/user/profile-selections':
           return fulfill(route, { success:true, data: allSelectionsEmpty ? {
-            version: 3,
+            version: 4,
             capoStato: [], grazia: [], amnistia: [], iniziativaPopolare: [], opinioneProposta: null,
+            opinioniProposteVotate: [],
             attivista: null, organizzazione: null,
             capoStatoAvatars:{}, graziaAvatars:{},
             attivistaAvatar:null, organizzazioneAvatar:null,
           } : {
-            version: 3,
+            version: 4,
             capoStato: ['Presidente Inventato'], grazia: [],
             amnistia: ['Reato Inventato'], iniziativaPopolare: [initiativeTitle],
             opinioneProposta: 'Proposta civica inventata per test',
+            opinioniProposteVotate: ['Proposta votata sintetica'],
             attivista: { id:'synthetic-activist',nome:'Attivista Inventato' },
             organizzazione: { id:'synthetic-org',nome:'Associazione Inventata' },
             capoStatoAvatars:{'presidente inventato':syntheticAvatar},
@@ -119,6 +121,7 @@ async function test() {
         await page.getByText('Attivista Inventato').first().waitFor({timeout:15000});
         const chosenSection = page.locator('section[aria-label="Le mie altre scelte"]');
         await chosenSection.getByText('Proposta civica inventata per test').waitFor({timeout:15000});
+        await chosenSection.getByText('Proposta votata sintetica').waitFor({timeout:15000});
         assert.equal(await chosenSection.getByTestId('profile-other-choice-avatar').count(), 3,
           'Only the three selected subjects with a real config have portraits; legal proposals remain text-only');
         assert.equal(await page.getByText('Grazia', { exact:true }).count(), 1,
@@ -193,7 +196,7 @@ async function test() {
     assert.equal(count.get('/api/user/profile-selections'), beforeLegacyRepair + 1,
       'Once the title is repaired, subsequent reloads must use only the encrypted cache');
 
-    // All six civic categories must be present even when every selection is empty.
+    // All seven vote categories must be present even when every selection is empty.
     // A new consent epoch invalidates the previous votes before displaying blanks.
     allSelectionsEmpty = true;
     version = '2026-10-29T13:00:00Z';
@@ -201,17 +204,15 @@ async function test() {
     await page.getByText('Comune Inventato').first().waitFor({ timeout: 30000 });
     const choicesSection = page.locator('section[aria-label="Le mie altre scelte"]');
     await choicesSection.getByText('Nessun voto selezionato', { exact: true }).first().waitFor({ timeout: 15000 });
-    assert.equal(await choicesSection.getByText('Nessun voto selezionato', { exact: true }).count(), 6,
+    assert.equal(await choicesSection.getByText('Nessun voto selezionato', { exact: true }).count(), 7,
       'Each of the six empty categories must offer a selection');
-    assert.equal(await choicesSection.getByText('Nessuna opinione proposta', { exact: true }).count(), 1,
-      'The empty seventh row must invite the owner to propose an opinion');
-    assert.equal(await choicesSection.getByText('Proponi ora', { exact: true }).count(), 1);
+    assert.equal(await choicesSection.getByText('Vota ora', { exact: true }).count(), 1);
     assert.equal(await choicesSection.getByText('Scegli ora', { exact: true }).count(), 6,
       'All six empty choices must be actionable');
     const emptyFirst = count.get('/api/user/profile-selections') || 0;
     await page.reload({ waitUntil: 'domcontentloaded' });
     await choicesSection.getByText('Nessun voto selezionato', { exact: true }).first().waitFor({ timeout: 15000 });
-    assert.equal(await choicesSection.getByText('Nessun voto selezionato', { exact: true }).count(), 6);
+    assert.equal(await choicesSection.getByText('Nessun voto selezionato', { exact: true }).count(), 7);
     assert.equal(count.get('/api/user/profile-selections') || 0, emptyFirst,
       'Showing empty preference categories must not trigger any extra database reads');
 
