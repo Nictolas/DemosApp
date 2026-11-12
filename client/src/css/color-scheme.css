@@ -420,3 +420,21 @@ html.dark .opinioni-editor-page > footer[aria-label="Azioni delle opinioni"] {
   background-color: #172337;
   border-color: #475569;
 }
+
+/* Stato selezionato: testo AA anche sui gialli (prima era bianco su ambra). */
+html.dark .opinioni-editor-page [role="group"][aria-label^="La tua risposta"] button[aria-pressed="true"].bg-amber-500,
+html.dark .opinioni-editor-page [role="group"][aria-label^="La tua risposta"] button[aria-pressed="true"].bg-yellow-500 {
+  background-color: #fbbf24;
+  border-color: #fbbf24;
+  color: #0f172a;
+}
+html.dark .opinioni-editor-page [role="group"][aria-label^="La tua risposta"] button[aria-pressed="true"].bg-green-600 {
+  background-color: #166534;
+  border-color: #166534;
+  color: #f8fafc;
+}
+html.dark .opinioni-editor-page [role="group"][aria-label^="La tua risposta"] button[aria-pressed="true"].bg-red-600 {
+  background-color: #991b1b;
+  border-color: #991b1b;
+  color: #f8fafc;
+}
