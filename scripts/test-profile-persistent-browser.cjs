@@ -72,15 +72,16 @@ async function test() {
           }});
         case '/api/user/profile-selections':
           return fulfill(route, { success:true, data: allSelectionsEmpty ? {
-            version: 2,
-            capoStato: [], grazia: [], amnistia: [], iniziativaPopolare: [],
+            version: 3,
+            capoStato: [], grazia: [], amnistia: [], iniziativaPopolare: [], opinioneProposta: null,
             attivista: null, organizzazione: null,
             capoStatoAvatars:{}, graziaAvatars:{},
             attivistaAvatar:null, organizzazioneAvatar:null,
           } : {
-            version: 2,
+            version: 3,
             capoStato: ['Presidente Inventato'], grazia: [],
             amnistia: ['Reato Inventato'], iniziativaPopolare: [initiativeTitle],
+            opinioneProposta: 'Proposta civica inventata per test',
             attivista: { id:'synthetic-activist',nome:'Attivista Inventato' },
             organizzazione: { id:'synthetic-org',nome:'Associazione Inventata' },
             capoStatoAvatars:{'presidente inventato':syntheticAvatar},
@@ -117,6 +118,7 @@ async function test() {
       if (political) {
         await page.getByText('Attivista Inventato').first().waitFor({timeout:15000});
         const chosenSection = page.locator('section[aria-label="Le mie altre scelte"]');
+        await chosenSection.getByText('Proposta civica inventata per test').waitFor({timeout:15000});
         assert.equal(await chosenSection.getByTestId('profile-other-choice-avatar').count(), 3,
           'Only the three selected subjects with a real config have portraits; legal proposals remain text-only');
         assert.equal(await page.getByText('Grazia', { exact:true }).count(), 1,
@@ -201,6 +203,9 @@ async function test() {
     await choicesSection.getByText('Nessun voto selezionato', { exact: true }).first().waitFor({ timeout: 15000 });
     assert.equal(await choicesSection.getByText('Nessun voto selezionato', { exact: true }).count(), 6,
       'Each of the six empty categories must offer a selection');
+    assert.equal(await choicesSection.getByText('Nessuna opinione proposta', { exact: true }).count(), 1,
+      'The empty seventh row must invite the owner to propose an opinion');
+    assert.equal(await choicesSection.getByText('Proponi ora', { exact: true }).count(), 1);
     assert.equal(await choicesSection.getByText('Scegli ora', { exact: true }).count(), 6,
       'All six empty choices must be actionable');
     const emptyFirst = count.get('/api/user/profile-selections') || 0;

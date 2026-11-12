@@ -6,7 +6,7 @@ import { getLeggeEmoji } from "@/pages/Amnistia/utils/amnistiaUtils";
 import { getInitiativeChoiceEmoji } from "../utils/initiativeChoiceEmoji";
 
 export type ChosenPreferencesStatus = "ready" | "loading" | "unavailable" | "consent-required";
-type Row = { key: string; label: string; values: string[]; icon: LucideIcon; path: string };
+type Row = { key: string; label: string; values: string[]; icon: LucideIcon; path: string; emptyLabel?: string; emptyAction?: string };
 
 const selectedNames = (values: string[] | undefined): string[] =>
   Array.isArray(values)
@@ -34,13 +34,14 @@ export function ProfileChosenPreferences({
     return null; // Amnesty and initiatives are not subjects with portrait avatars.
   };
 
-  // All six choices are navigable even when the user has not yet voted.
+  // All choices are navigable, including the one pending opinion proposed by the user.
   // Only display saved choices when the authenticated political consent is verified.
   const rows: Row[] = [
     { key: "capo", label: "Capo di Stato preferito", values: selectedNames(choices?.capoStato), icon: Crown, path: "/capo-di-stato" },
     { key: "grazia", label: "Grazia", values: selectedNames(choices?.grazia), icon: Scale, path: "/grazia" },
     { key: "amnistia", label: "Amnistia", values: selectedNames(choices?.amnistia), icon: Archive, path: "/amnistia" },
     { key: "iniziativa", label: "Iniziativa popolare", values: selectedNames(choices?.iniziativaPopolare), icon: FileText, path: "/vota-iniziativa-popolare" },
+    { key: "opinioneProposta", label: "Opinione proposta", values: selectedNames(choices?.opinioneProposta ? [choices.opinioneProposta] : []), icon: FileText, path: "/proponi-opinione", emptyLabel: "Nessuna opinione proposta", emptyAction: "Proponi ora" },
     { key: "attivista", label: "Attivista preferito", values: selectedNames(choices?.attivista?.nome ? [choices.attivista.nome] : []), icon: UserRound, path: "/attivisti" },
     { key: "organizzazione", label: "Organizzazione preferita", values: selectedNames(choices?.organizzazione?.nome ? [choices.organizzazione.nome] : []), icon: Building2, path: "/organizzazioni" },
   ];
@@ -51,7 +52,7 @@ export function ProfileChosenPreferences({
         Le mie altre scelte
       </h2>
       <div className="divide-y divide-slate-100 px-4">
-        {rows.map(({ key, label, values, icon: Icon, path }) => (
+        {rows.map(({ key, label, values, icon: Icon, path, emptyLabel, emptyAction }) => (
           <Link key={key} href={path} className="flex min-w-0 items-center gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
             <Icon aria-hidden="true" className="h-5 w-5 shrink-0 text-indigo-600" />
             <div className="min-w-0 flex-1">
@@ -81,9 +82,9 @@ export function ProfileChosenPreferences({
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500">
-                    <span>Nessun voto selezionato</span>
+                    <span>{emptyLabel ?? "Nessun voto selezionato"}</span>
                     {" · "}
-                    <span className="font-semibold text-indigo-700">Scegli ora</span>
+                    <span className="font-semibold text-indigo-700">{emptyAction ?? "Scegli ora"}</span>
                   </p>
                 )
               ) : (

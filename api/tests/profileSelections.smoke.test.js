@@ -29,6 +29,7 @@ const pool = {
     return { rows: [{
       capo_stato: ['Una persona inventata'], grazia: params[1] ? ['Persona riservata'] : [],
       amnistia: ['Norma inventata'], iniziativa_popolare: [],
+      opinione_proposta: 'Una legge inventata deve essere discussa',
       attivista: { id:'fake-activist', nome:'Attivista Fittizio' },
       organizzazione: null,
       attivista_avatar_config: publicAvatar,
@@ -90,6 +91,9 @@ test('mounted at an authenticated, rate-limited private endpoint',()=>{
   assert.match(source,/gc\.attivo = TRUE AND gc\.pubblicato = TRUE/);
   assert.match(source,/FROM voti_amnistia v/);
   assert.match(source,/FROM voti_iniziative_popolari v/);
+  assert.match(source,/FROM opinioni_proposte p/);
+  assert.match(source,/p\.id::text = u\.opinione_proposta_id::text/);
+  assert.doesNotMatch(source,/JOIN users (?:proposer|proponent)/i);
   assert.match(source,/LEFT JOIN users a ON a\.id = u\.attivisti/);
   assert.match(source,/LEFT JOIN users o ON o\.id = u\.organizzazioni/);
 });
@@ -103,7 +107,8 @@ test('returns only actual selections, with private no-store headers',async()=>{
   assert.deepEqual(Array.from(r.data.data.grazia),[]);
   assert.equal(r.data.data.organizzazione,null);
   assert.equal(r.data.data.attivista.nome,'Attivista Fittizio');
-  assert.equal(r.data.data.version,2);
+  assert.equal(r.data.data.version,3);
+  assert.equal(r.data.data.opinioneProposta,'Una legge inventata deve essere discussa');
   assert.equal(r.data.data.capoStatoAvatars['una persona inventata'].hairStyle,'short');
   assert.equal(r.data.data.attivistaAvatar.hairStyle,'short');
   assert.equal(r.data.data.organizzazioneAvatar,null);
