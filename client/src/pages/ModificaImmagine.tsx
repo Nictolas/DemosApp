@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { UserInfo } from "@/types/user";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
+import { canHaveProfileAvatar } from "@/lib/avatarEligibility";
 
 interface AvatarConfig {
   skinColor: string;
@@ -88,7 +90,11 @@ export default function ModificaImmagine() {
     return <Redirect to="/auth" />;
   }
 
-  const hasPermission = userInfo?.ruolo === "P" || userInfo?.ruolo === "C" || userInfo?.ruolo === "CP" || userInfo?.ruolo === "AD";
+  const hasPermission = canHaveProfileAvatar(
+    userInfo?.ruolo,
+    hasAdminCapability(user),
+    hasDpoCapability(user),
+  );
   
   if (!isLoadingInfo && !hasPermission) {
       return <Redirect to="/menu/profilo" />;

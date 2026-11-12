@@ -7,6 +7,7 @@ import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
 import { PageContainer } from "@/components/PageContainer";
 import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
+import { canHaveProfileAvatar } from "@/lib/avatarEligibility";
 import { ChevronDown, Settings, RefreshCcw, Compass, ArrowRight } from "lucide-react";
 import { clearProfileScrollToRestore, getProfileScrollToRestore, isPlainNavigationClick, rememberProfileScroll, useSmoothNavigation } from "@/hooks/useSmoothNavigation";
 
@@ -226,6 +227,11 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               canEdit={isViewingOwnProfile}
               isOwnProfile={isViewingOwnProfile}
               avatarConfig={avatarConfig}
+              canShowAvatar={canHaveProfileAvatar(
+                displayUserInfo.ruolo,
+                isViewingOwnProfile && hasAdminCapability(user),
+                isViewingOwnProfile && hasDpoCapability(user),
+              )}
             />
           </div>
         )}

@@ -212,6 +212,17 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
 // POST /api/users/me/avatar - Aggiorna configurazione avatar
 router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
+    // Avatar is reserved for Admin and public political subjects. Authorize
+    // from server-verified capabilities, never a client-supplied role.
+    if (!(req.user?.isAdmin === true ||
+          req.user?.isPolitician === true ||
+          req.user?.isCandidate === true)) {
+      return res.status(403).json({
+        success: false,
+        error: 'AVATAR_NOT_ALLOWED',
+        message: 'Avatar disponibile soltanto per Admin, politici e candidati'
+      });
+    }
     const userId = req.user.id;
     const { avatar_config } = req.body;
     

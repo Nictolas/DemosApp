@@ -14,6 +14,7 @@ interface ProfileInfoProps {
   canEdit?: boolean;
   isOwnProfile?: boolean;
   avatarConfig?: any;
+  canShowAvatar?: boolean;
 }
 
 export const ProfileInfo = ({
@@ -24,12 +25,13 @@ export const ProfileInfo = ({
   canEdit = true,
   isOwnProfile = true,
   avatarConfig,
+  canShowAvatar = false,
 }: ProfileInfoProps) => {
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
   const [showEditConfirmation, setShowEditConfirmation] = useState(false);
 
-  // Tutti gli account possono riconoscere e modificare il proprio avatar.
-  const canShowAvatar = true;
+  // Electors and DPO-only accounts must not render an avatar or its box.
+  // The parent supplies verified avatar eligibility for this profile.
   const canShowFullName = ["P", "Politico", "C", "Candidato", "CP", "Candidato Politico"].includes(userInfo.ruolo);
 
   const fullName = userInfo.nome_completo ||
@@ -154,7 +156,7 @@ export const ProfileInfo = ({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAvatarDialog} onOpenChange={setShowAvatarDialog}>
+      <Dialog open={canShowAvatar && showAvatarDialog} onOpenChange={setShowAvatarDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle>Modifica avatar</DialogTitle>
