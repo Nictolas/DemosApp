@@ -159,7 +159,7 @@ html.dark nav[class*="fixed"] { background-color: #0b1220 !important; }
 /* Pagine che impostano il background con selettori propri o !important. */
 html.dark .demos-compass-page,
 html.dark .impostazioni-page { background: linear-gradient(135deg, #0b1220, #162239); }
-html.dark .demos-desktop-layout .app-main:has(.capo-di-stato-page) {
+html.dark.demos-desktop-layout .app-main:has(.capo-di-stato-page) {
   background: #0b1220 !important;
 }
 
