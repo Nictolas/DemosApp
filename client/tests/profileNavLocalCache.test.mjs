@@ -256,8 +256,8 @@ test("pencil requires a local Annulla or Procedi confirmation before editing", (
   assert.match(profileInfo, />\s*Procedi\s*<\/Button>/);
   assert.doesNotMatch(profileInfo, /onClick=\{onEditClick\}/,
     "The pencil must not open editing directly without confirmation");
-  assert.match(profileInfo, /<Dialog open=\{showAvatarDialog\} onOpenChange=\{setShowAvatarDialog\}>/,
-    "The pre-existing avatar confirmation must remain unchanged");
+  assert.match(profileInfo, /<Dialog open=\{canShowAvatar && showAvatarDialog\} onOpenChange=\{setShowAvatarDialog\}>/,
+    "Avatar confirmation must be disabled for ineligible account roles");
 });
 
 test("authenticated app startup consistently opens Profile and not Favorites", () => {
