@@ -93,7 +93,7 @@ export default function PetizioniParlamentari() {
 
           <p className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            DEMOS non raccoglie firme, documenti o credenziali e non verifica lo stato
+            Per le petizioni, DEMOS non raccoglie firme, documenti o credenziali e non verifica lo stato
             delle singole petizioni. Tutte le operazioni avvengono sui siti ufficiali.
           </p>
         </div>
