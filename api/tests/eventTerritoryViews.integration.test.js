@@ -189,3 +189,93 @@ test('Eventi category badges use distinct colors and share a top-right position'
   assert.match(header, /aria-label="Modifica evento"/);
   assert.match(header, /aria-label="Elimina evento"/);
 });
+
+
+test('local Eventi territory changes only local events, not followed subjects or electoral events', () => {
+  const residence = { provincia: 'PI', regione: 'TO' };
+  const second = { provincia: 'Milano', regione: 'Lombardia' };
+  const personal = [
+    { id: 'residence', comune_evento: 'Pisa', giorno_inizio: '2027-01-01',
+      feed_reason: 'TERRITORY' },
+    { id: 'followed', comune_evento: 'Roma', giorno_inizio: '2027-01-04',
+      feed_reason: 'SELECTED_SUBJECT' },
+    { id: 'election', comune_evento: 'Pisa', giorno_inizio: '2027-01-05',
+      tipologia_evento: 'Elezioni', feed_reason: 'RELEVANT_ELECTION' }
+  ];
+  const publicEvents = [
+    { id: 'milano', comune_evento: 'Milano', giorno_inizio: '2027-01-02' },
+    { id: 'pontedera', comune_evento: 'Pontedera', giorno_inizio: '2027-01-03' }
+  ];
+  const eventIds = (preference) =>
+    composeTerritorialEvents(personal, publicEvents, residence, 'personal', preference)
+      .map((event) => event.id);
+  assert.deepEqual(eventIds({ mode: 'residenza', territory: second }),
+    ['residence', 'pontedera', 'followed', 'election']);
+  assert.deepEqual(eventIds({ mode: 'altro', territory: second }),
+    ['milano', 'followed', 'election']);
+  assert.deepEqual(eventIds({ mode: 'entrambi', territory: second }),
+    ['residence', 'milano', 'pontedera', 'followed', 'election']);
+  assert.deepEqual(
+    composeTerritorialEvents(personal, publicEvents, residence, 'regional',
+      { mode: 'altro', territory: second }).map((event) => event.id),
+    ['pontedera']
+  );
+});
+
+test('GPS geographical reference is static, contains all Italian regions, and has no personal records', () => {
+  const records = [1, 2, 3, 4].flatMap((index) =>
+    JSON.parse(fs.readFileSync(
+      path.join(root, 'client/src/data/municipalityCentroids-' + index + '.json'),
+      'utf8'
+    ))
+  );
+  assert.ok(records.length >= 7800, 'all municipality centroids must be included');
+  assert.equal(new Set(records.map((row) => row[2])).size, 20);
+  for (const row of records) {
+    assert.equal(row.length, 5);
+    assert.ok(typeof row[0] === 'string' && row[0].length > 0);
+    assert.ok(typeof row[1] === 'string' && row[1].length > 0);
+    assert.ok(typeof row[2] === 'string' && row[2].length > 0);
+    assert.ok(Number.isFinite(row[3]) && Number.isFinite(row[4]));
+  }
+  assert.ok(records.some((row) => row[0] === 'Pisa' && row[1] === 'Pisa'));
+  const manifest = fs.readFileSync(path.join(root, 'client/android/app/src/main/AndroidManifest.xml'), 'utf8');
+  assert.match(manifest, /android\.permission\.ACCESS_COARSE_LOCATION/);
+  assert.match(manifest, /android\.permission\.ACCESS_FINE_LOCATION/);
+  assert.doesNotMatch(manifest, /ACCESS_BACKGROUND_LOCATION/);
+});
+
+test('GPS location and Eventi preferences remain local with no new endpoint', async () => {
+  const data = [1, 2, 3, 4].map((index) => JSON.parse(fs.readFileSync(
+    path.join(root, 'client/src/data/municipalityCentroids-' + index + '.json'), 'utf8'
+  )));
+  const imports = {
+    '@/utils/eventTerritoryView': { territoryOfEvent },
+    ...Object.fromEntries(data.map((rows, i) => [
+      '@/data/municipalityCentroids-' + (i + 1) + '.json',
+      { __esModule: true, default: rows }
+    ]))
+  };
+  const localArea = compileFile('client/src/utils/localEventArea.ts', imports);
+  const originalWindow = global.window;
+  const saved = new Map();
+  global.window = { localStorage: {
+    getItem: (key) => saved.get(key) ?? null,
+    setItem: (key, value) => saved.set(key, value)
+  } };
+  try {
+    const pisa = data.flat().find((row) => row[0] === 'Pisa' && row[1] === 'Pisa');
+    const result = await localArea.approximateMunicipalityOnDevice(pisa[3], pisa[4]);
+    assert.deepEqual(result, { comune: 'Pisa', provincia: 'Pisa', regione: 'Toscana' });
+    assert.equal(await localArea.approximateMunicipalityOnDevice(0, 0), null);
+    const pref = { mode: 'altro', area: result, source: 'gps', onboardingSeen: true };
+    assert.equal(localArea.writeLocalEventPreferences('user-one', pref), true);
+    assert.deepEqual(localArea.readLocalEventPreferences('user-one'), pref);
+    assert.equal(localArea.readLocalEventPreferences('user-two').mode, 'residenza');
+    assert.ok(!JSON.stringify([...saved.values()]).includes(String(pisa[3])),
+      'do not persist GPS latitude or longitude');
+  } finally {
+    if (originalWindow === undefined) delete global.window;
+    else global.window = originalWindow;
+  }
+});

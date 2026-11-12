@@ -60,6 +60,12 @@ on:
       - 'client/src/pages/Profilo/components/CompleteOpinionsCallout.tsx'
       - 'client/src/pages/CompassoPolitico.tsx'
       - 'client/src/pages/Proponi.tsx' # signature navigation
+      - 'client/src/pages/Eventi.tsx' # local Events territory must satisfy the required catalog-contract
+      - 'client/src/utils/eventTerritoryView.ts'
+      - 'client/src/utils/localEventArea.ts'
+      - 'client/src/data/municipalityCentroids-*.json'
+      - 'api/tests/eventTerritoryViews.integration.test.js'
+      - 'client/android/app/src/main/AndroidManifest.xml' # foreground GPS permission must satisfy the required catalog-contract
       - 'api/tests/completeOpinionsCallout.contract.test.js'
       - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
       - 'client/src/App.tsx' # required contract for front routing change
