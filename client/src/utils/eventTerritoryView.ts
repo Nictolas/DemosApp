@@ -97,18 +97,38 @@ export function composeTerritorialEvents(
   publicApproved: EventRecord[],
   territory: EventTerritory,
   view: "personal" | "regional" | "global",
+  localPreference?: {
+    mode: "residenza" | "altro" | "entrambi";
+    territory: EventTerritory | null;
+  },
 ): EventRecord[] {
   if (view === "global") return sortEventsByStartDate(publicApproved);
   if (view === "regional") return sortEventsByStartDate(
     publicApproved.filter((event) => isInEventRegion(event, territory))
   );
 
-  // Mantiene gli eventi dei soggetti seguiti e le elezioni pertinenti del feed
-  // personale; aggiunge TUTTI gli eventi pubblici della provincia, non solo del comune.
+  // L'impostazione locale modifica solo la parte territoriale degli eventi
+  // personali. I soggetti seguiti e le elezioni pertinenti alla residenza
+  // elettorale restano inalterati.
+  const additional = localPreference?.territory;
+  const mode = additional ? localPreference?.mode : "residenza";
+  const keepResidence = mode !== "altro";
+  const localTerritories = [
+    ...(keepResidence ? [territory] : []),
+    ...(additional && mode !== "residenza" ? [additional] : []),
+  ];
+  const isLocal = (event: EventRecord) =>
+    localTerritories.some((area) => isInEventProvince(event, area));
+
   const byId = new Map<string, EventRecord>();
-  for (const event of personal) byId.set(String(event.id), event);
+  for (const event of personal) {
+    const residenceOnly = event.feed_reason === "TERRITORY" &&
+      String(event.tipologia_evento || "").toLocaleLowerCase("it-IT") !== "elezioni";
+    if (residenceOnly && !isLocal(event)) continue;
+    byId.set(String(event.id), event);
+  }
   for (const event of publicApproved) {
-    if (isInEventProvince(event, territory) && !byId.has(String(event.id))) {
+    if (isLocal(event) && !byId.has(String(event.id))) {
       byId.set(String(event.id), { ...event, feed_reason: "TERRITORY", feed_priority: 1 });
     }
   }
