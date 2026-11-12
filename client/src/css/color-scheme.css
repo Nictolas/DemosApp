@@ -1,0 +1,204 @@
+/*
+ * DEMOS · Tema scuro applicato tramite html.dark.
+ * Solo colori: non modifica height, overflow, touch-action o scrollport.
+ * Le classi Tailwind legacy con colori chiari vengono adattate in modo
+ * centralizzato, senza nuove dipendenze né richieste di rete.
+ */
+html.dark {
+  background: #0b1220;
+  color-scheme: dark;
+}
+
+html.dark body,
+html.dark #root,
+html.dark .App,
+html.dark .robust-app-layout,
+html.dark .app-main,
+html.dark .app-header,
+html.dark .app-navbar,
+html.dark .app-bottom-nav,
+html.dark .app-main__inner,
+html.dark .demos-mobile-preview-content {
+  background-color: #0b1220;
+  color: #e5e7eb;
+}
+
+html.dark .border-border {
+  border-color: #334155;
+}
+
+/* Superfici neutre e form che nelle pagine legacy sono ancora hardcoded. */
+html.dark .bg-white,
+html.dark [class~="bg-white/95"],
+html.dark [class~="bg-white/90"],
+html.dark [class~="bg-white/80"],
+html.dark [class~="bg-white/70"],
+html.dark [class~="bg-white/60"],
+html.dark [class~="bg-white/50"],
+html.dark .bg-slate-100,
+html.dark .bg-gray-100 {
+  background-color: #1e293b;
+}
+html.dark .bg-gray-50,
+html.dark .bg-slate-50,
+html.dark .bg-blue-50,
+html.dark .bg-indigo-50,
+html.dark .bg-purple-50 {
+  background-color: #111c30;
+}
+html.dark [class~="hover:bg-gray-50"]:hover,
+html.dark [class~="hover:bg-slate-50"]:hover,
+html.dark [class~="hover:bg-gray-100"]:hover,
+html.dark [class~="hover:bg-slate-100"]:hover {
+  background-color: #293548;
+}
+
+/* Gerarchia del testo; colori semantici (es. voti) restano riconoscibili. */
+html.dark .text-gray-900,
+html.dark .text-slate-900,
+html.dark .text-gray-800,
+html.dark .text-slate-800 { color: #f1f5f9; }
+html.dark .text-gray-700,
+html.dark .text-slate-700,
+html.dark .text-gray-600,
+html.dark .text-slate-600,
+html.dark .text-gray-500,
+html.dark .text-slate-500 { color: #cbd5e1; }
+html.dark .text-indigo-900,
+html.dark .text-indigo-800,
+html.dark .text-indigo-700,
+html.dark .text-blue-900,
+html.dark .text-blue-800,
+html.dark .text-blue-700 { color: #bfdbfe; }
+html.dark .text-red-900,
+html.dark .text-red-800,
+html.dark .text-red-700 { color: #fca5a5; }
+html.dark .text-emerald-800,
+html.dark .text-green-800,
+html.dark .text-green-700 { color: #86efac; }
+html.dark .text-amber-900,
+html.dark .text-amber-800 { color: #fcd34d; }
+
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-300,
+html.dark .border-blue-100,
+html.dark .border-blue-200,
+html.dark .border-indigo-200,
+html.dark .border-purple-200 {
+  border-color: #334155;
+}
+
+/* Gradienti pastello: non toccare i gradienti saturi dei pulsanti/icone. */
+html.dark [class~="from-white"],
+html.dark [class~="from-blue-50"],
+html.dark [class~="from-indigo-50"],
+html.dark [class~="from-purple-50"],
+html.dark [class~="from-slate-50"],
+html.dark [class~="from-gray-50"] {
+  --tw-gradient-from: #101b30;
+  --tw-gradient-to: rgb(16 27 48 / 0);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+html.dark [class~="via-white"],
+html.dark [class~="via-blue-50"],
+html.dark [class~="via-blue-50/30"],
+html.dark [class~="via-purple-50"],
+html.dark [class~="via-indigo-50"] {
+  --tw-gradient-stops: var(--tw-gradient-from), #1e293b, var(--tw-gradient-to);
+}
+html.dark [class~="to-white"],
+html.dark [class~="to-blue-50"],
+html.dark [class~="to-indigo-50"],
+html.dark [class~="to-indigo-50/50"],
+html.dark [class~="to-purple-50"],
+html.dark [class~="to-slate-50"],
+html.dark [class~="to-gray-50"] {
+  --tw-gradient-to: #1e293b;
+}
+
+/* Messaggi e grafici: tinte semantiche leggibili anche al buio. */
+html.dark [class~="bg-indigo-50/50"],
+html.dark [class~="bg-blue-50/50"] { background-color: #17233b; }
+html.dark .bg-amber-50 { background-color: #3d2c18; }
+html.dark .text-amber-950 { color: #fef3c7; }
+html.dark .text-amber-700 { color: #fcd34d; }
+html.dark .bg-red-50 { background-color: #3b2028; }
+html.dark .bg-green-50,
+html.dark .bg-emerald-50 { background-color: #153328; }
+html.dark .demos-compass-page svg text[fill="#0f172a"],
+html.dark section[aria-label="Compasso politico"] svg text[fill="#0f172a"] {
+  fill: #f8fafc;
+}
+html.dark .recharts-cartesian-axis-tick-value,
+html.dark .recharts-label { fill: #cbd5e1; }
+
+/* Header, navbar e dashboard DEMOS usano anche CSS non-Tailwind. */
+html.dark .demos-dash,
+html.dark .demos-desktop-topbar { background: #0b1220; color: #e5e7eb; }
+html.dark .demos-dash-nav,
+html.dark .demos-dash-card,
+html.dark .demos-dash-nav__text-btn,
+html.dark .demos-dash-nav__icon-btn,
+html.dark .demos-dash-search,
+html.dark .demos-dash-search:focus-within,
+html.dark .app-desktop-homebar,
+html.dark .app-desktop-sidebar {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+html.dark .demos-dash-brand__text,
+html.dark .demos-dash-welcome__text h1,
+html.dark .demos-dash-section__title,
+html.dark .demos-dash-card__title,
+html.dark .demos-dash-search input {
+  color: #f8fafc;
+}
+html.dark .demos-dash-welcome__text p,
+html.dark .demos-dash-card__desc,
+html.dark .demos-dash-empty { color: #cbd5e1; }
+html.dark .demos-dash-section__divider {
+  background: linear-gradient(90deg, #334155, transparent);
+}
+html.dark .demos-dash-nav__text-btn:hover,
+html.dark .demos-dash-nav__icon-btn:hover,
+html.dark .demos-dash-card:hover { background: #293548; }
+html.dark .preferiti-user-menu-content { background: #1e293b !important; border-color: #334155; }
+html.dark .page-loader { background: rgb(11 18 32 / 95%); }
+html.dark .loader-content { background: #1e293b; border-color: #334155; }
+html.dark .loader-text { color: #cbd5e1; }
+html.dark nav[class*="fixed"] { background-color: #0b1220 !important; }
+
+/* Pagine che impostano il background con selettori propri o !important. */
+html.dark .demos-compass-page,
+html.dark .impostazioni-page { background: linear-gradient(135deg, #0b1220, #162239); }
+html.dark.demos-desktop-layout .app-main:has(.capo-di-stato-page) {
+  background: #0b1220 !important;
+}
+
+/* I campi mantengono indicatori/focus e restano leggibili. */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.dark textarea,
+html.dark select {
+  color: #f8fafc;
+  border-color: #475569;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder { color: #94a3b8; }
+
+/* Testo a gradiente legacy dell'intestazione Impostazioni. */
+html.dark .impostazioni-page .bg-clip-text.text-transparent {
+  background-image: none;
+  color: #f8fafc;
+  -webkit-text-fill-color: #f8fafc;
+}
+
+/* Modalità selezionata: non oscurare il pulsante indaco attivo. */
+html.dark .impostazioni-page button[aria-pressed="true"] {
+  background: #4f46e5;
+  color: white;
+  border-color: #818cf8;
+}

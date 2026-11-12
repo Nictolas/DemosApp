@@ -2,6 +2,8 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./css/color-scheme.css";
+import { initializeColorScheme } from "./lib/colorScheme";
 import { installNativeApiFetchBridge } from "./lib/native-api-fetch-bridge";
 import GestisciGrazia from "./pages/GestisciGrazia";
 import Limiti from "./pages/Limiti";
@@ -57,4 +59,6 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   }
 }
 
+// Prima del primo render: niente flash della modalità chiara.
+initializeColorScheme();
 createRoot(document.getElementById("root")!).render(<App />);
