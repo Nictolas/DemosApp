@@ -92,7 +92,7 @@ test('mobile navbar has a visible edge without changing safe-area layout in both
 test('iOS navbar icons sit slightly higher and exposed bottom viewport matches the nav surface', () => {
   const layout = read('client/src/robust-layout.css');
   const colors = read('client/src/css/color-scheme.css');
-  assert.match(layout, /body:not\\(\\.android-device\\) \\.app-navbar\\.navbar-visible \\.app-bottom-nav > div\\s*\\{[\\s\\S]*transform:\\s*translateY\\(-5px\\)/);
-  assert.match(colors, /html\\.demos-mobile-layout #root:has\\(\\.app-navbar\\.navbar-visible\\)\\s*\\{\\s*background-color:\\s*#f8fafc/);
-  assert.match(colors, /html\\.dark\\.demos-mobile-layout #root:has\\(\\.app-navbar\\.navbar-visible\\)\\s*\\{\\s*background-color:\\s*#243247/);
+  assert.match(layout, /body:not\(\.android-device\) \.app-navbar\.navbar-visible \.app-bottom-nav > div\s*\{[\s\S]*transform:\s*translateY\(-5px\)/);
+  assert.match(colors, /html\.demos-mobile-layout #root:has\(\.app-navbar\.navbar-visible\)\s*\{\s*background-color:\s*#f8fafc/);
+  assert.match(colors, /html\.dark\.demos-mobile-layout #root:has\(\.app-navbar\.navbar-visible\)\s*\{\s*background-color:\s*#243247/);
 });
