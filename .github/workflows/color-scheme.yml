@@ -9,6 +9,9 @@ on:
       - 'client/src/main.tsx'
       - 'client/tailwind.config.js'
       - 'client/tests/colorScheme.test.mjs'
+      - 'client/tests/darkCardContrast.test.mjs'
+      - 'client/src/pages/Eventi.tsx'
+      - 'client/src/pages/Proponi.tsx'
       - '.github/workflows/color-scheme.yml'
   push:
     branches: [main]
@@ -19,6 +22,9 @@ on:
       - 'client/src/main.tsx'
       - 'client/tailwind.config.js'
       - 'client/tests/colorScheme.test.mjs'
+      - 'client/tests/darkCardContrast.test.mjs'
+      - 'client/src/pages/Eventi.tsx'
+      - 'client/src/pages/Proponi.tsx'
       - '.github/workflows/color-scheme.yml'
 permissions:
   contents: read
@@ -37,5 +43,7 @@ jobs:
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Test local preferences and system theme
         run: node --test client/tests/colorScheme.test.mjs
+      - name: Verify semantic card contrast and event variants
+        run: node --test client/tests/darkCardContrast.test.mjs
       - name: Build production frontend
         run: npm run build --prefix client
