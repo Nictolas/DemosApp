@@ -60,6 +60,8 @@ on:
       - 'client/src/pages/Profilo/components/CompleteOpinionsCallout.tsx'
       - 'client/src/pages/CompassoPolitico.tsx'
       - 'client/src/pages/Proponi.tsx' # signature navigation
+      - 'client/src/pages/PetizioniParlamentari/**' # petition guidance must satisfy catalog-contract
+      - 'api/tests/parliamentaryPetitionsEntry.smoke.test.js' # petition links, copy and privacy regression
       - 'client/src/pages/Eventi.tsx' # local Events territory must satisfy the required catalog-contract
       - 'client/src/utils/eventTerritoryView.ts'
       - 'client/src/utils/localEventArea.ts'
@@ -119,6 +121,8 @@ jobs:
           for file in api/services/opinionCatalog.js api/routes/compatibility.js api/routes/opinioni/management.js api/routes/opinioni/user-answers.js api/routes/opinioni/stats.js api/routes/sondaggi.js api/routes/opinioni-proposte.js api/routes/users/profile.js api/routes/statistiche.js api/routes/bacheca.js; do
             node --check "$file"
           done
+      - name: Parliamentary petitions official-only content and links
+        run: node --test api/tests/parliamentaryPetitionsEntry.smoke.test.js
       - name: Catalog integrity and zero-DB-metadata contract
         run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js
       - name: Validate thematic mapping against all published opinion IDs

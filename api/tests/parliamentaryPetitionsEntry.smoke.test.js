@@ -67,3 +67,27 @@ test('Petitions have their own yellow palette on mobile and desktop, including d
   assert.match(shortcut, /accentSoft: "#fef08a"/);
   assert.match(theme, /html\.dark \.demos-semantic-card--warning\s*\{[\s\S]*--demos-tone-border: #fbbf24;/);
 });
+
+
+test('Petitions guidance explains the two Camera actions, Senato requirements and privacy', () => {
+  const page = read('client/src/pages/PetizioniParlamentari/index.tsx');
+
+  assert.match(page, /Petizione Parlamentare/);
+  assert.match(page, /Cos'è una petizione parlamentare/);
+  assert.match(page, /non servono le 50\.000/);
+  assert.match(page, /non è obbligato ad accogliere/);
+  assert.match(page, /Presenta una petizione/);
+  assert.match(page, /Sottoscrivi una petizione/);
+  assert.match(page, /Entrambi i pulsanti aprono lo stesso portale/);
+  assert.equal((page.match(/href=\{CAMERA_PETITIONS_URL\}/g) ?? []).length, 2);
+  assert.match(page, /Consulta l'elenco pubblico/);
+  assert.match(page, /Istruzioni per presentarla/);
+  assert.match(page, /firma digitale valida/);
+  assert.match(page, /documento\s+d'identità valido/);
+  assert.match(page, /Come preparare una petizione/);
+  assert.match(page, /problema di interesse generale/);
+  assert.match(page, /Commissione competente/);
+  assert.match(page, /dark:bg-slate-900/);
+  assert.match(page, /dark:text-slate-300/);
+  assert.doesNotMatch(page, /apiRequest|useQuery|fetch\(|axios|supabase|localStorage|setInterval/);
+});
