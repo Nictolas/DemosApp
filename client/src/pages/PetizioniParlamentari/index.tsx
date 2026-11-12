@@ -33,7 +33,7 @@ export default function PetizioniParlamentari() {
       <div
         className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-6"
         role="region"
-        aria-label="Petizioni parlamentari"
+        aria-label="Petizione parlamentare"
         tabIndex={0}
       >
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-5">
@@ -41,7 +41,7 @@ export default function PetizioniParlamentari() {
             <div className="flex items-center gap-3">
               <Landmark className="h-8 w-8 shrink-0 text-indigo-700 dark:text-indigo-300" aria-hidden="true" />
               <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                Petizioni parlamentari
+                Petizione parlamentare
               </h1>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
