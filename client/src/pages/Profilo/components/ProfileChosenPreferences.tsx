@@ -43,7 +43,8 @@ export function ProfileChosenPreferences({
     { key: "amnistia", label: "Amnistia", values: selectedNames(choices?.amnistia), icon: Archive, path: "/amnistia" },
     { key: "iniziativa", label: "Iniziativa popolare", values: selectedNames(choices?.iniziativaPopolare), icon: FileText, path: "/vota-iniziativa-popolare" },
     { key: "opinioneProposta", label: "Opinione proposta", values: selectedNames(choices?.opinioniProposteVotate), icon: FileText, path: "/proponi-opinione", emptyLabel: "Nessun voto selezionato", emptyAction: "Vota ora" },
-    ...(choices?.opinioneProposta ? [
+    ...(choices?.opinioneProposta &&
+       !choices.opinioniProposteVotate?.some(vote => vote.trim() === choices.opinioneProposta?.trim()) ? [
       { key: "opinioneCreata", label: "La tua Opinione proposta", values: selectedNames([choices.opinioneProposta]), icon: FileText, path: "/proponi-opinione" },
     ] : []),
     { key: "attivista", label: "Attivista preferito", values: selectedNames(choices?.attivista?.nome ? [choices.attivista.nome] : []), icon: UserRound, path: "/attivisti" },
