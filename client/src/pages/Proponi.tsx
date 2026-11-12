@@ -1,7 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
-import { ChevronRight, FileText, Globe2, Vote } from "lucide-react";
+import { ChevronRight, FileText, Globe2, Landmark, Vote } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 
 const signatureOptions = [
@@ -34,6 +34,16 @@ const signatureOptions = [
     cardClass: "border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300",
     iconClass: "from-blue-500 to-indigo-600",
     arrowClass: "text-blue-500",
+  },
+  {
+    title: "Petizioni Parlamentari",
+    description: "Presenta petizioni alle Camere o sottoscrivi quelle disponibili.",
+    href: "/petizioni-parlamentari",
+    icon: Landmark,
+    tone: "info",
+    cardClass: "border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 hover:border-amber-300 dark:border-amber-800 dark:from-amber-950 dark:to-slate-900",
+    iconClass: "from-amber-500 to-orange-600",
+    arrowClass: "text-amber-600 dark:text-amber-300",
   },
 ];
 
