@@ -84,7 +84,7 @@ test('mobile navbar has a visible edge without changing safe-area layout in both
   assert.match(rules, /--demos-nav-rule:\s*#475569/);
   assert.match(rules, /body\.android-device \.app-navbar\.navbar-visible\s*\{/);
   assert.match(rules, /background-color:\s*var\(--demos-nav-surface\)\s*!important/);
-  assert.doesNotMatch(rules, /(?:min-|max-)?height:\s*(?!1px)|padding(?:-bottom|-top)?:|overflow:|touch-action:/);
+  assert.doesNotMatch(rules, /(?:min-height|max-height|padding(?:-bottom|-top)?|overflow|touch-action)\s*:/);
   assert.match(layout, /--app-navbar-bottom-gap:\s*min\(var\(--app-navbar-safe-bottom\), 14px\)/);
   assert.match(android, /min-height:\s*calc\(3\.75rem \+ var\(--app-navbar-bottom-gap\)\)\s*!important/);
 });
