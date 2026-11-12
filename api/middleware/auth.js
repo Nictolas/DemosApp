@@ -20,7 +20,7 @@ if (!isProduction) {
 const verifyToken = async (req, res, next) => {
   try {
     const log = (...args) => { if (!isProduction) console.log(...args); };
-    const logErr = (...args) => { console.error(...args); };
+    const logErr = (...args) => { if (!isProduction) console.error(...args); };
 
     if (!isProduction && (req.url.includes('/vota') || req.url.includes('/capo-stato') || req.url.includes('/admin/'))) {
       log('🚀 ENTRATA in verifyToken:', req.method, req.url);
@@ -133,7 +133,7 @@ const verifyToken = async (req, res, next) => {
 
       next();
     } catch (jwtError) {
-      console.error('❌ Errore verifica JWT:', jwtError.message);
+      if (!isProduction) console.error('❌ Errore verifica JWT:', jwtError.message);
       if (!isProduction) console.error('❌ Stack JWT:', jwtError.stack);
 
       if (jwtError.message.includes('scaduto') || jwtError.message.includes('expired')) {
@@ -159,15 +159,18 @@ const verifyToken = async (req, res, next) => {
       });
     }
   } catch (error) {
-    console.error('❌ Errore nel middleware verifyToken:', error.message);
+    if (isProduction) {
+      console.error('❌ Errore nel middleware verifyToken');
+    } else {
+      console.error('❌ Errore nel middleware verifyToken:', error.message);
+    }
     if (!isProduction) {
       console.error('❌ Stack trace verifyToken:', error.stack);
       console.error('❌ Error details verifyToken:', { message: error.message, code: error.code, detail: error.detail, hint: error.hint });
     }
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 };
