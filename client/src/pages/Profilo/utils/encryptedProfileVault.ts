@@ -19,13 +19,14 @@ let clearingAllVault = false;
 const clearingOwners = new Set<string>();
 
 export type ProfileChosenVotes = {
-  // Version 2 adds only already-existing subject portraits. Older encrypted
-  // name-only snapshots are deliberately refreshed once during migration.
-  version?: 2;
+  // Version 3 adds the owner's existing pending proposed opinion.
+  // Older encrypted snapshots refresh this one section once, preserving consent.
+  version?: 3;
   capoStato: string[];
   grazia: string[];
   amnistia: string[];
   iniziativaPopolare: string[];
+  opinioneProposta?: string | null;
   attivista: { id: string; nome: string } | null;
   organizzazione: { id: string; nome: string } | null;
   capoStatoAvatars?: Record<string, any>;
