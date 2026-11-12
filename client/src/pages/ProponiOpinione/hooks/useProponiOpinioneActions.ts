@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ProponiOpinioneState } from "../types";
 
 export const useProponiOpinioneActions = (user: any) => {
@@ -57,33 +57,37 @@ export const useProponiOpinioneActions = (user: any) => {
     }
   }, [user]);
 
-  const updateField = (field: keyof ProponiOpinioneState, value: any) => {
-    setProponiOpinioneState(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  // Stable callbacks are required: the page's synchronization useEffect
+  // depends on these setters. Recreating them every render caused a render
+  // loop and could make touch scrolling unresponsive.
+  const updateField = useCallback((field: keyof ProponiOpinioneState, value: any) => {
+    setProponiOpinioneState(prev =>
+      Object.is(prev[field], value) ? prev : { ...prev, [field]: value }
+    );
+  }, []);
 
-  const setSubmitting = (value: boolean) => {
+  const setSubmitting = useCallback((value: boolean) => {
     updateField('submitting', value);
-  };
+  }, [updateField]);
 
-  const setIsVoting = (value: boolean) => {
+  const setIsVoting = useCallback((value: boolean) => {
     updateField('isVoting', value);
-  };
+  }, [updateField]);
 
-  const setOpinioni = (opinioni: any[]) => {
+  const setOpinioni = useCallback((opinioni: any[]) => {
     updateField('opinioni', opinioni);
-  };
+  }, [updateField]);
 
-  const setUserVoti = (voti: string[]) => {
-    updateField('userVoti', voti);
-    updateField('selectedVoti', voti);
-  };
+  const setUserVoti = useCallback((voti: string[]) => {
+    setProponiOpinioneState(prev =>
+      prev.userVoti === voti && prev.selectedVoti === voti
+        ? prev : { ...prev, userVoti: voti, selectedVoti: voti }
+    );
+  }, []);
 
-  const setLoadingData = (value: boolean) => {
+  const setLoadingData = useCallback((value: boolean) => {
     updateField('loadingData', value);
-  };
+  }, [updateField]);
 
   // Selezione batch
   const toggleSelezione = (id: string) => {
