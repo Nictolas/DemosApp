@@ -14,7 +14,7 @@ test('selected portraits use one existing owner query and at most one public bat
   assert.match(route,/to_jsonb\(a\)->'avatar_config'/);
   assert.match(route,/to_jsonb\(o\)->'avatar_config'/);
   assert.match(route,/loadGovernmentVoteAvatars\(pool, selection\.capo_stato \|\| \[\]\)/);
-  assert.match(route,/version: 3/);
+  assert.match(route,/version: 4/);
   assert.match(route,/capoStatoAvatars,/);
   assert.match(route,/attivistaAvatar: parseExistingAvatar\(selection\.attivista_avatar_config\)/);
   assert.match(route,/organizzazioneAvatar: parseExistingAvatar\(selection\.organizzazione_avatar_config\)/);
@@ -48,9 +48,9 @@ test('only real avatar configs render at 24px before names and never on legal pr
 test('encrypted cache refreshes older choices once and retains consent controls',()=>{
   const hook=read('client/src/pages/Profilo/hooks/useProfileData.ts');
   const vault=read('client/src/pages/Profilo/utils/encryptedProfileVault.ts');
-  assert.match(vault,/version\?: 3;/);
-  assert.match(hook,/snapshot\.preferences\?\.version !== 3/);
-  assert.match(hook,/legacyInitiativeId \|\| snapshot\.preferences\?\.version !== 3/);
+  assert.match(vault,/version\?: 4;/);
+  assert.match(hook,/snapshot\.preferences\?\.version !== 4/);
+  assert.match(hook,/legacyInitiativeId \|\| snapshot\.preferences\?\.version !== 4/);
   assert.match(hook,/const politicalAllowed = ownProfile && vaultReady && consentVerified/);
   assert.match(hook,/enabled: enabled && vaultReady && politicalAllowed,/);
   assert.match(hook,/patchEncryptedProfile\(ownerId, \{ preferences: value \}, \{ preferences: revision \}\)/);
