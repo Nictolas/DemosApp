@@ -20,6 +20,7 @@ import DatePicker from "@/components/DatePicker";
 import { formatEventoLocation, formatEventoElezioniLocation, decompressPaeseEvento, decompressRegioneEvento, decompressProvinciaEvento, compressPaeseEvento, compressRegioneEvento, compressProvinciaEvento } from "@/utils/eventiGeographicUtils";
 import { composeTerritorialEvents, type EventRecord, type EventTerritory } from "@/utils/eventTerritoryView";
 import { PageContainer } from "@/components/PageContainer";
+import { approximateMunicipalityOnDevice, readLocalEventPreferences, writeLocalEventPreferences, territoryFromArea, type LocalEventPreferences } from "@/utils/localEventArea";
 
 // Schema di validazione per il form di modifica
 const eventoSchema = z.object({
@@ -78,6 +79,95 @@ export default function Eventi() {
   // Tre viste territoriali. Il feed personale contiene già il territorio utente:
   // non viene aggiunta alcuna lettura profilo per individuare provincia e regione.
   const [activeTab, setActiveTab] = useState<'personal' | 'regional' | 'global'>('personal');
+  const [localPreferences, setLocalPreferences] = useState<LocalEventPreferences>(
+    () => readLocalEventPreferences(user?.id ? String(user.id) : null)
+  );
+  const [locationControlsOpen, setLocationControlsOpen] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [locationNotice, setLocationNotice] = useState("");
+  const [manualRegion, setManualRegion] = useState("");
+  const [manualProvince, setManualProvince] = useState("");
+
+  // Preferenze strettamente locali e separate per account su questo dispositivo.
+  React.useEffect(() => {
+    const next = readLocalEventPreferences(user?.id ? String(user.id) : null);
+    setLocalPreferences(next);
+    setManualRegion(next.area?.regione || "");
+    setManualProvince(next.area?.provincia || "");
+    setLocationNotice("");
+    setLocationControlsOpen(false);
+  }, [user?.id]);
+
+  const saveLocalPreferences = (next: LocalEventPreferences) => {
+    setLocalPreferences(next);
+    if (user?.id && !writeLocalEventPreferences(String(user.id), next)) {
+      setLocationNotice("Non è stato possibile conservare la preferenza sul dispositivo. Potrebbe andare persa alla chiusura dell'app.");
+    }
+  };
+
+  const chooseManualMunicipality = (comune: string) => {
+    if (!comune || !manualRegion || !manualProvince) return;
+    saveLocalPreferences({
+      onboardingSeen: true,
+      mode: "altro",
+      source: "manual",
+      area: { comune, provincia: manualProvince, regione: manualRegion },
+    });
+    setLocationNotice("");
+    setLocationControlsOpen(false);
+  };
+
+  const detectMunicipality = () => {
+    saveLocalPreferences({ ...localPreferences, onboardingSeen: true });
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocationNotice("Posizione non disponibile: seleziona un Comune manualmente.");
+      setLocationControlsOpen(true);
+      return;
+    }
+    setDetectingLocation(true);
+    setLocationNotice("");
+    // Il permesso di sistema si apre SOLO in seguito al clic dell'utente.
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const area = await approximateMunicipalityOnDevice(
+            position.coords.latitude, position.coords.longitude
+          );
+          if (!area) {
+            setLocationNotice("Non è stato possibile stimare un Comune italiano. Selezionalo manualmente.");
+            setLocationControlsOpen(true);
+            return;
+          }
+          saveLocalPreferences({
+            mode: "altro",
+            area,
+            source: "gps",
+            onboardingSeen: true,
+          });
+          setManualRegion(area.regione);
+          setManualProvince(area.provincia);
+          setLocationNotice(`Comune stimato: ${area.comune}. Verificalo: vicino ai confini comunali il GPS può indicare un Comune diverso.`);
+          setLocationControlsOpen(false);
+        } catch {
+          setLocationNotice("Impossibile riconoscere il Comune senza connessione ai dati geografici locali. Selezionalo manualmente.");
+          setLocationControlsOpen(true);
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      () => {
+        setDetectingLocation(false);
+        setLocationNotice("Posizione non autorizzata o non disponibile. Puoi scegliere un Comune manualmente.");
+        setLocationControlsOpen(true);
+      },
+      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 15_000 }
+    );
+  };
+
+  const availableRegions = ITALY_DATA.Italia.regioni;
+  const availableProvinces = availableRegions.find((region) => region.nome === manualRegion)?.province || [];
+  const availableMunicipalities = availableProvinces.find((province) => province.nome === manualProvince)?.comuni || [];
+
 
   const {
     data: personalResponse,
@@ -126,8 +216,11 @@ export default function Eventi() {
     personalResponse?.data || [],
     publicResponse?.data || [],
     territory,
-    activeTab
+    activeTab,
+    { mode: localPreferences.mode, territory: territoryFromArea(localPreferences.area) }
   );
+  const extraProvinceLabel = localPreferences.area?.provincia || "";
+  const isOtherLocation = Boolean(localPreferences.area && localPreferences.mode !== "residenza");
   const eventiLoading = publicLoading || (activeTab !== 'global' && personalLoading);
   const eventiError = publicError || (activeTab !== 'global' && personalError);
 
@@ -332,9 +425,13 @@ export default function Eventi() {
         </div>
         <p className="px-2 text-xs sm:text-sm text-center text-slate-500" aria-live="polite">
           {activeTab === 'personal'
-            ? provinciaLabel
-              ? `Eventi dei soggetti seguiti e appuntamenti in provincia di ${provinciaLabel}`
-              : 'Eventi dei soggetti seguiti. Completa la provincia di residenza per quelli vicini.'
+            ? isOtherLocation
+              ? localPreferences.mode === "entrambi"
+                ? `Eventi dei soggetti seguiti e appuntamenti nelle province di ${provinciaLabel || "residenza"} e ${extraProvinceLabel}`
+                : `Eventi dei soggetti seguiti e appuntamenti in provincia di ${extraProvinceLabel}`
+              : provinciaLabel
+                ? `Eventi dei soggetti seguiti e appuntamenti in provincia di ${provinciaLabel}`
+                : 'Eventi dei soggetti seguiti. Completa la provincia di residenza per quelli vicini.'
             : activeTab === 'regional'
               ? regioneLabel
                 ? `Eventi e mobilitazioni in ${regioneLabel}`
@@ -353,6 +450,121 @@ export default function Eventi() {
         tabIndex={0}
       >
         <div className="mx-auto w-full max-w-4xl">
+        {activeTab === "personal" && (
+          <div className="mb-4 space-y-2">
+            {!localPreferences.onboardingSeen && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm font-semibold text-slate-900">Vuoi vedere gli eventi vicino a te?</p>
+                <p className="mt-1 text-xs text-slate-600">
+                  La posizione si usa una sola volta per stimare il Comune sul dispositivo.
+                  Non salviamo né inviamo le coordinate. Puoi sempre correggere il Comune.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" disabled={detectingLocation} onClick={detectMunicipality}
+                    className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">
+                    {detectingLocation ? "Rilevamento..." : "Usa la mia posizione"}
+                  </button>
+                  <button type="button"
+                    onClick={() => { saveLocalPreferences({ ...localPreferences, onboardingSeen: true }); setLocationControlsOpen(true); }}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                    Scegli un Comune
+                  </button>
+                  <button type="button"
+                    onClick={() => saveLocalPreferences({ ...localPreferences, onboardingSeen: true, mode: "residenza" })}
+                    className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600">
+                    Usa la residenza
+                  </button>
+                </div>
+              </div>
+            )}
+            {localPreferences.onboardingSeen && (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <span className="min-w-0 text-xs text-slate-700">
+                  <MapPin className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-hidden="true" />
+                  {localPreferences.mode === "residenza" || !localPreferences.area
+                    ? `Località eventi: residenza`
+                    : localPreferences.mode === "entrambi"
+                      ? `Località eventi: residenza e ${localPreferences.area.comune}`
+                      : `Località eventi: ${localPreferences.area.comune}${localPreferences.source === "gps" ? " (GPS, stimato)" : ""}`}
+                </span>
+                <button type="button" onClick={() => setLocationControlsOpen((old) => !old)}
+                  className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-blue-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  aria-expanded={locationControlsOpen}>
+                  {locationControlsOpen ? "Chiudi" : "Modifica"}
+                </button>
+              </div>
+            )}
+            {locationNotice && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">
+                {locationNotice}
+              </p>
+            )}
+            {locationControlsOpen && (
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-sm font-semibold text-slate-800">Località degli eventi personali</p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button"
+                    onClick={() => { saveLocalPreferences({ ...localPreferences, mode: "residenza", onboardingSeen: true }); setLocationControlsOpen(false); }}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">
+                    Solo residenza
+                  </button>
+                  <button type="button" onClick={detectMunicipality} disabled={detectingLocation}
+                    className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">
+                    {detectingLocation ? "Rilevamento..." : "Rileva con GPS"}
+                  </button>
+                  {localPreferences.area && (
+                    <>
+                      <button type="button"
+                        onClick={() => { saveLocalPreferences({ ...localPreferences, mode: "altro", onboardingSeen: true }); setLocationControlsOpen(false); }}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">
+                        Solo {localPreferences.area.comune}
+                      </button>
+                      <button type="button"
+                        onClick={() => { saveLocalPreferences({ ...localPreferences, mode: "entrambi", onboardingSeen: true }); setLocationControlsOpen(false); }}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">
+                        Residenza e {localPreferences.area.comune}
+                      </button>
+                    </>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500">Oppure scegli un Comune manualmente:</p>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <label className="block text-xs font-medium text-slate-700">
+                    Regione
+                    <select aria-label="Regione per gli eventi" value={manualRegion}
+                      onChange={(e) => { setManualRegion(e.target.value); setManualProvince(""); }}
+                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm">
+                      <option value="">Seleziona</option>
+                      {availableRegions.map((region) => <option key={region.nome} value={region.nome}>{region.nome}</option>)}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-slate-700">
+                    Provincia
+                    <select aria-label="Provincia per gli eventi" value={manualProvince} disabled={!manualRegion}
+                      onChange={(e) => setManualProvince(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm disabled:opacity-50">
+                      <option value="">Seleziona</option>
+                      {availableProvinces.map((province) => <option key={province.nome} value={province.nome}>{province.nome}</option>)}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-slate-700">
+                    Comune
+                    <select aria-label="Comune per gli eventi" value="" disabled={!manualProvince}
+                      onChange={(e) => chooseManualMunicipality(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm disabled:opacity-50">
+                      <option value="">Seleziona</option>
+                      {availableMunicipalities.map((comune) => <option key={comune} value={comune}>{comune}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Solo il Comune scelto resta su questo dispositivo. Le elezioni e le tue scelte politiche
+                  continuano a dipendere dalla residenza.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         {/* Schede Eventi */}
         <div className="space-y-4">
           {eventiLoading ? (
