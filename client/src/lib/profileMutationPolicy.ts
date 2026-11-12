@@ -51,11 +51,12 @@ export function profileMutationImpact(
   if (/^\/api\/opinioni(?:\/|$)/.test(path)) {
     return { sections: ["opinions", "full"], summary: false, consent: false };
   }
-  // Creating a proposal updates users.opinione_proposta_id. Refresh only
-  // the owner's encrypted choices when they return to the Profile; voting
-  // on someone else's proposal must not invalidate the Profile cache.
+  // Authoring or voting for a proposed Opinion changes the owner's
+  // choices. Refresh only encrypted preferences after a successful write.
   if ((method.toUpperCase() === "POST" && path === "/api/opinioni-proposte") ||
-      (method.toUpperCase() === "DELETE" && /^\/api\/opinioni-proposte\/[^/]+$/.test(path))) {
+      (method.toUpperCase() === "DELETE" && /^\/api\/opinioni-proposte\/[^/]+$/.test(path)) ||
+      (["POST", "DELETE"].includes(method.toUpperCase()) &&
+       /^\/api\/opinioni-proposte\/[^/]+\/vota$/.test(path))) {
     return { sections: ["preferences"], summary: false, consent: false };
   }
   if (/^\/api\/(?:capo-stato|grazia|amnistia|iniziative-popolari|sostenitori)(?:\/|$)/.test(path)) {
