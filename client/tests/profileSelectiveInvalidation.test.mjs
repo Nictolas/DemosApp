@@ -30,8 +30,9 @@ test("civic favorites invalidate only the private preferences snapshot", () => {
 test("proposing an opinion refreshes only the owner's choices", () => {
   assert.deepEqual(sections("POST", "/api/opinioni-proposte"), ["preferences"]);
   assert.deepEqual(sections("DELETE", "/api/opinioni-proposte/synthetic-id"), ["preferences"]);
-  assert.equal(impact("POST", "/api/opinioni-proposte/synthetic-id/vota"), null);
-  assert.equal(impact("DELETE", "/api/opinioni-proposte/synthetic-id/vota"), null);
+  assert.deepEqual(sections("POST", "/api/opinioni-proposte/synthetic-id/vota"), ["preferences"]);
+  assert.deepEqual(sections("DELETE", "/api/opinioni-proposte/synthetic-id/vota"), ["preferences"]);
+  assert.equal(impact("GET", "/api/opinioni-proposte/voti-utente"), null);
 });
 
 test("account edits only invalidate personal information, not political choices", () => {
