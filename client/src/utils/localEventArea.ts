@@ -7,11 +7,13 @@ export type LocalEventMode = "residenza" | "altro" | "entrambi";
 export type LocalEventPreferences = {
   mode: LocalEventMode;
   area: LocalEventArea | null;
+  source: "gps" | "manual" | null;
   onboardingSeen: boolean;
 };
 export const DEFAULT_LOCAL_EVENT_PREFERENCES: LocalEventPreferences = {
   mode: "residenza",
   area: null,
+  source: null,
   onboardingSeen: false,
 };
 
@@ -34,6 +36,7 @@ export function readLocalEventPreferences(userId?: string | null): LocalEventPre
     return {
       mode: validArea ? mode : "residenza",
       area: validArea ? { comune: area.comune, provincia: area.provincia, regione: area.regione } : null,
+      source: validArea && (parsed.source === "gps" || parsed.source === "manual") ? parsed.source : null,
       onboardingSeen: parsed?.onboardingSeen === true,
     };
   } catch {
