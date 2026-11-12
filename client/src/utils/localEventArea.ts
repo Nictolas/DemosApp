@@ -1,4 +1,4 @@
-import type { EventTerritory } from "@/utils/eventTerritoryView";
+import { territoryOfEvent, type EventTerritory } from "@/utils/eventTerritoryView";
 
 // La preferenza è conservata soltanto sul dispositivo, separatamente per account.
 // Non salviamo coordinate GPS né inviamo nuove informazioni a DEMOS.
@@ -96,5 +96,13 @@ export async function approximateMunicipalityOnDevice(
     }
   }
   if (!nearest || minDistance > 60) return null;
-  return { comune: nearest[0], provincia: nearest[1], regione: nearest[2] };
+  // Allinea i nomi amministrativi alla stessa anagrafica usata dai filtri Eventi.
+  // In questo modo le denominazioni bilingui/aggiornate dei dati GPS non
+  // escludono erroneamente le mobilitazioni pubbliche di un territorio.
+  const canonical = territoryOfEvent({ id: "local-gps", comune_evento: nearest[0] });
+  return {
+    comune: nearest[0],
+    provincia: canonical.provincia || nearest[1],
+    regione: canonical.regione || nearest[2],
+  };
 }
