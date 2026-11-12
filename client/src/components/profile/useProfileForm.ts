@@ -20,8 +20,7 @@ function normalizeDate(dateStr?: string): string {
 
 export function useProfileForm(
   userData: UserInfo & { uid: string },
-  onProfileUpdated: (updatedData: UserInfo) => void,
-  isAdmin: boolean = false
+  onProfileUpdated: (updatedData: UserInfo) => void
 ) {
   const { toast } = useToast();
   const initialData = {
@@ -61,8 +60,13 @@ export function useProfileForm(
         data_nascita: normalizeDate(userData?.data_nascita),
       };
       
+      const editableSelfFields = new Set([
+        "data_nascita", "genere", "cittadinanza",
+        "paese_residenza", "regione_residenza", "provincia_residenza", "comune_residenza"
+      ]);
       Object.keys(formData).forEach(key => {
-        if (key === 'uid') return;
+        if (key === 'uid' || key === 'ruolo' || key === 'sesso' || key === 'account_type') return;
+        if (!editableSelfFields.has(key)) return;
         
         // Normalizza i valori per il confronto: null, undefined e stringa vuota sono considerati equivalenti
         const normalizeValue = (val: any) => {
@@ -85,10 +89,6 @@ export function useProfileForm(
         }
       });
       
-      console.log('🔍 DEBUG useProfileForm - Dati da inviare:', dataToSend);
-      console.log('🔍 DEBUG useProfileForm - formData completo:', formData);
-      console.log('🔍 DEBUG useProfileForm - currentInitialData completo:', currentInitialData);
-      
       // Se non ci sono modifiche, non inviare nulla
       if (Object.keys(dataToSend).length === 0) {
         toast({
@@ -101,40 +101,17 @@ export function useProfileForm(
 
       // Prima aggiorna il profilo normale
       // apiRequest restituisce già i dati JSON parsati, non un oggetto Response
-      const endpoint = isAdmin ? `/api/users/${userData.uid}` : "/api/users/me";
-      const data = await apiRequest("PUT", endpoint, dataToSend);
-      
-      if (!data.success) {
-        throw new Error(data.error || data.message || "Errore durante l'aggiornamento del profilo");
+      const response = await apiRequest("PUT", "/api/users/me", dataToSend);
+      const data = response.data ?? await response.json();
+      if (!data?.success) {
+        throw new Error(data?.message || data?.error || "Errore durante l'aggiornamento del profilo");
       }
 
-      // Se l'utente ha tipologie di attivismo, aggiornale separatamente
-      if (formData.tipologie_attivismo && formData.tipologie_attivismo.length > 0) {
-        const activismEndpoint = `/api/attivismo-tipologie/${userData.uid}`;
-        try {
-          const activismData = await apiRequest("PUT", activismEndpoint, {
-            tipologie: formData.tipologie_attivismo
-          });
-          
-          if (!activismData.success) {
-            console.warn("Errore nell'aggiornamento delle tipologie di attivismo:", activismData.error || activismData.message);
-            // Non bloccare il salvataggio del profilo per questo errore
-          }
-        } catch (activismError) {
-          console.warn("Errore nell'aggiornamento delle tipologie di attivismo:", activismError);
-          // Non bloccare il salvataggio del profilo per questo errore
-        }
-      }
-      
       // Aggiorna i dati locali con la risposta del server
       const updatedUser = data.user || formData;
       onProfileUpdated(updatedUser);
       
-      toast({
-        title: "Successo",
-        description: "Profilo aggiornato con successo!",
-      });
-      
+
     } catch (error) {
       console.error("Errore durante l'aggiornamento:", error);
       

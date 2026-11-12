@@ -4,7 +4,7 @@ const { pool, verifyToken, requireAdmin } = require('../../middleware/auth');
 const { userDataAuditMiddleware } = require('../../middleware/auditMiddleware');
 const { decompressUserOpinions, compressUserOpinions, getOpinionColumns } = require('../../utils/opinionUtils');
 const { compressUserLocation, decompressUserLocation } = require('../../utils/locationUtils');
-const { decompressGender } = require('../../utils/genderUtils');
+const { decompressGender, compressGender } = require('../../utils/genderUtils');
 const { getAccountSubject } = require('../../services/accountCapabilitiesService');
 const { getUserOpinionCompletion } = require('../../services/politicalMatchingService');
 const { getPoliticalConsentState, getLockedPoliticalConsentForWrite } = require('../../services/politicalConsentService');
@@ -292,66 +292,70 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     const userId = req.user.id;
     const updateData = req.body;
     
-    // Lista dei campi consentiti per l'aggiornamento
+    // Un profilo personale (anche quello dell'Admin) non conferisce ruoli,
+    // cariche, candidature o diritti amministrativi. Questi campi hanno
+    // procedure separate e non possono essere alterati dall'endpoint /me.
+    const forbiddenFields = new Set([
+      'ruolo', 'account_type', 'sesso', 'status',
+      'nome', 'cognome', 'name', 'avatar_config',
+      'grado_elezione', 'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
+      'grado_candidatura', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura', 'comune_candidatura'
+    ]);
+    if (!updateData || typeof updateData !== 'object' || Array.isArray(updateData)) {
+      return res.status(400).json({ success: false, error: 'Dati profilo non validi' });
+    }
+    if (Object.keys(updateData).some(key => forbiddenFields.has(key))) {
+      return res.status(403).json({
+        success: false,
+        error: 'PROFILE_FIELD_NOT_EDITABLE',
+        message: 'Ruoli, cariche e dati amministrativi non possono essere modificati dal profilo personale'
+      });
+    }
+
+    // Le URL social sono aggiornate anche dalle schermate Social e Siti.
     const allowedFields = [
-      'nome', 'cognome', 'data_nascita', 'cittadinanza',
+      'data_nascita', 'genere', 'cittadinanza',
       'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
-      'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
-      'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
-      'comune_candidatura', 'grado_candidatura',
       'facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'telegram_url', 'website_url', 'twitch_url', 'youtube_url'
     ];
-    
-    // Normalizza i gradi di elezione e candidatura (tutto maiuscolo)
-    const normalizeGrado = (grado) => {
-      // Se è null o undefined, restituisci null (per permettere la cancellazione)
-      if (grado === null || grado === undefined) return null;
-      // Se non è una stringa, restituisci il valore originale
-      if (typeof grado !== 'string') return grado;
-      // Se è una stringa vuota, restituisci null
-      if (grado.trim() === '') return null;
-      // I valori validi sono: CO, P, R, N, C, S, E (tutti maiuscoli)
-      return grado.toUpperCase();
-    };
-    
-    // Filtra solo i campi consentiti e applica compressione per i dati geografici e ruolo
     const filteredData = {};
-    Object.keys(updateData).forEach(key => {
-      if (allowedFields.includes(key) && updateData[key] !== undefined) {
-        // Normalizza i gradi di elezione e candidatura
-        if (key === 'grado_elezione' || key === 'grado_candidatura') {
-          filteredData[key] = normalizeGrado(updateData[key]);
-          console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
+
+    for (const key of allowedFields) {
+      if (!Object.prototype.hasOwnProperty.call(updateData, key) || updateData[key] === undefined) continue;
+      const value = updateData[key];
+
+      if (key === 'data_nascita') {
+        if (value === null || value === '') {
+          filteredData[key] = null;
+          continue;
         }
-        // Applica compressione per i campi paese
-        else if (key === 'paese_residenza' || key === 'paese_elezione' || key === 'paese_candidatura') {
-          const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];
-          filteredData[key] = compressedValue;
-        } 
-        // Applica compressione per le regioni
-        else if (key === 'regione_residenza' || key === 'regione_elezione' || key === 'regione_candidatura') {
-          const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];
-          filteredData[key] = compressedValue;
+        const year = String(value).trim();
+        const thisYear = new Date().getFullYear();
+        if (!/^\d{4}$/.test(year) || Number(year) < 1800 || Number(year) > thisYear) {
+          return res.status(400).json({ success: false, error: 'Anno di nascita non valido' });
         }
-        // Applica compressione per le province
-        else if (key === 'provincia_residenza' || key === 'provincia_elezione' || key === 'provincia_candidatura') {
-          const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];
-          filteredData[key] = compressedValue;
+        // DEMOS conserva solo l'anno (la data convenzionale serve alla colonna DATE).
+        filteredData[key] = `${year}-01-01`;
+      } else if (key === 'genere') {
+        if (value === null || value === '') {
+          filteredData[key] = null;
+          continue;
         }
-        // GDPR: data_nascita può essere solo anno (YYYY) → salviamo come YYYY-01-01
-        else if (key === 'data_nascita') {
-          const v = String(updateData[key]).trim();
-          if (/^\d{4}$/.test(v)) {
-            filteredData[key] = `${v}-01-01`;
-          } else {
-            filteredData[key] = updateData[key];
-          }
-        } else {
-          filteredData[key] = updateData[key];
+        if (typeof value !== 'string') {
+          return res.status(400).json({ success: false, error: 'Genere non valido' });
         }
+        const encodedGender = compressGender(value);
+        if (!encodedGender) {
+          return res.status(400).json({ success: false, error: 'Genere non valido' });
+        }
+        filteredData[key] = encodedGender;
+      } else if (key === 'cittadinanza' || key.startsWith('paese_') || key.startsWith('regione_') || key.startsWith('provincia_')) {
+        filteredData[key] = value === null ? null : compressUserLocation({ [key]: value })[key];
+      } else {
+        filteredData[key] = value;
       }
-    });
-    
+    }
+
     if (Object.keys(filteredData).length === 0) {
       return res.status(400).json({
         success: false,
@@ -420,6 +424,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       }
     }
     
+    const decompressedUser = decompressUserLocation(updatedUser);
     res.json({
       success: true,
       message: 'Profilo aggiornato con successo',
@@ -428,24 +433,24 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         email: updatedUser.email,
         nome: updatedUser.nome,
         cognome: updatedUser.cognome,
-        genere: updatedUser.genere,
+        genere: decompressGender(updatedUser.genere),
         data_nascita: dataNascitaFormattata,
-        cittadinanza: updatedUser.cittadinanza,
-        paese_residenza: updatedUser.paese_residenza,
-        regione_residenza: updatedUser.regione_residenza,
-        provincia_residenza: updatedUser.provincia_residenza,
-        comune_residenza: updatedUser.comune_residenza,
+        cittadinanza: decompressedUser.cittadinanza,
+        paese_residenza: decompressedUser.paese_residenza,
+        regione_residenza: decompressedUser.regione_residenza,
+        provincia_residenza: decompressedUser.provincia_residenza,
+        comune_residenza: decompressedUser.comune_residenza,
         ruolo: updatedUser.ruolo,
-        grado_elezione: updatedUser.grado_elezione,
-        paese_elezione: updatedUser.paese_elezione,
-        regione_elezione: updatedUser.regione_elezione,
-        provincia_elezione: updatedUser.provincia_elezione,
-        comune_elezione: updatedUser.comune_elezione,
-        grado_candidatura: updatedUser.grado_candidatura,
-        paese_candidatura: updatedUser.paese_candidatura,
-        regione_candidatura: updatedUser.regione_candidatura,
-        provincia_candidatura: updatedUser.provincia_candidatura,
-        comune_candidatura: updatedUser.comune_candidatura,
+        grado_elezione: decompressedUser.grado_elezione,
+        paese_elezione: decompressedUser.paese_elezione,
+        regione_elezione: decompressedUser.regione_elezione,
+        provincia_elezione: decompressedUser.provincia_elezione,
+        comune_elezione: decompressedUser.comune_elezione,
+        grado_candidatura: decompressedUser.grado_candidatura,
+        paese_candidatura: decompressedUser.paese_candidatura,
+        regione_candidatura: decompressedUser.regione_candidatura,
+        provincia_candidatura: decompressedUser.provincia_candidatura,
+        comune_candidatura: decompressedUser.comune_candidatura,
         status: updatedUser.status,
         avatar_config: updatedUser.avatar_config,
         created_at: updatedUser.created_at,

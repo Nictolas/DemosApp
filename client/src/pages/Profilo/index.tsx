@@ -275,7 +275,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 userData={{...displayUserInfo, uid: displayUserInfo.id || ''}}
                 onProfileUpdated={handleSaveProfile}
                 onCancel={() => setIsEditing(false)}
-                isAdmin={user?.ruolo === "AD"}
               />
             ) : (
               /* Desktop (lg+): 3 colonne | Mobile: stack verticale */

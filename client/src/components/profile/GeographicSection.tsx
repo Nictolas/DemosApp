@@ -56,18 +56,24 @@ export function GeographicSection({
     updatePaese(paese);
     // Usa la nomenclatura corretta: paese_${prefix} invece di ${prefix}_paese
     onFieldChange(`paese_${prefix}`, paese);
+    onFieldChange(`regione_${prefix}`, "");
+    onFieldChange(`provincia_${prefix}`, "");
+    onFieldChange(`comune_${prefix}`, "");
   };
 
   const handleRegioneChange = (regione: string) => {
     updateRegione(regione);
     // Usa la nomenclatura corretta: regione_${prefix} invece di ${prefix}_regione
     onFieldChange(`regione_${prefix}`, regione);
+    onFieldChange(`provincia_${prefix}`, "");
+    onFieldChange(`comune_${prefix}`, "");
   };
 
   const handleProvinciaChange = (provincia: string) => {
     updateProvincia(provincia);
     // Usa la nomenclatura corretta: provincia_${prefix} invece di ${prefix}_provincia
     onFieldChange(`provincia_${prefix}`, provincia);
+    onFieldChange(`comune_${prefix}`, "");
   };
 
   const handleComuneChange = (comune: string) => {
