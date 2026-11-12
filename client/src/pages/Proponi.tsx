@@ -10,6 +10,7 @@ const signatureOptions = [
     description: "Firma qui per proporre una nuova legge.",
     href: "/iniziative-popolari",
     icon: FileText,
+    tone: "success",
     cardClass: "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 hover:border-emerald-300",
     iconClass: "from-emerald-500 to-teal-600",
     arrowClass: "text-emerald-500",
@@ -19,6 +20,7 @@ const signatureOptions = [
     description: "Firma qui per cancellare una legge ingiusta.",
     href: "/referendum-abrogativi",
     icon: Vote,
+    tone: "danger",
     cardClass: "border-red-200 bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 hover:border-red-300",
     iconClass: "from-red-500 to-pink-600",
     arrowClass: "text-red-500",
@@ -28,6 +30,7 @@ const signatureOptions = [
     description: "Firma qui per proporre una nuova legge europea.",
     href: "/eci",
     icon: Globe2,
+    tone: "info",
     cardClass: "border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300",
     iconClass: "from-blue-500 to-indigo-600",
     arrowClass: "text-blue-500",
@@ -73,7 +76,7 @@ export default function Proponi() {
                 <button
                   key={option.href}
                   type="button"
-                  className={`group flex min-h-[5.75rem] w-full items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-left shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 ${option.cardClass}`}
+                  className={`demos-semantic-card demos-semantic-card--${option.tone} group flex min-h-[5.75rem] w-full items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-left shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 ${option.cardClass}`}
                   onClick={() => { window.location.href = option.href; }}
                   onContextMenu={(event) => event.preventDefault()}
                 >
@@ -81,8 +84,8 @@ export default function Proponi() {
                     <Icon className="h-6 w-6 text-white" aria-hidden="true" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-base font-bold leading-tight text-gray-900 sm:text-lg">{option.title}</span>
-                    <span className="mt-1 block text-sm leading-snug text-gray-600">{option.description}</span>
+                    <span className="demos-semantic-card__title block text-base font-bold leading-tight text-gray-900 sm:text-lg">{option.title}</span>
+                    <span className="demos-semantic-card__description mt-1 block text-sm leading-snug text-gray-600">{option.description}</span>
                   </span>
                   <ChevronRight className={`h-5 w-5 shrink-0 ${option.arrowClass}`} aria-hidden="true" />
                 </button>

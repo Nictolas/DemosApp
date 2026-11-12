@@ -587,12 +587,12 @@ export default function Eventi() {
             eventi.map((evento: any) => (
               <div
                 key={evento.id}
-                className={`rounded-xl shadow-sm border p-4 sm:p-5 hover:shadow-md transition-shadow ${
+                className={`demos-event-card rounded-xl shadow-sm border p-4 sm:p-5 hover:shadow-md transition-shadow ${
                   evento.tipologia_evento === 'Elezioni'
                     ? (evento.tipo_elezione && evento.tipo_elezione.toLowerCase() === 'europee')
-                      ? 'bg-blue-50 border-blue-200 shadow-blue-100'
-                      : 'bg-yellow-50 border-yellow-200 shadow-yellow-100'
-                    : 'bg-white border-gray-100'
+                      ? 'demos-event-card--european bg-blue-50 border-blue-200 shadow-blue-100'
+                      : 'demos-event-card--election bg-yellow-50 border-yellow-200 shadow-yellow-100'
+                    : 'demos-event-card--other bg-white border-gray-100'
                 }`}
               >
                             {/* Titolo a sinistra, targhetta sempre in alto a destra.
