@@ -27,6 +27,13 @@
   .demos-mobile-layout .robust-app-layout--stable-auth-profile {
     height: 100svh;
   }
+
+  /* Una volta visibile la navbar, il Profilo occupa l'intera altezza
+     disponibile: 100svh poteva lasciare scoperta una fascia sotto la barra.
+     L'ingresso/login senza navbar continua a usare 100svh per la stabilità. */
+  .demos-mobile-layout .robust-app-layout--stable-auth-profile:has(.app-navbar.navbar-visible) {
+    height: 100dvh;
+  }
 }
 
 /* Layout desktop: sidebar sinistra + contenuto */
@@ -400,11 +407,10 @@ html.demos-mobile-layout body.android-device .app-main.app-main--android-documen
   box-shadow: 0 -1px 8px 0 rgba(0, 0, 0, 0.03);
 }
 
-/* iOS/PWA: alza solo la fila dei pulsanti di 5px, senza cambiare
-   altezza della barra, safe area, area cliccabile o scrolling. Il fix
-   Android ha un proprio allineamento e resta invariato. */
+/* iOS/PWA: la fila delle icone è visivamente centrata un po' più in alto,
+   senza toccare safe-area, altezza della barra o scrolling. Android invariato. */
 html.demos-mobile-layout body:not(.android-device) .app-navbar.navbar-visible .app-bottom-nav > div {
-  transform: translateY(-5px);
+  transform: translateY(-12px);
 }
 
 /* Non applicare sticky a tutti i discendenti */
