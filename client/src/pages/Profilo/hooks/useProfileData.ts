@@ -134,9 +134,9 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
           // Catalog-only snapshots created by older releases had no personal
           // answers; never treat their empty map as a verified result.
           ["opinions", snapshot.opinions?.answersLoaded === true ? snapshot.opinions : null],
-          // A prior app build cached names or no proposal. Refresh this section
-          // once for the proposed opinion, preserving the owner consent epoch.
-          ["preferences", legacyInitiativeId || snapshot.preferences?.version !== 3
+          // Older snapshots could store authored proposals but not votes.
+          // Refresh preferences once for the owner's selected opinion.
+          ["preferences", legacyInitiativeId || snapshot.preferences?.version !== 4
             ? null : snapshot.preferences],
         ] as const;
         for (const [section, payload] of sections) {

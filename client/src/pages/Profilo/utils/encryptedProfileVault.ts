@@ -19,14 +19,15 @@ let clearingAllVault = false;
 const clearingOwners = new Set<string>();
 
 export type ProfileChosenVotes = {
-  // Version 3 adds the owner's existing pending proposed opinion.
-  // Older encrypted snapshots refresh this one section once, preserving consent.
-  version?: 3;
+  // Version 4 distinguishes voted proposed opinions from authored ones.
+  // Older encrypted snapshots refresh only preferences once under consent.
+  version?: 4;
   capoStato: string[];
   grazia: string[];
   amnistia: string[];
   iniziativaPopolare: string[];
   opinioneProposta?: string | null;
+  opinioniProposteVotate?: string[];
   attivista: { id: string; nome: string } | null;
   organizzazione: { id: string; nome: string } | null;
   capoStatoAvatars?: Record<string, any>;

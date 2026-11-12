@@ -77,6 +77,16 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
           WHERE p.id::text = u.opinione_proposta_id::text
           LIMIT 1
         ) AS opinione_proposta,
+        -- Votes on proposed opinions are distinct from authorship.
+        -- Resolve only this authenticated user's current vote(s) inside
+        -- the existing owner query, without leaking proposer identities.
+        ARRAY(
+          SELECT DISTINCT BTRIM(p.text)
+          FROM voti_opinioni_proposte v
+          JOIN opinioni_proposte p ON p.id::text = v.opinione_id::text
+          WHERE v.utente_id = u.id AND NULLIF(BTRIM(p.text), '') IS NOT NULL
+          ORDER BY BTRIM(p.text)
+        ) AS opinioni_proposte_votate,
         CASE WHEN a.id IS NOT NULL
           THEN jsonb_build_object('id', a.id, 'nome',
             COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', a.nome, a.cognome)), ''), 'Attivista'))
@@ -139,12 +149,13 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
     return res.json({
       success: true,
       data: {
-        version: 3,
+        version: 4,
         capoStato: selection.capo_stato || [],
         grazia: selection.grazia || [],
         amnistia: selection.amnistia || [],
         iniziativaPopolare: selection.iniziativa_popolare || [],
         opinioneProposta: selection.opinione_proposta || null,
+        opinioniProposteVotate: selection.opinioni_proposte_votate || [],
         attivista: selection.attivista || null,
         organizzazione: selection.organizzazione || null,
         capoStatoAvatars,
