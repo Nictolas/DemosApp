@@ -34,6 +34,12 @@ interface ViewOpinioniDialogProps {
   cognome?: string;
   avatarConfig?: string;
   categoria?: 'comune' | 'regione' | 'camera' | 'senato' | 'europeo' | 'provinciale-trento' | 'provinciale-bolzano';
+  // Supplied by the existing representative selection payload, never a separate history query.
+  ultimoVotoEuropeo?: {
+    verified: true; mepId: string; voteId: string; subject: string;
+    date: string; vote: 'Favorevole' | 'Contrario' | 'Astenuto';
+    outcome: 'Approvato' | 'Respinto'; sourceUrl: string;
+  } | null;
 }
 
 export function ViewOpinioniDialog({ 
@@ -43,7 +49,8 @@ export function ViewOpinioniDialog({
   nome,
   cognome,
   avatarConfig,
-  categoria
+  categoria,
+  ultimoVotoEuropeo
 }: ViewOpinioniDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -65,8 +72,6 @@ export function ViewOpinioniDialog({
   const [showProgrammaModal, setShowProgrammaModal] = useState(false);
   
   // Debug per tracciare l'utenteId
-  console.log('🔍 ViewOpinioniDialog - utenteId corrente:', utenteId);
-  console.log('🔍 ViewOpinioniDialog - showProgrammaModal:', showProgrammaModal);
 
   // Desktop: tab unificata "opinioni"; mobile: tab separate (favorevole/indeciso/contrario)
   useEffect(() => {
@@ -103,22 +108,17 @@ export function ViewOpinioniDialog({
         };
         const grado = gradoMapping[categoria] || 'E';
         
-        console.log(`🔍 DEBUG ViewOpinioniDialog - Categoria: ${categoria}, Grado: ${grado}`);
-        console.log(`🔍 DEBUG ViewOpinioniDialog - utenteId: ${utenteId}`);
         
         // Chiama l'endpoint con il grado corretto basato sulla categoria
         const response = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=${grado}`);
-        console.log(`🔍 DEBUG ViewOpinioniDialog - Risposta API:`, response);
         
         if (!response?.ok || !response?.data) {
-          console.log('🔍 DEBUG fetchQuestions - Risposta non ok o dati mancanti:', response);
           setQuestions([]);
           setOpinions({});
           return;
         }
         
         const result = response.data;
-        console.log(`🔍 DEBUG ViewOpinioniDialog - result:`, result);
         
         if (result && result.success && result.data) {
           // Estrae le domande dalle opinioni ricevute
@@ -126,30 +126,23 @@ export function ViewOpinioniDialog({
             id: opinion.id,
             text: opinion.text
           }));
-          console.log(`🔍 DEBUG fetchQuestions - Questions caricate da opinioni ${categoria} (grado ${grado}):`, questionsArray);
           setQuestions(questionsArray);
           
           // Carica anche le opinioni dell'utente selezionato
           const opinioniMap: Record<string, string | null> = {};
-          console.log('🔍 DEBUG fetchQuestions - Opinioni raw ricevute:', result.data.opinioni);
           result.data.opinioni.forEach((opinion: any) => {
-            console.log(`🔍 DEBUG fetchQuestions - Opinion ${opinion.id}: userAnswer = "${opinion.userAnswer}"`);
             // Mantieni null come null, non convertire in 'Astenuto'
             opinioniMap[opinion.id] = opinion.userAnswer;
           });
-          console.log('🔍 DEBUG fetchQuestions - OpinionMap creata:', opinioniMap);
           setOpinions(opinioniMap);
 
           // Carica le fonti delle opinioni
           if (result.data.fonti) {
-            console.log('🔍 DEBUG fetchQuestions - Fonti ricevute:', result.data.fonti);
             setFonti(result.data.fonti);
           } else {
-            console.log('🔍 DEBUG fetchQuestions - Nessuna fonte ricevuta');
             setFonti({});
           }
         } else {
-          console.log('🔍 DEBUG fetchQuestions - Nessuna question trovata o errore:', result);
           setQuestions([]);
           setOpinions({});
         }
@@ -183,13 +176,10 @@ export function ViewOpinioniDialog({
         };
         const grado = gradoMapping[categoria] || 'E';
         
-        console.log(`🔍 DEBUG fetchMyOpinions - Categoria: ${categoria}, Grado: ${grado}`);
         
         const response = await apiRequest("GET", `/api/users/${user.id}/opinioni?grado=${grado}`);
-        console.log(`🔍 DEBUG fetchMyOpinions - Risposta API:`, response);
         
         if (!response?.ok || !response?.data) {
-          console.log('🔍 DEBUG fetchMyOpinions - Risposta non ok o dati mancanti:', response);
           setMyOpinions({});
           return;
         }
@@ -204,11 +194,10 @@ export function ViewOpinioniDialog({
               opinioniMap[opinion.id] = opinion.userAnswer;
             }
           });
-          console.log(`🔍 DEBUG fetchMyOpinions - OpinionMap creata:`, opinioniMap);
           setMyOpinions(opinioniMap);
         }
-      } catch (error) {
-        console.error('Errore nel caricamento delle opinioni da API:', error);
+      } catch {
+        // Never log responses, selected votes or personal opinion values.
         setMyOpinions({});
       } finally {
         setIsLoadingMyOpinions(false);
@@ -237,24 +226,6 @@ export function ViewOpinioniDialog({
   }, [utenteId, open]);
 
   // Le fonti vengono ora caricate insieme alle opinioni nel primo useEffect
-
-  useEffect(() => {
-    if (open) {
-      console.log('🔍 DEBUG ViewOpinioniDialog - Stato attuale:');
-      console.log('  - opinions:', opinions);
-      console.log('  - questions:', questions);
-      console.log('  - myOpinions:', myOpinions);
-      console.log('  - isLoadingOpinions:', isLoadingOpinions);
-      console.log('  - isLoadingQuestions:', isLoadingQuestions);
-      console.log('  - isLoadingMyOpinions:', isLoadingMyOpinions);
-      console.log('  - tab attivo:', tab);
-      console.log('  - utenteId:', utenteId);
-      
-      // Debug per categorizeAllOpinionsDyn
-      const categorized = categorizeAllOpinionsDyn();
-      console.log('🔍 DEBUG categorizeAllOpinionsDyn result:', categorized);
-    }
-  }, [open, opinions, fonti, questions, myOpinions, isLoadingOpinions, isLoadingQuestions, isLoadingMyOpinions, tab, utenteId]);
 
   // La funzione loadUserOpinions è stata integrata nel primo useEffect
 
@@ -286,7 +257,6 @@ export function ViewOpinioniDialog({
       // Ignora null e altri valori
     });
     
-    console.log('DEBUG categorizeAllOpinionsDyn result:', { favorevoli, indecisi, contrari });
     return { favorevoli, indecisi, contrari };
   }
 
@@ -315,6 +285,32 @@ export function ViewOpinioniDialog({
           </DialogDescription>
         </DialogHeader>
         
+        {/* La sola scheda del rappresentante mostra il voto corrente verificato.
+            Il backend deve riconciliare ID DEMOS ↔ MepId ufficiale senza fuzzy matching. */}
+        {categoria === 'europeo' && (
+          <section aria-label="Ultimo voto del Parlamento europeo" className="mx-4 mb-3 max-h-[35dvh] min-h-0 shrink-0 overflow-y-auto overscroll-contain rounded-lg border border-gray-200 p-3 text-sm">
+            <h3 className="font-semibold">Ultimo voto nominale verificato</h3>
+            {ultimoVotoEuropeo?.verified === true &&
+             /^\d+$/.test(ultimoVotoEuropeo.mepId) &&
+             /^\d{4}-\d{2}-\d{2}$/.test(ultimoVotoEuropeo.date) &&
+             ['Favorevole', 'Contrario', 'Astenuto'].includes(ultimoVotoEuropeo.vote) &&
+             ['Approvato', 'Respinto'].includes(ultimoVotoEuropeo.outcome) &&
+             (/^https:\/\/www\.europarl\.europa\.eu\/doceo\//.test(ultimoVotoEuropeo.sourceUrl) ||
+              /^https:\/\/data\.europarl\.europa\.eu\/api\/v2\/meetings\/MTG-PL-20\d{2}-\d{2}-\d{2}\/decisions(?:[?#].*)?$/.test(ultimoVotoEuropeo.sourceUrl)) ? (
+              <div className="space-y-1">
+                <p className="font-medium break-words">{ultimoVotoEuropeo.subject}</p>
+                <p>Data: {ultimoVotoEuropeo.date}</p>
+                <p>Voto: {ultimoVotoEuropeo.vote}</p>
+                <p>Esito: {ultimoVotoEuropeo.outcome}</p>
+                <a href={ultimoVotoEuropeo.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                  Fonte ufficiale del Parlamento europeo
+                </a>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">Voto individuale non ancora verificabile da una fonte ufficiale.</p>
+            )}
+          </section>
+        )}
         {/* Avatar centrato separato dal DialogTitle */}
         {avatarConfig && (
           <div className="flex shrink-0 justify-center mb-4">
@@ -523,14 +519,13 @@ export function ViewOpinioniDialog({
                 setLocation('/scegli-rappresentante');
               }
             }}>Per compatibilità</Button>
-            <Button className="w-full" variant="outline" onClick={() => { setShowCambiaModal(false); setLocation('/podio-trasparenza'); }}>Per merito</Button>
+            {categoria !== 'europeo' && <Button className="w-full" variant="outline" onClick={() => { setShowCambiaModal(false); setLocation('/podio-trasparenza'); }}>Per merito</Button>}
             <Button className="w-full mt-4" variant="ghost" onClick={() => setShowCambiaModal(false)}>Annulla</Button>
           </div>
         </div>
       )}
       
       {/* Modal programma */}
-      {console.log('🚨🚨🚨 ViewOpinioniDialog: Passando utenteId a ViewProgrammaDialog:', utenteId)}
       <ViewProgrammaDialog
         utenteId={utenteId}
         open={showProgrammaModal}
