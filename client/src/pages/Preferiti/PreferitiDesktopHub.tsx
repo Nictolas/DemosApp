@@ -173,8 +173,8 @@ const FIRMA_SHORTCUTS: Shortcut[] = [
   {
     id: "petizioni-parlamentari",
     path: "/petizioni-parlamentari",
-    label: "Petizioni Parlamentari",
-    description: "Informazioni e accesso ai portali istituzionali",
+    label: "Petizione Parlamentare",
+    description: "Firma qui per chiedere ai politici di intervenire su un tema.",
     icon: Landmark,
     accent: "#a16207",
     accentSoft: "#fef08a",
