@@ -1,0 +1,120 @@
+{
+  "purpose": "Public institutional source evidence only. Never auto-approve a DEMOS account, mandate, DOB, or merge.",
+  "verified_date": "2026-10-29",
+  "status": "EVIDENCE_ONLY_UNMAPPED",
+  "items": [
+    {
+      "name": "Alberto Losacco",
+      "senato_official_id": "18055",
+      "senato_profile_url": "https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=00018055",
+      "camera_legislatures": [
+        16,
+        17,
+        18
+      ],
+      "senato_legislatures": [
+        19
+      ],
+      "identity_to_demos_user": "NOT_VERIFIED",
+      "mandate_exact_dates": "NOT_VERIFIED",
+      "approval_record": "NOT_CREATED"
+    },
+    {
+      "name": "Andrea Giorgis",
+      "senato_official_id": "29425",
+      "senato_profile_url": "https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=00029425",
+      "camera_legislatures": [
+        17,
+        18
+      ],
+      "senato_legislatures": [
+        19
+      ],
+      "identity_to_demos_user": "NOT_VERIFIED",
+      "mandate_exact_dates": "NOT_VERIFIED",
+      "approval_record": "NOT_CREATED"
+    },
+    {
+      "name": "Antonio Misiani",
+      "senato_official_id": "23011",
+      "senato_profile_url": "https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=23011",
+      "camera_legislatures": [
+        15,
+        16,
+        17
+      ],
+      "senato_legislatures": [
+        18,
+        19
+      ],
+      "identity_to_demos_user": "NOT_VERIFIED",
+      "mandate_exact_dates": "NOT_VERIFIED",
+      "approval_record": "NOT_CREATED"
+    },
+    {
+      "name": "Beatrice Lorenzin",
+      "senato_official_id": "25474",
+      "senato_profile_url": "https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=00025474",
+      "camera_legislatures": [
+        16,
+        17,
+        18
+      ],
+      "senato_legislatures": [
+        19
+      ],
+      "identity_to_demos_user": "NOT_VERIFIED",
+      "mandate_exact_dates": "NOT_VERIFIED",
+      "approval_record": "NOT_CREATED"
+    },
+    {
+      "name": "Daniela Sbrollini",
+      "senato_official_id": "25402",
+      "senato_profile_url": "https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=00025402",
+      "camera_legislatures": [
+        16,
+        17
+      ],
+      "senato_legislatures": [
+        18,
+        19
+      ],
+      "identity_to_demos_user": "NOT_VERIFIED",
+      "mandate_exact_dates": "NOT_VERIFIED",
+      "approval_record": "NOT_CREATED"
+    },
+    {
+      "name": "Dario Franceschini",
+      "senato_official_id": "5799",
+      "senato_profile_url": "https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=05799",
+      "camera_legislatures": [
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "senato_legislatures": [
+        19
+      ],
+      "identity_to_demos_user": "NOT_VERIFIED",
+      "mandate_exact_dates": "NOT_VERIFIED",
+      "approval_record": "NOT_CREATED"
+    },
+    {
+      "name": "Dario Parrini",
+      "senato_official_id": "29521",
+      "senato_profile_url": "https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=29521",
+      "camera_legislatures": [
+        17
+      ],
+      "senato_legislatures": [
+        18,
+        19
+      ],
+      "identity_to_demos_user": "NOT_VERIFIED",
+      "mandate_exact_dates": "NOT_VERIFIED",
+      "approval_record": "NOT_CREATED"
+    }
+  ]
+}

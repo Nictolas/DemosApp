@@ -1,0 +1,82 @@
+name: Institutional political crosswalk — offline gate
+
+on:
+  pull_request:
+    paths:
+      - 'api/utils/politicalIdentityCrosswalkAudit.js'
+      - 'api/scripts/audit-political-crosswalk.js'
+      - 'api/tests/politicalIdentityCrosswalkAudit.test.js'
+      - 'api/docs/political-identity-crosswalk-20261029.md'
+      - 'api/docs/political-institutional-source-evidence-seven-20261029.md'
+      - 'api/docs/political-public-source-evidence-seven-20261029.json'
+      - 'api/tests/politicalPublicSourceEvidence.test.js'
+      - 'api/database/political-institutional-crosswalk-v1.sql'
+      - 'api/tests/politicalInstitutionalCrosswalk.pg17.sql'
+      - 'api/tests/fixtures/politicalInstitutionalCrosswalk.pg17.fixture.sql'
+      - 'api/tests/fixtures/politicalInstitutionalCrosswalk.approvals.pg17.sql'
+      - 'api/tests/politicalInstitutionalCrosswalk.concurrent.sh'
+      - 'api/scripts/audit-political-legacy-role-impact-20261029.sql'
+      - '.github/workflows/political-identity-crosswalk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-readonly-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify pure offline audit and blockers
+        run: |
+          node --check api/utils/politicalIdentityCrosswalkAudit.js
+          node --check api/scripts/audit-political-crosswalk.js
+          node --test api/tests/politicalIdentityCrosswalkAudit.test.js api/tests/politicalPublicSourceEvidence.test.js
+
+  postgres-institutional-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: local_test_only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 8
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: postgres
+      PGPASSWORD: local_test_only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure PostgreSQL client exists
+        run: |
+          command -v psql || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+      - name: Create synthetic schema and load importer manually
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f api/tests/fixtures/politicalInstitutionalCrosswalk.pg17.fixture.sql
+          psql -X -v ON_ERROR_STOP=1 -f api/database/political-institutional-crosswalk-v1.sql
+      - name: Load separately curated synthetic approvals (test DB only)
+        run: psql -X -v ON_ERROR_STOP=1 -f api/tests/fixtures/politicalInstitutionalCrosswalk.approvals.pg17.sql
+      - name: Idempotence, conflict, access control and rollback
+        run: psql -X -v ON_ERROR_STOP=1 -f api/tests/politicalInstitutionalCrosswalk.pg17.sql
+      - name: Two concurrent attempts to import same official ID
+        run: bash api/tests/politicalInstitutionalCrosswalk.concurrent.sh
+      - name: Execute aggregate role-impact report against synthetic fixtures
+        run: psql -X -v ON_ERROR_STOP=1 -f api/scripts/audit-political-legacy-role-impact-20261029.sql
