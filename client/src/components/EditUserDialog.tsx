@@ -142,7 +142,6 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
               userData={userData}
               onProfileUpdated={handleProfileUpdated}
               onCancel={() => onOpenChange(false)}
-              isAdmin={true}
             />
           ) : (
             <div className="text-center p-4">
