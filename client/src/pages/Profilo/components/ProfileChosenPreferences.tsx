@@ -34,14 +34,18 @@ export function ProfileChosenPreferences({
     return null; // Amnesty and initiatives are not subjects with portrait avatars.
   };
 
-  // All choices are navigable, including the one pending opinion proposed by the user.
+  // A vote for a proposed opinion is separate from authoring one.
+  // Only display either personal choice under authenticated political consent.
   // Only display saved choices when the authenticated political consent is verified.
   const rows: Row[] = [
     { key: "capo", label: "Capo di Stato preferito", values: selectedNames(choices?.capoStato), icon: Crown, path: "/capo-di-stato" },
     { key: "grazia", label: "Grazia", values: selectedNames(choices?.grazia), icon: Scale, path: "/grazia" },
     { key: "amnistia", label: "Amnistia", values: selectedNames(choices?.amnistia), icon: Archive, path: "/amnistia" },
     { key: "iniziativa", label: "Iniziativa popolare", values: selectedNames(choices?.iniziativaPopolare), icon: FileText, path: "/vota-iniziativa-popolare" },
-    { key: "opinioneProposta", label: "Opinione proposta", values: selectedNames(choices?.opinioneProposta ? [choices.opinioneProposta] : []), icon: FileText, path: "/proponi-opinione", emptyLabel: "Nessuna opinione proposta", emptyAction: "Proponi ora" },
+    { key: "opinioneProposta", label: "Opinione proposta", values: selectedNames(choices?.opinioniProposteVotate), icon: FileText, path: "/proponi-opinione", emptyLabel: "Nessun voto selezionato", emptyAction: "Vota ora" },
+    ...(choices?.opinioneProposta ? [
+      { key: "opinioneCreata", label: "La tua Opinione proposta", values: selectedNames([choices.opinioneProposta]), icon: FileText, path: "/proponi-opinione" },
+    ] : []),
     { key: "attivista", label: "Attivista preferito", values: selectedNames(choices?.attivista?.nome ? [choices.attivista.nome] : []), icon: UserRound, path: "/attivisti" },
     { key: "organizzazione", label: "Organizzazione preferita", values: selectedNames(choices?.organizzazione?.nome ? [choices.organizzazione.nome] : []), icon: Building2, path: "/organizzazioni" },
   ];
