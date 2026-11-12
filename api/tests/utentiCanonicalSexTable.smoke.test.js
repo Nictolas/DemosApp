@@ -51,16 +51,19 @@ test('GET /api/users and GET /api/users/:userId expose canonical sex alongside a
   assert.match(source,/sesso: \['M', 'F'\]\.includes\(updatedUser\.sesso\)/);
 });
 
-test('neither the admin nor self-service endpoint may write sesso or genere', () => {
-  for(const relative of ['api/routes/users/search.js','api/routes/users/profile.js']) {
-    const source=read(relative);
-    const editable=source.slice(source.indexOf("const allowedFields = ["));
-    const fields=editable.match(/const allowedFields = \[([\s\S]*?)\];/);
-    assert.ok(fields,relative);
-    assert.doesNotMatch(fields[1],/'genere'|'sesso'/);
-  }
-  const profile=read('client/src/components/profile/PersonalDataSection.tsx');
-  assert.doesNotMatch(profile,/onFieldChange\("genere"/);
-  assert.doesNotMatch(profile,/onFieldChange\("sesso"/);
-  assert.doesNotMatch(profile,/Label htmlFor="genere"|Seleziona il genere|showGenereForRole/);
+test('canonical sesso stays protected; legacy genere can be corrected only through self-service', () => {
+  const admin = read('api/routes/users/search.js');
+  const profile = read('api/routes/users/profile.js');
+  const adminFields = admin.slice(admin.indexOf('const allowedFields = [')).match(/const allowedFields = \[([\s\S]*?)\];/);
+  const personalFields = profile.slice(profile.indexOf("router.put('/me'")).match(/const allowedFields = \[([\s\S]*?)\];/);
+  assert.ok(adminFields);
+  assert.ok(personalFields);
+  assert.doesNotMatch(adminFields[1], /'genere'|'sesso'/);
+  assert.doesNotMatch(personalFields[1], /'sesso'/);
+  assert.match(personalFields[1], /'genere'/);
+  assert.match(profile, /const encodedGender = compressGender\(value\)/);
+  assert.match(profile, /'sesso'/);
+  const personalForm = read('client/src/components/profile/PersonalDataSection.tsx');
+  assert.match(personalForm, /onFieldChange\("genere", value\)/);
+  assert.doesNotMatch(personalForm, /onFieldChange\("sesso"/);
 });
