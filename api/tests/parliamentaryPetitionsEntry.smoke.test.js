@@ -17,8 +17,8 @@ test('Parliamentary petitions have working entry points on mobile and desktop', 
   assert.match(firma, /href: "\/petizioni-parlamentari"/);
   assert.match(desktop, /id: "petizioni-parlamentari"/);
   assert.match(desktop, /path: "\/petizioni-parlamentari"/);
-  assert.match(firma, /description: "Firma qui per chiedere ai politici di intervenire su un tema\\."/);
-  assert.match(desktop, /description: "Firma qui per chiedere ai politici di intervenire su un tema\\."/);
+  assert.ok(firma.includes('description: "Firma qui per chiedere ai politici di intervenire su un tema."'));
+  assert.ok(desktop.includes('description: "Firma qui per chiedere ai politici di intervenire su un tema."'));
   assert.match(desktop, /label: "Petizione Parlamentare"/);
   assert.match(app, /<Route path="\/petizioni-parlamentari">/);
   assert.match(app, /<ProtectedRoute path="\/petizioni-parlamentari" component=\{PetizioniParlamentari\} \/>/);
