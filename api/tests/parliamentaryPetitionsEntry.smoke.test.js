@@ -47,3 +47,20 @@ test('Petitions use official destinations only, not unverifiable signature state
   assert.doesNotMatch(page, /apiRequest|useQuery|fetch\(|axios|supabase|localStorage|setInterval/);
   assert.doesNotMatch(page, /Firma ora|Firma questa petizione|\d+ firme raccolte/);
 });
+
+test('Petitions have their own yellow palette on mobile and desktop, including dark mode', () => {
+  const mobile = read('client/src/pages/Proponi.tsx');
+  const desktop = read('client/src/pages/Preferiti/PreferitiDesktopHub.tsx');
+  const theme = read('client/src/css/color-scheme.css');
+  const card = mobile.slice(mobile.indexOf('title: "Petizioni Parlamentari"'));
+  const shortcut = desktop.slice(desktop.indexOf('id: "petizioni-parlamentari"'));
+
+  assert.match(card, /tone: "warning"/);
+  assert.match(card, /border-yellow-300/);
+  assert.match(card, /from-yellow-50/);
+  assert.match(card, /from-yellow-500/);
+  assert.match(card, /text-yellow-700/);
+  assert.match(shortcut, /accent: "#a16207"/);
+  assert.match(shortcut, /accentSoft: "#fef08a"/);
+  assert.match(theme, /html\.dark \.demos-semantic-card--warning\s*\{[\s\S]*--demos-tone-border: #fbbf24;/);
+});
