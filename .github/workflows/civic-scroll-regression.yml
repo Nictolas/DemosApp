@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'client/src/pages/Avvistamenti/index.tsx'
+      - 'client/src/pages/ProponiOpinione/index.tsx'
+      - 'client/src/pages/ProponiOpinione/hooks/useProponiOpinioneActions.ts'
       - 'client/src/pages/VotaIniziativaPopolare/index.tsx'
       - 'client/src/pages/Grazia/index.tsx'
       - 'client/src/pages/Grazia/components/Header.tsx'
@@ -28,6 +30,8 @@ on:
     branches: [main]
     paths:
       - 'client/src/pages/Avvistamenti/index.tsx'
+      - 'client/src/pages/ProponiOpinione/index.tsx'
+      - 'client/src/pages/ProponiOpinione/hooks/useProponiOpinioneActions.ts'
       - 'client/src/pages/VotaIniziativaPopolare/index.tsx'
       - 'client/src/pages/Grazia/index.tsx'
       - 'client/src/pages/Grazia/components/Header.tsx'
