@@ -5,6 +5,7 @@ import {
   PenLine,
   Bell,
   Calendar,
+  Layers3,
   type LucideIcon,
 } from "lucide-react";
 
@@ -42,6 +43,11 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     path: "/firma",
     label: "Firma",
     icon: PenLine,
+  },
+  {
+    path: "/opinioni-swipe",
+    label: "Swipe",
+    icon: Layers3,
   },
   {
     path: "/notifiche",
