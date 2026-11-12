@@ -19,24 +19,27 @@ test('only the intended civic routes use the bounded scroll shell', () => {
   assert.ok(css.includes('  height: 100%;\n  min-height: 0;\n  overflow: hidden;'));
 });
 
-test('Proponi Opinione uses its own iOS/Android touch scroll region above the navbar', () => {
+test('Proponi Opinione has an independent scrollport without two Android scrollers', () => {
   const page = read('client/src/pages/ProponiOpinione/index.tsx');
   const layout = read('client/src/components/RobustAppLayout.tsx');
   const css = read('client/src/robust-layout.css');
 
-  assert.match(page, /<PageContainer className="overflow-hidden/);
-  assert.match(page, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain/);
-  assert.match(page, /role="region"/);
-  assert.match(page, /aria-label="Opinioni proposte"/);
-  assert.match(page, /tabIndex=\\{0\\}/);
+  assert.ok(page.includes('<PageContainer className="overflow-hidden'));
+  assert.ok(page.includes('className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain'));
+  assert.ok(page.includes('role="region"'));
+  assert.ok(page.includes('aria-label="Opinioni proposte"'));
+  assert.ok(page.includes('tabIndex={0}'));
   assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('<ProponiForm'));
   assert.ok(page.indexOf('<ProponiForm') < page.indexOf('<OpinioniList'));
   assert.doesNotMatch(page, /page-with-navbar|min-h-screen/);
   assert.ok(layout.includes("location === '/proponi-opinione' || location === '/governo'"));
-  const androidDocumentOnly = layout.match(/const ANDROID_SCROLL_ROUTES = new Set\\(\\[([\\s\\S]*?)\\]\\)/)?.[1] ?? '';
-  assert.doesNotMatch(androidDocumentOnly, /'\\/proponi-opinione'/,
-    'Do not enable two conflicting scrollports on Android');
-  assert.match(css, /\\.app-main\\.app-main--scroll-content \\.fade-up-transition/);
+  const androidList = layout.slice(
+    layout.indexOf('const ANDROID_SCROLL_ROUTES = new Set(['),
+    layout.indexOf('function androidPageNeedsScroll'),
+  );
+  assert.ok(!androidList.includes("'/proponi-opinione'"),
+    'No conflicting Android document scroller');
+  assert.ok(css.includes('.app-main.app-main--scroll-content .fade-up-transition'));
 });
 
 test('signature collections can scroll all results above the mobile navbar', () => {
