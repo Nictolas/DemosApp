@@ -77,6 +77,7 @@ import MinisteroPage from "./pages/Governo/[slug]";
 import ICE from "./pages/ICE";
 import ReferendumAbrogativi from "./pages/ReferendumAbrogativi";
 import IniziativePopolari from "./pages/IniziativePopolari";
+import PetizioniParlamentari from "./pages/PetizioniParlamentari";
 import GestisciOpinioni from "./pages/GestisciOpinioni";
 import TestMinistero from "./pages/TestMinistero";
 import ModificaImmagine from "./pages/ModificaImmagine";
@@ -239,6 +240,7 @@ function useTouchNavigation() {
         '/elezioni': '/preferiti',
         '/ice': '/preferiti',
         '/eci': '/preferiti',
+        '/petizioni-parlamentari': '/firma',
         '/iniziative-popolari': '/preferiti',
         '/referendum-abrogativi': '/preferiti',
         '/grazia': '/preferiti',
@@ -1004,6 +1006,13 @@ export default function App() {
               <Route path="/eci">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/eci" component={ECI} />
+                </PageTransition>
+              </Route>
+
+              {/* Portali ufficiali per le petizioni parlamentari (nessuna API di firme non verificata). */}
+              <Route path="/petizioni-parlamentari">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/petizioni-parlamentari" component={PetizioniParlamentari} />
                 </PageTransition>
               </Route>
 

@@ -21,6 +21,8 @@ on:
       - 'client/src/pages/Amnistia/components/AmnistiaForm.tsx'
       - 'client/src/pages/Amnistia/components/ClassificaLeggi.tsx'
       - 'client/src/pages/Amnistia/components/CreateButton.tsx'
+      - 'client/src/pages/PetizioniParlamentari/index.tsx'
+      - 'api/tests/parliamentaryPetitionsEntry.smoke.test.js'
       - 'client/src/components/RobustAppLayout.tsx'
       - 'client/src/robust-layout.css'
       - 'api/tests/civicScrollContract.test.js'
@@ -46,6 +48,8 @@ on:
       - 'client/src/pages/Amnistia/components/AmnistiaForm.tsx'
       - 'client/src/pages/Amnistia/components/ClassificaLeggi.tsx'
       - 'client/src/pages/Amnistia/components/CreateButton.tsx'
+      - 'client/src/pages/PetizioniParlamentari/index.tsx'
+      - 'api/tests/parliamentaryPetitionsEntry.smoke.test.js'
       - 'client/src/components/RobustAppLayout.tsx'
       - 'client/src/robust-layout.css'
       - 'api/tests/civicScrollContract.test.js'
@@ -71,6 +75,7 @@ jobs:
         run: |
           node --test \
             api/tests/civicScrollContract.test.js \
+            api/tests/parliamentaryPetitionsEntry.smoke.test.js \
             api/tests/eventiScrollContract.test.js \
             api/tests/notificheScrollContract.test.js \
             api/tests/directoryFixedHeaderScroll.smoke.test.js \
