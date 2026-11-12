@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { transform } from "esbuild";
+import ts from "typescript";
 
 async function loadColorScheme() {
   const path = fileURLToPath(new URL("../src/lib/colorScheme.ts", import.meta.url));
   const source = await readFile(path, "utf8");
-  const compiled = await transform(source, { loader: "ts", format: "esm" });
-  return import("data:text/javascript;base64," + Buffer.from(compiled.code).toString("base64"));
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+  });
+  return import("data:text/javascript;base64," + Buffer.from(compiled.outputText).toString("base64"));
 }
 
 test("dark mode defaults to system, reacts to changes and remains device-only", async () => {
