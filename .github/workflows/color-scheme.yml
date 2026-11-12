@@ -1,0 +1,41 @@
+name: Color scheme - device-only preferences
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/lib/colorScheme.ts'
+      - 'client/src/css/color-scheme.css'
+      - 'client/src/pages/Impostazioni/**'
+      - 'client/src/main.tsx'
+      - 'client/tailwind.config.js'
+      - 'client/tests/colorScheme.test.mjs'
+      - '.github/workflows/color-scheme.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'client/src/lib/colorScheme.ts'
+      - 'client/src/css/color-scheme.css'
+      - 'client/src/pages/Impostazioni/**'
+      - 'client/src/main.tsx'
+      - 'client/tailwind.config.js'
+      - 'client/tests/colorScheme.test.mjs'
+      - '.github/workflows/color-scheme.yml'
+permissions:
+  contents: read
+jobs:
+  verify-color-scheme:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install frontend
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Test local preferences and system theme
+        run: node --test client/tests/colorScheme.test.mjs
+      - name: Build production frontend
+        run: npm run build --prefix client
