@@ -64,3 +64,27 @@ test('responsive audit matrix covers compact mobile, Android, landscape, tablet 
   }
   assert.match(matrix, /MATRIX PASS/);
 });
+
+
+test('mobile navbar has a visible edge without changing safe-area layout in both themes', () => {
+  const colors = read('client/src/css/color-scheme.css');
+  const layout = read('client/src/robust-layout.css');
+  const android = read('client/src/css/android-navbar-fix.css');
+  const marker = colors.indexOf('DEMOS · Separazione visiva della navbar mobile');
+  assert.ok(marker >= 0, 'navbar separation styles must be present');
+  const rules = colors.slice(marker);
+  assert.match(rules, /html\.demos-mobile-layout \.app-navbar\.navbar-visible\s*\{/);
+  assert.match(rules, /--demos-nav-surface:\s*#f8fafc/);
+  assert.match(rules, /--demos-nav-rule:\s*#cbd5e1/);
+  assert.match(rules, /box-shadow:\s*var\(--demos-nav-lift\)/);
+  assert.match(rules, /\.app-navbar\.navbar-visible::before\s*\{[\s\S]*height:\s*1px/);
+  assert.match(rules, /pointer-events:\s*none/);
+  assert.match(rules, /html\.dark\.demos-mobile-layout \.app-navbar\.navbar-visible\s*\{/);
+  assert.match(rules, /--demos-nav-surface:\s*#243247/);
+  assert.match(rules, /--demos-nav-rule:\s*#475569/);
+  assert.match(rules, /body\.android-device \.app-navbar\.navbar-visible\s*\{/);
+  assert.match(rules, /background-color:\s*var\(--demos-nav-surface\)\s*!important/);
+  assert.doesNotMatch(rules, /(?:min-|max-)?height:\s*(?!1px)|padding(?:-bottom|-top)?:|overflow:|touch-action:/);
+  assert.match(layout, /--app-navbar-bottom-gap:\s*min\(var\(--app-navbar-safe-bottom\), 14px\)/);
+  assert.match(android, /min-height:\s*calc\(3\.75rem \+ var\(--app-navbar-bottom-gap\)\)\s*!important/);
+});
