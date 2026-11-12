@@ -400,6 +400,13 @@ html.demos-mobile-layout body.android-device .app-main.app-main--android-documen
   box-shadow: 0 -1px 8px 0 rgba(0, 0, 0, 0.03);
 }
 
+/* iOS/PWA: alza solo la fila dei pulsanti di 5px, senza cambiare
+   altezza della barra, safe area, area cliccabile o scrolling. Il fix
+   Android ha un proprio allineamento e resta invariato. */
+html.demos-mobile-layout body:not(.android-device) .app-navbar.navbar-visible .app-bottom-nav > div {
+  transform: translateY(-5px);
+}
+
 /* Non applicare sticky a tutti i discendenti */
 .app-navbar nav {
   position: static !important;
