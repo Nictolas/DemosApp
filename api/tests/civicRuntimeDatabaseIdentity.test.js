@@ -42,15 +42,16 @@ test('SQL failures omit provider errors and connection strings', async () => {
        !e.message.includes('PRIVATE_TEST_SECRET'));
 });
 
-test('ECI checks DB identity before existing cache deletion, only with event flag', () => {
+test('ECI always checks DB identity before cache deletion, even with events OFF', () => {
   const src=fs.readFileSync(path.resolve(__dirname,'../scripts/sync_eci.py'),'utf8');
-  const start=src.indexOf('collection_enabled = os.environ.get(');
-  const verify=src.indexOf('_verify_civic_database_identity(',start);
-  const deleteCache=src.indexOf('cur.execute("DELETE FROM eci")',start);
-  assert.ok(start>=0 && verify>start && deleteCache>verify);
+  const entry=src.indexOf('def _replace_cache(');
+  const verify=src.indexOf('                _verify_civic_database_identity(',entry);
+  const flag=src.indexOf('collection_enabled = os.environ.get(',entry);
+  const deleteCache=src.indexOf('cur.execute("DELETE FROM eci")',entry);
+  assert.ok(entry>=0 && verify>entry && flag>verify && deleteCache>flag);
   const workflow=fs.readFileSync(
     path.resolve(__dirname,'../../.github/workflows/eci_sync.yml'),'utf8');
-  assert.match(workflow,/CIVIC_RUNTIME_DATABASE_ID: \$\{\{ secrets\.CIVIC_RUNTIME_DATABASE_ID \}\}/);
+  assert.ok(workflow.includes('CIVIC_RUNTIME_DATABASE_ID: ${{ secrets.CIVIC_RUNTIME_DATABASE_ID }}'));
 });
 
 test('Ministero and dispatcher reject unverifiable DB before outbox or FCM', () => {
