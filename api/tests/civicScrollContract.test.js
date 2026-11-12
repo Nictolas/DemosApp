@@ -42,6 +42,19 @@ test('Proponi Opinione has an independent scrollport without two Android scrolle
   assert.ok(css.includes('.app-main.app-main--scroll-content .fade-up-transition'));
 });
 
+test('Proponi Opinione data synchronization cannot retrigger on every render', () => {
+  const page = read('client/src/pages/ProponiOpinione/index.tsx');
+  const actions = read('client/src/pages/ProponiOpinione/hooks/useProponiOpinioneActions.ts');
+  assert.ok(page.includes('setOpinioni(opinioni);'));
+  assert.ok(page.includes('setUserVoti(userVoti);'));
+  assert.ok(page.includes('setLoadingData(loadingData);'));
+  assert.ok(actions.includes('useCallback'));
+  for (const setter of ['updateField', 'setOpinioni', 'setUserVoti', 'setLoadingData']) {
+    assert.ok(actions.includes('const ' + setter + ' = useCallback('),
+      setter + ' must be stable to avoid an endless effect/update loop');
+  }
+});
+
 test('signature collections can scroll all results above the mobile navbar', () => {
   const layout = read('client/src/components/RobustAppLayout.tsx');
   for (const [route, path, label, list] of [
