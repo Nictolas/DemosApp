@@ -275,7 +275,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 userData={{...displayUserInfo, uid: displayUserInfo.id || ''}}
                 onProfileUpdated={handleSaveProfile}
                 onCancel={() => setIsEditing(false)}
-                isAdmin={false} // Anche l’Admin usa l’endpoint personale per modificare i propri dati
+                isAdmin={false}
               />
             ) : (
               /* Desktop (lg+): 3 colonne | Mobile: stack verticale */
