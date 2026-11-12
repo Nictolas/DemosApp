@@ -892,6 +892,37 @@ export default function VotiParlamento() {
                 </div>
               ) : dettagliVotazione ? (
                 <div className="space-y-6 pb-4">
+                  <section aria-label="Votazione in breve" className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                    <h2 className="text-xl font-bold text-slate-900">In breve</h2>
+                    <p className="text-sm leading-relaxed text-slate-800">
+                      {dettagliVotazione.analisi_legge?.spiegazione_generale
+                        ? (dettagliVotazione.analisi_legge.spiegazione_generale.replace(/\s+/g, ' ').trim().slice(0, 280) +
+                          (dettagliVotazione.analisi_legge.spiegazione_generale.length > 280 ? '…' : ''))
+                        : dettagliVotazione.spiegazione ||
+                          "Una spiegazione semplice non è ancora disponibile. Consulta i dati della votazione nei dettagli."}
+                    </p>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs text-slate-600">Esito ufficiale della votazione</p>
+                      <p className="font-semibold text-slate-900">{dettagliVotazione.esito || "Da verificare"}</p>
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      L'approvazione in questa votazione non significa necessariamente che una legge sia entrata in vigore.
+                    </p>
+                  </section>
+                  <details className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <summary className="cursor-pointer font-semibold text-slate-900">Cosa cambia concretamente?</summary>
+                    <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-800">
+                      {dettagliVotazione.analisi_legge?.spiegazione_generale ||
+                        dettagliVotazione.spiegazione ||
+                        "Non ci sono ancora informazioni verificate sufficienti per descrivere i cambiamenti."}
+                    </div>
+                    <p className="mt-3 text-xs text-slate-600">
+                      Le conseguenze possibili non vanno confuse con le disposizioni approvate.
+                    </p>
+                  </details>
+                  <details className="rounded-xl border border-slate-200 bg-white p-4">
+                    <summary className="cursor-pointer font-semibold text-slate-900">Approfondimento, voti e fonti</summary>
+                    <div className="mt-4 space-y-6">
                   {/* Informazioni Generali, Statistiche Votazione, Descrizione e Informazioni Aggiuntive - Stessa Riga */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Informazioni Generali */}
@@ -1465,6 +1496,8 @@ export default function VotiParlamento() {
                   </div>
                   </>
                   )}
+                    </div>
+                  </details>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12">

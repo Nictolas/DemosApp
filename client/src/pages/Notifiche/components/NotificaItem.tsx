@@ -825,6 +825,40 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               </div>
             ) : dettagliVotazione ? (
               <div className="space-y-6 pb-4">
+                {/* Livello essenziale: il risultato appare solo dopo l'apertura dei dettagli. */}
+                <section aria-label="Votazione in breve" className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                  <h2 className="text-xl font-bold text-slate-900">In breve</h2>
+                  <p className="text-sm leading-relaxed text-slate-800">
+                    {dettagliVotazione.analisi_legge?.spiegazione_generale
+                      ? (dettagliVotazione.analisi_legge.spiegazione_generale.replace(/\s+/g, ' ').trim().slice(0, 280) +
+                        (dettagliVotazione.analisi_legge.spiegazione_generale.length > 280 ? '…' : ''))
+                      : "Una spiegazione semplice non è ancora disponibile. Puoi consultare i dati ufficiali nei dettagli."}
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs text-slate-600">Voto del tuo rappresentante</p>
+                      <p className="font-semibold text-slate-900">{notifica.voto || "Non disponibile"}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs text-slate-600">Esito della votazione</p>
+                      <p className="font-semibold text-slate-900">{dettagliVotazione.esito || "Da verificare"}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-600">Il risultato della votazione non implica necessariamente l'entrata in vigore di una legge.</p>
+                </section>
+                <details className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <summary className="cursor-pointer font-semibold text-slate-900">Cosa cambia concretamente?</summary>
+                  <div className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-800">
+                    {dettagliVotazione.analisi_legge?.spiegazione_generale ||
+                      "Non ci sono ancora informazioni verificate sufficienti per descrivere i cambiamenti."}
+                  </div>
+                  <p className="mt-3 text-xs text-slate-600">
+                    Le conseguenze ipotizzate devono essere distinte dalle disposizioni effettive del testo.
+                  </p>
+                </details>
+                <details className="rounded-xl border border-slate-200 bg-white p-4">
+                  <summary className="cursor-pointer font-semibold text-slate-900">Approfondimento, dati e fonti</summary>
+                  <div className="mt-4 space-y-6">
                 {/* Analisi Legge - Mostra subito in alto */}
                 <Separator />
                 <div className="space-y-4">
@@ -1086,6 +1120,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                     </div>
                   </div>
                 </div>
+                  </div>
+                </details>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12">
