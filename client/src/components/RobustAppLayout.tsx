@@ -50,7 +50,7 @@ function shouldShowAppNav(location: string): boolean {
 
 export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) => {
   const [location] = useLocation();
-  const isScrollableContentPage = location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/amnistia' || location === '/capo-stato' || location === '/capo-di-stato' || location === '/iniziative-popolari' || location === '/eci' || location === '/referendum-abrogativi' || location === '/notifiche/preferenze' || location === '/proponi-opinione' || location === '/governo' || location.startsWith('/governo/');
+  const isScrollableContentPage = location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/amnistia' || location === '/capo-stato' || location === '/capo-di-stato' || location === '/iniziative-popolari' || location === '/eci' || location === '/petizioni-parlamentari' || location === '/referendum-abrogativi' || location === '/notifiche/preferenze' || location === '/proponi-opinione' || location === '/governo' || location.startsWith('/governo/');
   const isMobileLayout = useMobileLayout();
   const androidScrollPage = androidPageNeedsScroll(location);
   const showAppNav = shouldShowAppNav(location);
