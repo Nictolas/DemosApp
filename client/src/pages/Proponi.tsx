@@ -41,9 +41,9 @@ const signatureOptions = [
     href: "/petizioni-parlamentari",
     icon: Landmark,
     tone: "info",
-    cardClass: "border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 hover:border-amber-300 dark:border-amber-800 dark:from-amber-950 dark:to-slate-900",
+    cardClass: "border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 hover:border-amber-300",
     iconClass: "from-amber-500 to-orange-600",
-    arrowClass: "text-amber-600 dark:text-amber-300",
+    arrowClass: "text-amber-600",
   },
 ];
 
