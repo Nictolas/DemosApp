@@ -339,3 +339,102 @@ html.demos-mobile-layout body.android-device .app-navbar.navbar-visible {
   background-color: var(--demos-nav-surface) !important;
   box-shadow: var(--demos-nav-lift) !important;
 }
+
+/*
+ * Opinioni (hub, argomenti e compilazione): contrasto coerente in dark mode.
+ * Alcune card usano colori inline: gli override qui sono intenzionalmente
+ * specifici della pagina, senza cambiare layout, scroll o stato dei voti.
+ */
+html.dark .opinioni-page {
+  background-color: #0b1220;
+  background-image: linear-gradient(180deg, #111c30, #0b1220) !important;
+}
+html.dark .opinioni-propose-card {
+  background-color: #1e293b;
+  border-color: #475569;
+}
+html.dark .opinioni-propose-card polygon:first-child { fill: #49233f; }
+html.dark .opinioni-propose-card polygon:last-child { fill: #1e293b; }
+
+html.dark .opinioni-topic-card {
+  background-color: #1e293b !important;
+  background-color: color-mix(in srgb, var(--opinion-topic-accent) 12%, #1e293b) !important;
+  border-color: #64748b !important;
+  border-color: color-mix(in srgb, var(--opinion-topic-accent) 45%, #64748b) !important;
+}
+html.dark .opinioni-topic-card .text-slate-900 { color: #f8fafc; }
+html.dark .opinioni-topic-card .text-slate-600 { color: #cbd5e1; }
+html.dark .opinioni-topic-card__icon,
+html.dark .opinioni-topic-card__progress {
+  color: color-mix(in srgb, var(--opinion-topic-accent) 60%, white) !important;
+}
+html.dark .opinioni-topic-card__progress {
+  background-color: color-mix(in srgb, var(--opinion-topic-accent) 70%, white) !important;
+}
+html.dark .opinioni-topic-card [role="progressbar"] {
+  background-color: #334155 !important;
+}
+
+html.dark .opinioni-territory-card polygon:first-child {
+  fill: #25354a;
+  fill: color-mix(in srgb, var(--opinion-territory-accent) 16%, #1e293b);
+}
+html.dark .opinioni-territory-card polygon:last-child { fill: #1e293b; }
+html.dark .opinioni-territory-card__title { color: #f8fafc !important; }
+html.dark .opinioni-territory-card__description { color: #cbd5e1 !important; }
+html.dark .opinioni-territory-card__icon {
+  color: color-mix(in srgb, var(--opinion-territory-accent) 60%, white) !important;
+}
+
+/* Editor e schermata "Opinioni da completare": niente gradienti chiari/grigi. */
+html.dark .opinioni-editor-page {
+  background-color: #0b1220;
+  background-image: linear-gradient(180deg, #101b2c, #0b1220) !important;
+  color: #f8fafc;
+}
+html.dark .opinioni-editor-page > header {
+  background-color: #172337;
+  border-color: #334155;
+}
+html.dark .opinioni-editor-page > main h2 { color: #e2e8f0; }
+html.dark .opinioni-editor-page > main section {
+  background-color: #1e293b;
+  border-color: #957640;
+  color: #f8fafc;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 18%);
+}
+html.dark .opinioni-editor-page > main section.bg-green-50 {
+  background-color: #16382c;
+  border-color: #36876a;
+}
+html.dark .opinioni-editor-page > main section.bg-blue-50 {
+  background-color: #172d49;
+  border-color: #497daa;
+}
+html.dark .opinioni-editor-page [role="group"][aria-label^="La tua risposta"] button[aria-pressed="false"] {
+  background-color: #172337;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+html.dark .opinioni-editor-page > footer[aria-label="Azioni delle opinioni"] {
+  background-color: #172337;
+  border-color: #475569;
+}
+
+/* Stato selezionato: testo AA anche sui gialli (prima era bianco su ambra). */
+html.dark .opinioni-editor-page [role="group"][aria-label^="La tua risposta"] button[aria-pressed="true"].bg-amber-500,
+html.dark .opinioni-editor-page [role="group"][aria-label^="La tua risposta"] button[aria-pressed="true"].bg-yellow-500 {
+  background-color: #fbbf24;
+  border-color: #fbbf24;
+  color: #0f172a;
+}
+html.dark .opinioni-editor-page [role="group"][aria-label^="La tua risposta"] button[aria-pressed="true"].bg-green-600 {
+  background-color: #166534;
+  border-color: #166534;
+  color: #f8fafc;
+}
+html.dark .opinioni-editor-page [role="group"][aria-label^="La tua risposta"] button[aria-pressed="true"].bg-red-600 {
+  background-color: #991b1b;
+  border-color: #991b1b;
+  color: #f8fafc;
+}
