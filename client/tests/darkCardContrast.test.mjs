@@ -60,7 +60,12 @@ test("all Eventi card kinds use dark palettes, with contrasted dates and admin a
   for (const name of ["Modifica evento", "Elimina evento"]) {
     assert.ok(styles.includes('button[aria-label="' + name + '"]'));
   }
-  const scope = styles.slice(styles.indexOf("/*\n * Contrasto delle schede pastello"));
+  const cardStart = styles.indexOf("/*\n * Contrasto delle schede pastello");
+  const navbarStart = styles.indexOf("/*\n * DEMOS · Separazione visiva della navbar mobile", cardStart);
+  assert.ok(cardStart >= 0, "semantic card section must exist");
+  // The navbar needs a 1px decorative pseudo-element; it does not belong to
+  // the color-only Eventi/Firma card regression scope.
+  const scope = styles.slice(cardStart, navbarStart >= 0 ? navbarStart : undefined);
   assert.ok(scope.length > 0);
   assert.doesNotMatch(scope, /(?:overflow|touch-action|position|height)\s*:/,
     "color-only fix must never alter the mobile page scroll or layout");
