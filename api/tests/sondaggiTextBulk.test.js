@@ -79,7 +79,7 @@ test('SQL catalog validation prevents injected identifiers and excludes unapprov
   assert.match(sql,/CROSS JOIN LATERAL \(VALUES/);
   assert.match(sql,/orr\."caccia"/);
   assert.match(sql,/orr\."nato"/);
-  assert.match(sql,/AND u\.account_type = 'PERSON'/);
+  assert.match(sql,/AND u\.account_type IN \('PERSON', 'P'\)/);
   assert.match(sql,/COALESCE\(uc\.political_opinions_consent/);
   assert.match(sql,/v\.answer IS NOT NULL/);
   assert.doesNotMatch(sql,/DROP TABLE/);
@@ -206,7 +206,7 @@ test('territorial SQL allows only known scopes and parameterized geography',()=>
     const sql=buildTerritorialTextAggregateQuery(['caccia','nato'],scope);
     assert.match(sql,/CROSS JOIN LATERAL \(VALUES/);
     assert.match(sql,/v.answer IS NOT NULL/);
-    assert.match(sql,/u.account_type = 'PERSON'/);
+    assert.match(sql,/u.account_type IN \('PERSON', 'P'\)/);
     assert.match(sql,/COALESCE\(uc.political_opinions_consent/);
     assert.match(sql,/orr."caccia"/);
     assert.match(sql,/orr."nato"/);
@@ -260,7 +260,7 @@ test('territorial SQL failures preserve legacy threshold and parameter binding i
     assert.equal(fallback.length,3);
     for(const {sql,params} of fallback){
       assert.deepEqual(params,scope.params);
-      assert.match(sql,/u.account_type = 'PERSON'/);
+      assert.match(sql,/u.account_type IN \('PERSON', 'P'\)/);
       assert.match(sql,/COALESCE\(uc.political_opinions_consent/);
       assert.doesNotMatch(sql,/DROP TABLE/);
     }
@@ -572,7 +572,7 @@ test('opt-in direct-filter SQL keeps the four real route contracts and remains d
     assert.match(query,/CROSS JOIN LATERAL \(VALUES/);
     assert.equal(query.includes('FROM (SELECT COUNT(*) FILTER'),
       mode==='true','Enabled only with exact opt-in: '+mode);
-    assert.match(query,/u.account_type = 'PERSON'/);
+    assert.match(query,/u.account_type IN \('PERSON', 'P'\)/);
     assert.match(query,/COALESCE\(uc.political_opinions_consent/);
     if(scope)assert.deepEqual(calls[1].params,scope.params);
    }

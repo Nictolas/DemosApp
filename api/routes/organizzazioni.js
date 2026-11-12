@@ -7,7 +7,7 @@ require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
-const MODERN_ORGANIZATION_FILTER = "u.account_type = 'ORGANIZATION'";
+const MODERN_ORGANIZATION_FILTER = "u.account_type IN ('ORGANIZATION', 'O')";
 const LEGACY_ORGANIZATION_FILTER = "u.ruolo = 'O'";
 
 function queryOrganizations(sqlTemplate, values = []) {

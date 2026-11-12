@@ -14,7 +14,7 @@ test('le statistiche eta non contengono nessun fallback con numeri di esempio', 
 });
 
 test('le statistiche eta contano soltanto PERSON con date ISO valide e nessuna supposizione', () => {
-  assert.match(source, /if \(user\.account_type !== 'PERSON'\) return acc/);
+  assert.match(source, /if \(user\.account_type !== 'PERSON' && user\.account_type !== 'P'\) return acc/);
   assert.match(source, /typeof user\.data_nascita === 'string'/);
   assert.match(source, /const match = \/\^\(\\d\{4\}\)-\(\\d\{2\}\)-\(\\d\{2\}\)\$\//);
   assert.match(source, /getUTCFullYear\(\) === year/);

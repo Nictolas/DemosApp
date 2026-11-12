@@ -106,7 +106,7 @@ router.get('/stats/:opinionId', async (req, res) => {
       JOIN users u ON u.id = orr.user_id
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE orr.${columnName} IS NOT NULL
-      AND u.account_type = 'PERSON'
+      AND u.account_type IN ('PERSON', 'P')
       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
     `;
     
@@ -182,7 +182,7 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr.${columnName} IS NOT NULL
-        AND u.account_type = 'PERSON'
+        AND u.account_type IN ('PERSON', 'P')
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.data_nascita IS NOT NULL
       )
@@ -248,7 +248,7 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
       JOIN users u ON u.id = orr.user_id
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE orr.${columnName} IS NOT NULL
-      AND u.account_type = 'PERSON'
+      AND u.account_type IN ('PERSON', 'P')
       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE 
       AND u.genere IS NOT NULL
       GROUP BY u.genere
@@ -317,7 +317,7 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
       JOIN users u ON u.id = orr.user_id
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE orr.${columnName} IS NOT NULL
-      AND u.account_type = 'PERSON'
+      AND u.account_type IN ('PERSON', 'P')
       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
       AND u.regione_residenza = $1
     `;
@@ -406,7 +406,7 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr.${columnName} IS NOT NULL
-        AND u.account_type = 'PERSON'
+        AND u.account_type IN ('PERSON', 'P')
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.data_nascita IS NOT NULL
         AND u.regione_residenza = $1
@@ -486,7 +486,7 @@ router.get('/stats/:opinionId/genere/regione/:regione', async (req, res) => {
       JOIN users u ON u.id = orr.user_id
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE orr.${columnName} IS NOT NULL
-      AND u.account_type = 'PERSON'
+      AND u.account_type IN ('PERSON', 'P')
       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE 
       AND u.genere IS NOT NULL
       AND u.regione_residenza = $1

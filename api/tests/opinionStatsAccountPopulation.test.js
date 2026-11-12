@@ -14,15 +14,15 @@ function countMatches(text, pattern) {
 
 test('opinion statistics use canonical PERSON account population in every aggregate', () => {
   const stats = read('api/routes/opinioni/stats.js');
-  assert.equal(countMatches(stats, /AND u\.account_type = 'PERSON'/g), 6);
+  assert.equal(countMatches(stats, /AND u\.account_type IN \('PERSON', 'P'\)/g), 6);
   assert.doesNotMatch(stats, /u\.ruolo NOT IN \('I', 'O', 'Istituzione', 'Organizzazione'\)/);
 });
 
 test('survey opinion aggregates use the canonical PERSON population across national and territorial queries', () => {
   const surveys = read('api/routes/sondaggi.js');
   const national = read('api/utils/sondaggiTextBulk.js');
-  assert.equal(countMatches(surveys, /AND u\.account_type = 'PERSON'/g), 0);
-  assert.equal(countMatches(national, /AND u\.account_type = 'PERSON'/g), 4);
+  assert.equal(countMatches(surveys, /AND u\.account_type IN \('PERSON', 'P'\)/g), 0);
+  assert.equal(countMatches(national, /AND u\.account_type IN \('PERSON', 'P'\)/g), 4);
   assert.doesNotMatch(surveys + national,
     /u\.ruolo NOT IN \('I', 'O', 'Istituzione', 'Organizzazione'\)/);
 });

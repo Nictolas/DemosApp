@@ -66,7 +66,7 @@ export const renderColumnValue = (value: any, columnName: string, user?: User) =
   }
   
   if (columnName === 'sesso') {
-    if (user?.account_type === 'ORGANIZATION' || user?.account_type === 'INSTITUTION') {
+    if (['ORGANIZATION', 'O', 'INSTITUTION', 'E'].includes(user?.account_type || '')) {
       return <span className="text-sm text-gray-500">Non applicabile</span>;
     }
     const verified = value === 'M' || value === 'F';
