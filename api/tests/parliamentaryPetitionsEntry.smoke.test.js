@@ -13,10 +13,13 @@ test('Parliamentary petitions have working entry points on mobile and desktop', 
   const desktop = read('client/src/pages/Preferiti/PreferitiDesktopHub.tsx');
   const app = read('client/src/App.tsx');
 
-  assert.match(firma, /title: "Petizioni Parlamentari"/);
+  assert.match(firma, /title: "Petizione Parlamentare"/);
   assert.match(firma, /href: "\/petizioni-parlamentari"/);
   assert.match(desktop, /id: "petizioni-parlamentari"/);
   assert.match(desktop, /path: "\/petizioni-parlamentari"/);
+  assert.match(firma, /description: "Firma qui per chiedere ai politici di intervenire su un tema\\."/);
+  assert.match(desktop, /description: "Firma qui per chiedere ai politici di intervenire su un tema\\."/);
+  assert.match(desktop, /label: "Petizione Parlamentare"/);
   assert.match(app, /<Route path="\/petizioni-parlamentari">/);
   assert.match(app, /<ProtectedRoute path="\/petizioni-parlamentari" component=\{PetizioniParlamentari\} \/>/);
   assert.match(app, /import PetizioniParlamentari from "\.\/pages\/PetizioniParlamentari"/);
@@ -29,7 +32,7 @@ test('Parliamentary petitions page scrolls independently above the mobile navbar
   assert.match(layout, /location === '\/petizioni-parlamentari'/);
   assert.match(page, /<PageContainer className="overflow-hidden">/);
   assert.match(page, /app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain/);
-  assert.match(page, /aria-label="Petizioni parlamentari"/);
+  assert.match(page, /aria-label="Petizione parlamentare"/);
   assert.match(page, /tabIndex=\{0\}/);
   assert.doesNotMatch(page, /page-with-navbar|min-h-screen/);
 });
@@ -52,7 +55,7 @@ test('Petitions have their own yellow palette on mobile and desktop, including d
   const mobile = read('client/src/pages/Proponi.tsx');
   const desktop = read('client/src/pages/Preferiti/PreferitiDesktopHub.tsx');
   const theme = read('client/src/css/color-scheme.css');
-  const card = mobile.slice(mobile.indexOf('title: "Petizioni Parlamentari"'));
+  const card = mobile.slice(mobile.indexOf('title: "Petizione Parlamentare"'));
   const shortcut = desktop.slice(desktop.indexOf('id: "petizioni-parlamentari"'));
 
   assert.match(card, /tone: "warning"/);
