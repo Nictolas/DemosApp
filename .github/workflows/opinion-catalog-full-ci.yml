@@ -45,6 +45,7 @@ on:
       - 'client/tests/parliamentFinalSourceFeed.test.mjs'
       - 'client/src/pages/Profilo/components/PoliticalCompassPreview.tsx' # required catalog-contract for compass UI changes
       - 'client/src/pages/Profilo/index.tsx' # owner opinion completion UI
+      - 'client/src/pages/Profilo/components/ProfileInfo.tsx' # profile summary changes require contract check
       - 'client/src/pages/Profilo/components/ProfileGovernoIdeale.tsx'
       - 'client/src/pages/Profilo/components/ProfileChosenPreferences.tsx' # choice emojis and avatars
       - 'client/src/pages/Profilo/utils/initiativeChoiceEmoji.ts'
