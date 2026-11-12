@@ -119,6 +119,22 @@ html.dark [class~="to-gray-50"] {
   --tw-gradient-to: #1e293b;
 }
 
+/* Messaggi e grafici: tinte semantiche leggibili anche al buio. */
+html.dark [class~="bg-indigo-50/50"],
+html.dark [class~="bg-blue-50/50"] { background-color: #17233b; }
+html.dark .bg-amber-50 { background-color: #3d2c18; }
+html.dark .text-amber-950 { color: #fef3c7; }
+html.dark .text-amber-700 { color: #fcd34d; }
+html.dark .bg-red-50 { background-color: #3b2028; }
+html.dark .bg-green-50,
+html.dark .bg-emerald-50 { background-color: #153328; }
+html.dark .demos-compass-page svg text[fill="#0f172a"],
+html.dark section[aria-label="Compasso politico"] svg text[fill="#0f172a"] {
+  fill: #f8fafc;
+}
+html.dark .recharts-cartesian-axis-tick-value,
+html.dark .recharts-label { fill: #cbd5e1; }
+
 /* Header, navbar e dashboard DEMOS usano anche CSS non-Tailwind. */
 html.dark .demos-dash,
 html.dark .demos-desktop-topbar { background: #0b1220; color: #e5e7eb; }
