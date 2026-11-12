@@ -347,7 +347,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               </div>
             )}
 
-            {isViewingOwnProfile && (
+            {isViewingOwnProfile && !isEditing && (
               <ProfileChosenPreferences
                 choices={consentGranted ? chosenVotes : null}
                 status={chosenPreferencesStatus}
@@ -356,7 +356,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
             )}
 
             {/* Le opinioni restano accessibili senza un elenco lungo all'apertura. */}
-            {isViewingOwnProfile && (
+            {isViewingOwnProfile && !isEditing && (
               <details onToggle={(event) => setPanel("opinions", event.currentTarget.open)} className="group rounded-xl border border-slate-100 bg-white shadow-sm">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 [&::-webkit-details-marker]:hidden">
                   Opinioni politiche · {Object.keys(userOpinions).length}
