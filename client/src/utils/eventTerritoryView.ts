@@ -124,7 +124,7 @@ export function composeTerritorialEvents(
   for (const event of personal) {
     const residenceOnly = event.feed_reason === "TERRITORY" &&
       String(event.tipologia_evento || "").toLocaleLowerCase("it-IT") !== "elezioni";
-    if (residenceOnly && !isLocal(event)) continue;
+    if (!keepResidence && residenceOnly && !isLocal(event)) continue;
     byId.set(String(event.id), event);
   }
   for (const event of publicApproved) {
