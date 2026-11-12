@@ -1,0 +1,26 @@
+name: Supabase Data API exposure smoke-test (offline)
+
+on:
+  pull_request:
+    paths:
+      - 'api/scripts/verify-supabase-data-api-exposure.cjs'
+      - 'api/tests/supabaseDataApiExposure.test.js'
+      - '.github/workflows/supabase-data-api-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Node.js
+        run: node --version
+      - name: Run offline security smoke-test unit tests
+        run: node --test api/tests/supabaseDataApiExposure.test.js
+
+# Deliberately no live Supabase calls, credentials or production changes.
+# The live read-only probe is performed explicitly by an authorized operator.
