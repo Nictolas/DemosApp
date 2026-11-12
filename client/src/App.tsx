@@ -41,6 +41,7 @@ import InformazioniLegali from "./pages/Impostazioni/InformazioniLegali";
 import CambiaPassword from "./pages/Impostazioni/Password";
 import GDPR from "./pages/GDPR";
 import Opinioni from "./pages/Opinioni";
+import OpinioniSwipeDemo from "./pages/OpinioniSwipeDemo";
 import OpinioniArgomento from "./pages/OpinioniArgomento";
 import OpinioniDaCompletare from "./pages/OpinioniDaCompletare";
 import OpinioniNazionali from "./pages/OpinioniNazionali";
@@ -624,6 +625,11 @@ export default function App() {
               {/* Editor per argomento: conserva cache, consenso e save per gradi esistenti. */}
               <Route path="/opinioni-argomento/:topicId">
                 <ProtectedRoute path="/opinioni-argomento/:topicId" component={OpinioniArgomento} />
+              </Route>
+
+              {/* Prototipo Swipe autonomo: non salva opinioni e non tocca gli editor esistenti. */}
+              <Route path="/opinioni-swipe">
+                <ProtectedRoute path="/opinioni-swipe" component={OpinioniSwipeDemo} />
               </Route>
 
               {/* Route opinioni — senza PageTransition (layout ancorato) */}
