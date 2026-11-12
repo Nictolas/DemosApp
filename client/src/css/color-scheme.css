@@ -439,12 +439,16 @@ html.dark .opinioni-editor-page [role="group"][aria-label^="La tua risposta"] bu
   color: #f8fafc;
 }
 
-/* Su iOS la shell del Profilo usa 100svh per evitare salti durante il login.
- * La porzione di viewport sotto la shell viene dipinta da #root: usa la
- * stessa superficie della navbar, senza alterare dimensioni o safe area. */
+/* Superficie di continuità: se il browser iOS lascia spazio fuori dalla
+ * shell, anche html/body (non solo #root) riprendono il colore della navbar.
+ * La shell con navbar visibile usa comunque 100dvh nella pagina Profilo. */
+html.demos-mobile-layout:has(.app-navbar.navbar-visible),
+html.demos-mobile-layout:has(.app-navbar.navbar-visible) body,
 html.demos-mobile-layout #root:has(.app-navbar.navbar-visible) {
   background-color: #f8fafc;
 }
+html.dark.demos-mobile-layout:has(.app-navbar.navbar-visible),
+html.dark.demos-mobile-layout:has(.app-navbar.navbar-visible) body,
 html.dark.demos-mobile-layout #root:has(.app-navbar.navbar-visible) {
   background-color: #243247;
 }
