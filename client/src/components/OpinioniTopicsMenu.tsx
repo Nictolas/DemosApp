@@ -41,12 +41,12 @@ export function OpinioniTopicsMenu() {
         const palette = OPINION_TOPIC_COLORS[topic.id];
         return (
           <button key={topic.id} type="button"
-            className="flex min-h-28 flex-col gap-2 rounded-xl border p-4 text-left shadow-sm transition hover:brightness-[0.98] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="opinioni-topic-card flex min-h-28 flex-col gap-2 rounded-xl border p-4 text-left shadow-sm transition hover:brightness-[0.98] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
             data-topic-id={topic.id}
-            style={{ backgroundColor: palette.softBg, borderColor: palette.border }}
+            style={{ "--opinion-topic-accent": palette.primary, backgroundColor: palette.softBg, borderColor: palette.border } as React.CSSProperties}
             onClick={() => navigate(`/opinioni-argomento/${topic.id}`)}>
             <div className="flex items-center gap-3">
-              <Icon className="h-6 w-6 shrink-0" style={{ color: palette.primary }} />
+              <Icon className="opinioni-topic-card__icon h-6 w-6 shrink-0" style={{ color: palette.primary }} />
               <span className="font-semibold text-slate-900">{topic.title}</span>
             </div>
             <p className="text-sm text-slate-600">{topic.description}</p>
@@ -57,7 +57,7 @@ export function OpinioniTopicsMenu() {
               <div className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: palette.border }} role="progressbar"
                 aria-label={`Completamento ${topic.title}`}
                 aria-valuemin={0} aria-valuemax={100} aria-valuenow={saved?.percent}>
-                <div className="h-full rounded-full" style={{ width: `${saved?.percent ?? 0}%`, backgroundColor: palette.primary }} />
+                <div className="opinioni-topic-card__progress h-full rounded-full" style={{ width: `${saved?.percent ?? 0}%`, backgroundColor: palette.primary }} />
               </div>
             </div>
           </button>
