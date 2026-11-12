@@ -295,3 +295,47 @@ html.dark .demos-event-card button[aria-label="Modifica evento"] {
 html.dark .demos-event-card button[aria-label="Elimina evento"] {
   color: #fda4af;
 }
+
+
+/*
+ * DEMOS · Separazione visiva della navbar mobile.
+ * Bordo superiore reso con pseudo-elemento (1px senza variare l'altezza del
+ * grid row), ombra esterna e superficie differenziata in chiaro/scuro.
+ * Non alterare min-height, padding, safe-area, touch-action o scroll.
+ */
+html.demos-mobile-layout .app-navbar.navbar-visible {
+  --demos-nav-surface: #f8fafc;
+  --demos-nav-rule: #cbd5e1;
+  --demos-nav-lift: 0 -3px 14px rgb(15 23 42 / 10%);
+  background-color: var(--demos-nav-surface);
+  box-shadow: var(--demos-nav-lift);
+}
+
+html.demos-mobile-layout .app-navbar.navbar-visible .app-bottom-nav {
+  background-color: var(--demos-nav-surface);
+}
+
+html.demos-mobile-layout .app-navbar.navbar-visible::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--demos-nav-rule);
+  pointer-events: none;
+  z-index: 1;
+}
+
+html.dark.demos-mobile-layout .app-navbar.navbar-visible {
+  --demos-nav-surface: #243247;
+  --demos-nav-rule: #475569;
+  --demos-nav-lift: 0 -4px 16px rgb(0 0 0 / 30%);
+}
+
+/* Android has an intentional !important navbar background/box-shadow override.
+ * Override only those two properties, preserving the canonical size/safe area. */
+html.demos-mobile-layout body.android-device .app-navbar.navbar-visible {
+  background-color: var(--demos-nav-surface) !important;
+  box-shadow: var(--demos-nav-lift) !important;
+}
