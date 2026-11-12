@@ -18,29 +18,11 @@ interface EditProfileFormProps {
 export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin = false }: EditProfileFormProps) {
   const { formData, isSubmitting, handleChange, handleSubmit } = useProfileForm(userData, onProfileUpdated, isAdmin);
 
-  // Debug logging per verificare i dati ricevuti
-  console.log('🔍 DEBUG EditProfileForm - userData ricevuto:', userData);
-  console.log('🔍 DEBUG EditProfileForm - formData dopo useProfileForm:', formData);
-  console.log('🔍 DEBUG EditProfileForm - Dati geografici formData:', {
-    paese_residenza: formData.paese_residenza,
-    regione_residenza: formData.regione_residenza,
-    provincia_residenza: formData.provincia_residenza,
-    comune_residenza: formData.comune_residenza,
-    paese_elezione: formData.paese_elezione,
-    regione_elezione: formData.regione_elezione,
-    provincia_elezione: formData.provincia_elezione,
-    comune_elezione: formData.comune_elezione,
-    paese_candidatura: formData.paese_candidatura,
-    regione_candidatura: formData.regione_candidatura,
-    provincia_candidatura: formData.provincia_candidatura,
-    comune_candidatura: formData.comune_candidatura
-  });
-
-  // Determina se mostrare le sezioni in base al ruolo
-  // Se è un admin che modifica un utente, mostra sempre tutte le sezioni
-  const shouldShowElectionSection = isAdmin || formData.ruolo === "P" || formData.ruolo === "CP";
-  const shouldShowCandidacySection = isAdmin || formData.ruolo === "C" || formData.ruolo === "CP";
-  const shouldShowActivismSection = isAdmin || formData.ruolo === "A" || formData.ruolo === "AD";
+  // Le cariche non si modificano dal proprio profilo. L'editor amministrativo
+  // mantiene i campi per gli utenti gestiti esplicitamente dall'Admin.
+  const shouldShowElectionSection = isAdmin;
+  const shouldShowCandidacySection = isAdmin;
+  const shouldShowActivismSection = isAdmin || formData.ruolo === "A";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
