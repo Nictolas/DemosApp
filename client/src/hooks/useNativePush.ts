@@ -43,6 +43,7 @@ function getFallbackNotificationTarget(type: unknown): string | null {
     case 'avvistamento':
       return '/avvistamenti';
     case 'user_notification':
+    case 'parliament_final_vote':
     case 'political_opinion_change':
     case 'operational_alert':
       return '/notifiche';

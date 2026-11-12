@@ -34,7 +34,9 @@ test('source links use a strict allowlist; no generation for unverified rollcall
 });
 
 test('final list is keyboard accessible and clearly distinguishes vote final from full legislative enactment',()=>{
-  assert.match(page,/max-h-\[68dvh\] overflow-auto/);
-  assert.match(page,/tabIndex=\{0\} role="region"/);
+  assert.match(page,/role="list" aria-label="Elenco votazioni finali recenti"/);
+  assert.match(page,/role="listitem"/);
+  assert.match(page,/Vedi voti/);
+  assert.doesNotMatch(page,/max-h-\[68dvh\] overflow-auto/);
   assert.match(page,/non significa necessariamente che una legge sia già definitivamente approvata/);
 });

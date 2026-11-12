@@ -1,0 +1,81 @@
+name: DEMOS Parliament Latest Notification Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/services/parliamentLatestVoteNotificationsService.js'
+      - 'api/services/parliamentFinalBallotPushService.js'
+      - 'api/tests/parliamentFinalBallotPush.test.js'
+      - 'api/tests/parliamentLatestVotePostgres.integration.js'
+      - 'api/create-notifiche-voti-parlamento-table.sql'
+      - 'client/src/hooks/useNativePush.ts'
+      - 'client/public/firebase-messaging-sw.js'
+      - 'api/database/20261103_latest_parliament_votes.sql'
+      - 'api/jobs/openpolisVotazioniFinaliJob.js'
+      - 'api/routes/notifiche.js'
+      - 'api/tests/parliamentLatestVoteNotifications.test.js'
+      - 'api/services/parlamentoEuropeoService.js'
+      - 'api/services/parltrackService.js'
+      - 'api/tests/europeanVoteLatestOnlyContract.test.js'
+      - 'client/src/pages/Notifiche/**'
+      - 'client/tests/parliamentNotificationIntegration.test.mjs'
+      - '.github/workflows/parliament-latest-notifications.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notifications:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Ephemeral CI PostgreSQL: never uses a shared staging or production DB.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: demos_test
+          POSTGRES_PASSWORD: temporary_ci_only
+          POSTGRES_DB: demos_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U demos_test -d demos_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies (no scripts)
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Check syntax and execute replacement and fail-closed tests
+        run: |
+          node --check api/services/parliamentLatestVoteNotificationsService.js
+          node --check api/services/parliamentFinalBallotPushService.js
+          node --check api/jobs/openpolisVotazioniFinaliJob.js
+          node --check api/routes/notifiche.js
+          node --test api/tests/parliamentLatestVoteNotifications.test.js api/tests/parliamentFinalBallotPush.test.js api/tests/parliamentVerifiedFinalBallots.test.js
+          node --check api/services/parlamentoEuropeoService.js
+          node --check api/services/parltrackService.js
+          node --test api/tests/europeanVoteLatestOnlyContract.test.js
+      - name: Verify real PostgreSQL migration, replacement, and consent revocation race
+        env:
+          TEST_PARLIAMENT_PG_EPHEMERAL: 'true'
+          TEST_PARLIAMENT_PG_URL: postgres://demos_test:temporary_ci_only@127.0.0.1:55432/demos_test
+        run: node api/tests/parliamentLatestVotePostgres.integration.js
+      - name: Verify notification UI wiring
+        run: node --test client/tests/parliamentNotificationIntegration.test.mjs
+      - name: Install frontend dependencies (no scripts)
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend
+        run: npm run build --prefix client

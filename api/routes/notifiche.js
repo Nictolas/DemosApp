@@ -39,14 +39,21 @@ router.get('/', verifyToken, async (req, res) => {
     
     // Recupera da notifiche_voti_parlamento (solo per i rappresentanti scelti dall'utente)
     try {
+      const latestParliamentEnabled = process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED === 'true';
       const rappresentantiIds = [];
-      if (userInfo && userInfo.rappresentante_camera) {
-        rappresentantiIds.push(userInfo.rappresentante_camera);
+      if (latestParliamentEnabled) {
+        // Only canonical current choices by this authenticated user.
+        const current = await pool.query(
+          "SELECT DISTINCT selected_user_id::text AS id FROM political_selections " +
+          "WHERE user_id = $1 AND selection_kind = 'representative' " +
+          "AND political_office_id IN ('it.camera', 'it.senato') AND selected_user_id IS NOT NULL",
+          [user_id]
+        );
+        rappresentantiIds.push(...current.rows.map(row => row.id));
+      } else {
+        if (userInfo && userInfo.rappresentante_camera) rappresentantiIds.push(userInfo.rappresentante_camera);
+        if (userInfo && userInfo.rappresentante_senato) rappresentantiIds.push(userInfo.rappresentante_senato);
       }
-      if (userInfo && userInfo.rappresentante_senato) {
-        rappresentantiIds.push(userInfo.rappresentante_senato);
-      }
-      
       if (rappresentantiIds.length > 0) {
           const votiParlamentoQuery = `
             SELECT 
@@ -66,16 +73,25 @@ router.get('/', verifyToken, async (req, res) => {
               u.cognome as politico_cognome,
               u.avatar_config as politico_avatar_config,
               u.genere as politico_genere,
-              p.uri as uri_votazione
+              p.uri as uri_votazione,
+              ${latestParliamentEnabled ? 'nvp.openpolis_id' : 'NULL::VARCHAR(50) AS openpolis_id'},
+              ${latestParliamentEnabled ? 'vf.esito AS votazione_esito' : 'NULL::VARCHAR(20) AS votazione_esito'}
             FROM notifiche_voti_parlamento nvp
             LEFT JOIN users u ON nvp.id_utente = u.id
-            LEFT JOIN parlamento p ON LOWER(TRIM(p.titolo)) = LOWER(TRIM(nvp.titolo)) AND p.camera = nvp.camera
+            LEFT JOIN parlamento p ON ${latestParliamentEnabled ? 'nvp.openpolis_id IS NULL AND' : ''} LOWER(TRIM(p.titolo)) = LOWER(TRIM(nvp.titolo)) AND p.camera = nvp.camera
+            ${latestParliamentEnabled ? 'LEFT JOIN openpolis_votazioni_finali_decisive vf ON vf.openpolis_id = nvp.openpolis_id AND vf.camera = nvp.camera' : ''}
             WHERE nvp.id_utente = ANY($1::uuid[])
+            ${latestParliamentEnabled ? "AND EXISTS (" +
+              "SELECT 1 FROM political_selections ps WHERE ps.user_id = $2::uuid " +
+              "AND ps.selection_kind = 'representative' AND ps.selected_user_id = nvp.id_utente " +
+              "AND ((ps.political_office_id = 'it.camera' AND nvp.camera = 'Camera') " +
+              "OR (ps.political_office_id = 'it.senato' AND nvp.camera = 'Senato')))" : ''}
             ORDER BY COALESCE(nvp.data_creazione, CURRENT_TIMESTAMP) DESC
             LIMIT 50
           `;
           
-          votiParlamentoResult = await pool.query(votiParlamentoQuery, [rappresentantiIds]);
+          votiParlamentoResult = await pool.query(votiParlamentoQuery,
+            latestParliamentEnabled ? [rappresentantiIds, user_id] : [rappresentantiIds]);
       } else {
         votiParlamentoResult = { rows: [] };
       }
@@ -498,7 +514,9 @@ router.get('/', verifyToken, async (req, res) => {
         }
         
         // Evidenzia nome, voto e titolo votazione con HTML
-        titolo = `${articoloETitolo} <span class="font-bold underline">${nomePolitico}</span> ha votato <span class="font-bold underline">${voto}</span> a <span class="font-bold underline">${titoloVotazioneAbbreviato}</span>`;
+        const nonVoto = ['Assente', 'In missione', 'In congedo', 'Non ha partecipato', 'Presente non votante', 'Presidente di turno'].includes(voto);
+        const azione = nonVoto ? 'risulta' : 'ha votato';
+        titolo = `${articoloETitolo} <span class="font-bold underline">${nomePolitico}</span> ${azione} <span class="font-bold underline">${voto}</span> nella votazione <span class="font-bold underline">${titoloVotazioneAbbreviato}</span>`;
         messaggio = c.testo || 'Nessun messaggio';
       } else {
         titolo = c.titolo || 'Nessun titolo';
@@ -513,6 +531,7 @@ router.get('/', verifyToken, async (req, res) => {
         data: c.data,
         tipo_notifica: c.tipo_notifica,
         voto: c.voto || null,
+        camera: c.camera || null,
         comune_residenza: c.comune_residenza || null,
         politico: c.politico || null,
         politico_avatar_config: c.politico_avatar_config || null,
@@ -525,6 +544,9 @@ router.get('/', verifyToken, async (req, res) => {
         dislikes: c.dislikes !== undefined ? c.dislikes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
         tabella_origine: c.tabella_origine,
         uri_votazione: c.uri_votazione || null, // URI per aprire il dialog con i dettagli della votazione
+        openpolis_id: c.openpolis_id || null, // ID stabile di una votazione finale verificata
+        votazione_titolo: c.titolo || null,
+        votazione_esito: c.votazione_esito || null,
         opinion_id: c.opinion_id || null,
         opinion_text: c.opinion_text || null
       };

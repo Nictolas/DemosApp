@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, Link as WouterLink } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useNotificheData } from "./hooks/useNotificheData";
@@ -14,6 +14,11 @@ const REACTION_TIPI = ['voto_comune', 'voto_parlamento', 'comunicazione'] as con
 export default function Notifiche() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { data, isLoading, error, deleteSegnalazioneMutation } = useNotificheData(user);
+  const requestedVoteRaw = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('final_vote') : null;
+  const requestedVote = requestedVoteRaw && /^(?:vs19_\d{1,5}_\d{1,5}|19-\d{1,5}-\d{1,5})$/.test(requestedVoteRaw)
+    ? requestedVoteRaw : null;
+  const latestNotificationMatches = !!requestedVote && !!data?.notifiche?.some(n => n.openpolis_id === requestedVote);
 
   const reactionIds = useMemo(() => {
     if (!data?.notifiche?.length || !user?.id) return [];
@@ -64,6 +69,15 @@ export default function Notifiche() {
           aria-label="Elenco notifiche"
           tabIndex={0}
         >
+          {!!requestedVote && !isLoading && !latestNotificationMatches && (
+            <div className="mb-4 rounded-lg border bg-white p-3 text-sm" role="status">
+              Questa votazione non è più l'ultima del rappresentante oppure non è presente tra le notifiche.
+              <WouterLink className="ml-1 text-blue-700 underline"
+                href={"/voti-politici?final_vote=" + encodeURIComponent(requestedVote)}>
+                Consulta la votazione nell'elenco delle votazioni finali
+              </WouterLink>.
+            </div>
+          )}
           <ListaNotifiche
             data={data}
             isLoading={isLoading}
