@@ -61,8 +61,13 @@ export function useProfileForm(
         data_nascita: normalizeDate(userData?.data_nascita),
       };
       
+      const editableSelfFields = new Set([
+        "data_nascita", "genere", "cittadinanza",
+        "paese_residenza", "regione_residenza", "provincia_residenza", "comune_residenza"
+      ]);
       Object.keys(formData).forEach(key => {
-        if (key === 'uid') return;
+        if (key === 'uid' || key === 'ruolo' || key === 'sesso' || key === 'account_type') return;
+        if (!isAdmin && !editableSelfFields.has(key)) return;
         
         // Normalizza i valori per il confronto: null, undefined e stringa vuota sono considerati equivalenti
         const normalizeValue = (val: any) => {
@@ -84,10 +89,6 @@ export function useProfileForm(
           }
         }
       });
-      
-      console.log('🔍 DEBUG useProfileForm - Dati da inviare:', dataToSend);
-      console.log('🔍 DEBUG useProfileForm - formData completo:', formData);
-      console.log('🔍 DEBUG useProfileForm - currentInitialData completo:', currentInitialData);
       
       // Se non ci sono modifiche, non inviare nulla
       if (Object.keys(dataToSend).length === 0) {
