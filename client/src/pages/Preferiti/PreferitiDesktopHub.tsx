@@ -176,8 +176,8 @@ const FIRMA_SHORTCUTS: Shortcut[] = [
     label: "Petizioni Parlamentari",
     description: "Informazioni e accesso ai portali istituzionali",
     icon: Landmark,
-    accent: "#b45309",
-    accentSoft: "#fffbeb",
+    accent: "#a16207",
+    accentSoft: "#fef08a",
     skipOpinioniCheck: true,
   },
 ];
