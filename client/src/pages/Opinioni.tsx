@@ -79,7 +79,7 @@ export default function Opinioni() {
         <div className="mb-3 shrink-0">
           <button
             type="button"
-            className="relative w-full h-28 sm:h-32 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="opinioni-propose-card relative w-full h-28 sm:h-32 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => setLocation("/proponi-opinione")}
             onContextMenu={(e) => e.preventDefault()}
           >
@@ -106,7 +106,8 @@ export default function Opinioni() {
               <button
                 key={categoria.id}
                 type="button"
-                className="opinioni-button relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                style={{ "--opinion-territory-accent": color.icon } as React.CSSProperties}
+                className="opinioni-button opinioni-territory-card relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
                 onMouseDown={(e) => {
                   e.currentTarget.classList.add("scale-95", "shadow-md");
                 }}
@@ -131,14 +132,14 @@ export default function Opinioni() {
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                 </svg>
                 <div className="relative z-10 p-3 sm:p-4 flex flex-col items-center justify-center h-full">
-                  <MessageSquare className="h-10 w-10 sm:h-12 sm:w-12 mb-2" style={{ color: color.icon }} />
+                  <MessageSquare className="opinioni-territory-card__icon h-10 w-10 sm:h-12 sm:w-12 mb-2" style={{ color: color.icon }} />
                   <div
-                    className="text-lg sm:text-2xl font-bold mb-1 text-center leading-tight whitespace-pre-line"
+                    className="opinioni-territory-card__title text-lg sm:text-2xl font-bold mb-1 text-center leading-tight whitespace-pre-line"
                     style={{ color: color.text }}
                   >
                     {categoria.nome}
                   </div>
-                  <p className="text-xs sm:text-sm text-center line-clamp-2" style={{ color: color.text }}>
+                  <p className="opinioni-territory-card__description text-xs sm:text-sm text-center line-clamp-2" style={{ color: color.text }}>
                     {categoria.descrizione}
                   </p>
                 </div>
