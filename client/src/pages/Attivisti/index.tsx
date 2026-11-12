@@ -13,9 +13,7 @@ interface Attivista {
   id: string;
   nome: string;
   cognome: string;
-  email: string;
   ruolo: string;
-  status: string;
   regione_residenza?: string;
   tipologie_attivismo?: any[];
   supporters_count: number;
@@ -63,7 +61,6 @@ export default function Attivisti() {
           throw new Error(data.error || "Errore nel caricamento");
         }
       } catch (err) {
-        console.error("Errore:", err);
         setError(err instanceof Error ? err.message : "Errore sconosciuto");
       } finally {
         setLoading(false);

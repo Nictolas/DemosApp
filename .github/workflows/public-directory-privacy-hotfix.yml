@@ -1,0 +1,78 @@
+name: Public directory privacy hotfix
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'api/routes/attivisti.js'
+      - 'api/routes/organizzazioni.js'
+      - 'api/services/publicDirectoryMemberProjection.js'
+      - 'api/tests/publicDirectoryPrivacyHotfix.synthetic.test.js'
+      - 'api/tests/publicDirectoryPrivacyHttp.synthetic.test.js'
+      - 'client/src/pages/Attivisti/index.tsx'
+      - 'client/src/pages/Organizzazioni/index.tsx'
+      - 'scripts/test-public-directory-privacy-browser.cjs'
+      - '.github/workflows/public-directory-privacy-hotfix.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-privacy-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Parse touched backend code
+        run: |
+          node --check api/services/publicDirectoryMemberProjection.js
+          node --check api/routes/attivisti.js
+          node --check api/routes/organizzazioni.js
+          node --check api/tests/publicDirectoryPrivacyHotfix.synthetic.test.js
+          node --check api/tests/publicDirectoryPrivacyHttp.synthetic.test.js
+          node --check scripts/test-public-directory-privacy-browser.cjs
+      - name: Synthetic non-PII public directory contract
+        run: node --test api/tests/publicDirectoryPrivacyHotfix.synthetic.test.js
+      - name: Install only synthetic HTTP runtime dependencies (no database)
+        run: npm install --prefix /tmp/demos-directory-http --no-save --ignore-scripts --no-audit --no-fund express@4.22.3 dotenv@16.3.1
+      - name: Real Express routers with fake PostgreSQL via loopback HTTP
+        env:
+          NODE_PATH: /tmp/demos-directory-http/node_modules
+        run: node --test api/tests/publicDirectoryPrivacyHttp.synthetic.test.js
+
+  chrome-mobile-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install frontend for isolated build
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build Vite web application
+        run: npm run build --prefix client
+      - name: Use installed Chrome and isolated Playwright
+        run: |
+          command -v google-chrome
+          npm install --prefix /tmp/demos-directory-chrome --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+      - name: Chrome at 320 and 390 pixels, synthetic-only API responses
+        run: |
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-directory-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/attivisti > /dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-directory-chrome/node_modules node scripts/test-public-directory-privacy-browser.cjs
