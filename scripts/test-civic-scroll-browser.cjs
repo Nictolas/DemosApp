@@ -47,6 +47,12 @@ const INITIATIVES = Array.from({ length: 28 }, (_, index) => ({
   firme: 100000 + index,
   esito: 'In Attesa',
 }));
+const PROPOSED_OPINIONS = Array.from({ length: 28 }, (_, index) => ({
+  id: 'proposed-opinion-synthetic-' + String(index + 1),
+  testo: 'Opinione di prova ' + String(index + 1).padStart(2, '0'),
+  voti: 28 - index,
+}));
+
 const ROUTES = [
   { path: '/grazia', region: 'Classifica Grazia', last: 'Persona sintetica 28' },
   { path: '/amnistia', region: 'Lista reati Amnistia', last: 'Reato sintetico 28' },
@@ -54,6 +60,7 @@ const ROUTES = [
   { path: '/capo-di-stato', region: 'Lista candidati Capo di Stato', last: 'Candidato sintetico 28' },
   { path: '/vota-iniziativa-popolare', region: 'Iniziative popolari', last: 'Iniziativa sintetica 28' },
   { path: '/avvistamenti', region: 'Categorie degli avvistamenti', last: null },
+  { path: '/proponi-opinione', region: 'Opinioni proposte', last: 'Opinione di prova 28' },
 ];
 
 function respond(route, data) {
@@ -96,6 +103,12 @@ async function main() {
             ruolo: 'AD', status: 'a', account_type: 'E', is_admin: true,
             political_consent: { granted: true },
           }});
+        }
+        if (url.pathname === '/api/opinioni-proposte') {
+          return respond(route, { success: true, data: PROPOSED_OPINIONS, ha_gia_proposto: false });
+        }
+        if (url.pathname === '/api/opinioni-proposte/voti-utente') {
+          return respond(route, { success: true, data: [] });
         }
         if (url.pathname === '/api/amnistia') {
           return respond(route, {

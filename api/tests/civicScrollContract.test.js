@@ -19,6 +19,42 @@ test('only the intended civic routes use the bounded scroll shell', () => {
   assert.ok(css.includes('  height: 100%;\n  min-height: 0;\n  overflow: hidden;'));
 });
 
+test('Proponi Opinione has an independent scrollport without two Android scrollers', () => {
+  const page = read('client/src/pages/ProponiOpinione/index.tsx');
+  const layout = read('client/src/components/RobustAppLayout.tsx');
+  const css = read('client/src/robust-layout.css');
+
+  assert.ok(page.includes('<PageContainer className="overflow-hidden'));
+  assert.ok(page.includes('className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain'));
+  assert.ok(page.includes('role="region"'));
+  assert.ok(page.includes('aria-label="Opinioni proposte"'));
+  assert.ok(page.includes('tabIndex={0}'));
+  assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('<ProponiForm'));
+  assert.ok(page.indexOf('<ProponiForm') < page.indexOf('<OpinioniList'));
+  assert.doesNotMatch(page, /page-with-navbar|min-h-screen/);
+  assert.ok(layout.includes("location === '/proponi-opinione' || location === '/governo'"));
+  const androidList = layout.slice(
+    layout.indexOf('const ANDROID_SCROLL_ROUTES = new Set(['),
+    layout.indexOf('function androidPageNeedsScroll'),
+  );
+  assert.ok(!androidList.includes("'/proponi-opinione'"),
+    'No conflicting Android document scroller');
+  assert.ok(css.includes('.app-main.app-main--scroll-content .fade-up-transition'));
+});
+
+test('Proponi Opinione data synchronization cannot retrigger on every render', () => {
+  const page = read('client/src/pages/ProponiOpinione/index.tsx');
+  const actions = read('client/src/pages/ProponiOpinione/hooks/useProponiOpinioneActions.ts');
+  assert.ok(page.includes('setOpinioni(opinioni);'));
+  assert.ok(page.includes('setUserVoti(userVoti);'));
+  assert.ok(page.includes('setLoadingData(loadingData);'));
+  assert.ok(actions.includes('useCallback'));
+  for (const setter of ['updateField', 'setOpinioni', 'setUserVoti', 'setLoadingData']) {
+    assert.ok(actions.includes('const ' + setter + ' = useCallback('),
+      setter + ' must be stable to avoid an endless effect/update loop');
+  }
+});
+
 test('signature collections can scroll all results above the mobile navbar', () => {
   const layout = read('client/src/components/RobustAppLayout.tsx');
   for (const [route, path, label, list] of [

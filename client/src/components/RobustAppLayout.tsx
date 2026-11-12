@@ -25,7 +25,7 @@ const PUBLIC_ROUTES_WITHOUT_NAV = [
 // Android: long, document-like routes must scroll within app-main. Fixed dashboards,
 // selection grids and pages with their own scrollport are deliberately excluded.
 const ANDROID_SCROLL_ROUTES = new Set([
-  '/approfondimento', '/proponi-opinione', '/sondaggi', '/statistiche-utenti',
+  '/approfondimento', '/sondaggi', '/statistiche-utenti',
   '/statistiche-opinione', '/legal-documents', '/data-retention', '/gdpr-rights',
   '/security-measures', '/registro-trattamenti', '/accessibilita',
   '/standard-sicurezza-minori', '/cookie-policy', '/terms-of-service',
@@ -50,7 +50,7 @@ function shouldShowAppNav(location: string): boolean {
 
 export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) => {
   const [location] = useLocation();
-  const isScrollableContentPage = location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/amnistia' || location === '/capo-stato' || location === '/capo-di-stato' || location === '/iniziative-popolari' || location === '/eci' || location === '/referendum-abrogativi' || location === '/notifiche/preferenze' || location === '/governo' || location.startsWith('/governo/');
+  const isScrollableContentPage = location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/amnistia' || location === '/capo-stato' || location === '/capo-di-stato' || location === '/iniziative-popolari' || location === '/eci' || location === '/referendum-abrogativi' || location === '/notifiche/preferenze' || location === '/proponi-opinione' || location === '/governo' || location.startsWith('/governo/');
   const isMobileLayout = useMobileLayout();
   const androidScrollPage = androidPageNeedsScroll(location);
   const showAppNav = shouldShowAppNav(location);

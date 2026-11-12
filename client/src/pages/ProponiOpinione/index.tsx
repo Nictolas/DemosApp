@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/PageContainer";
 import { useProponiOpinioneData } from "./hooks/useProponiOpinioneData";
 import { useProponiOpinioneActions } from "./hooks/useProponiOpinioneActions";
 import { Header } from "./components/Header";
@@ -99,9 +100,9 @@ export default function ProponiOpinione() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <PageContainer className="items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -110,7 +111,14 @@ export default function ProponiOpinione() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <PageContainer className="overflow-hidden bg-gradient-to-b from-background to-secondary/20">
+      {/* Scroll only the page content; the fixed mobile navbar stays visible. */}
+      <div
+        className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4"
+        role="region"
+        aria-label="Opinioni proposte"
+        tabIndex={0}
+      >
       <div className="container mx-auto max-w-4xl">
         <Card className="bg-white">
           <Header />
@@ -142,6 +150,7 @@ export default function ProponiOpinione() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </PageContainer>
   );
 }
