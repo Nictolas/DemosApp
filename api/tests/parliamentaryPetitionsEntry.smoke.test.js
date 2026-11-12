@@ -1,0 +1,49 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..', '..');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+
+test('Parliamentary petitions have working entry points on mobile and desktop', () => {
+  const firma = read('client/src/pages/Proponi.tsx');
+  const desktop = read('client/src/pages/Preferiti/PreferitiDesktopHub.tsx');
+  const app = read('client/src/App.tsx');
+
+  assert.match(firma, /title: "Petizioni Parlamentari"/);
+  assert.match(firma, /href: "\/petizioni-parlamentari"/);
+  assert.match(desktop, /id: "petizioni-parlamentari"/);
+  assert.match(desktop, /path: "\/petizioni-parlamentari"/);
+  assert.match(app, /<Route path="\/petizioni-parlamentari">/);
+  assert.match(app, /<ProtectedRoute path="\/petizioni-parlamentari" component=\{PetizioniParlamentari\} \/>/);
+  assert.match(app, /import PetizioniParlamentari from "\.\/pages\/PetizioniParlamentari"/);
+});
+
+test('Parliamentary petitions page scrolls independently above the mobile navbar', () => {
+  const layout = read('client/src/components/RobustAppLayout.tsx');
+  const page = read('client/src/pages/PetizioniParlamentari/index.tsx');
+
+  assert.match(layout, /location === '\/petizioni-parlamentari'/);
+  assert.match(page, /<PageContainer className="overflow-hidden">/);
+  assert.match(page, /app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain/);
+  assert.match(page, /aria-label="Petizioni parlamentari"/);
+  assert.match(page, /tabIndex=\{0\}/);
+  assert.doesNotMatch(page, /page-with-navbar|min-h-screen/);
+});
+
+test('Petitions use official destinations only, not unverifiable signature states or backend reads', () => {
+  const page = read('client/src/pages/PetizioniParlamentari/index.tsx');
+
+  assert.match(page, /https:\/\/petizionionline\.camera\.it\/petizioni/);
+  assert.match(page, /https:\/\/www\.camera\.it\/leg19\/468/);
+  assert.match(page, /https:\/\/www\.senato\.it\/relazioni-con-i-cittadini\/presentare-una-petizione/);
+  assert.match(page, /SPID o CIE/);
+  assert.match(page, /Non tutte le/);
+  assert.match(page, /non verifica lo stato/);
+  assert.match(page, /target="_blank" rel="noopener noreferrer"/);
+  assert.doesNotMatch(page, /apiRequest|useQuery|fetch\(|axios|supabase|localStorage|setInterval/);
+  assert.doesNotMatch(page, /Firma ora|Firma questa petizione|\d+ firme raccolte/);
+});
