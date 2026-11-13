@@ -38,6 +38,16 @@ const CARDS = [
     pro: "Maggiore capacità di intervento e protezione degli agenti in situazioni pericolose.",
     con: "Possibili rischi di escalation, necessità di formazione e costi di gestione.",
   },
+  {
+    id: "potenziare_rinnovabili",
+    title: "Potenziare Rinnovabili",
+    question: "Sei favorevole a potenziare la produzione di energia da fonti rinnovabili in Italia?",
+    image: "/images/opinioni/potenziare-rinnovabili-swipe.avif",
+    alt: "Due giovani personaggi DEMOS discutono di energia pulita con pannelli solari e turbine eoliche",
+    context: "La proposta riguarda l'aumento dell'energia prodotta da sole, vento, acqua e geotermia, insieme a reti e sistemi di accumulo.",
+    pro: "Minori emissioni rispetto ai combustibili fossili e una maggiore diversificazione delle fonti energetiche.",
+    con: "Variabilità di alcune fonti, necessità di reti e accumuli e possibili impatti ambientali e paesaggistici locali.",
+  },
 ] as const;
 
 type SwipeCard = (typeof CARDS)[number];
