@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { hasAdminCapability } from "@/lib/admin-access";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
@@ -159,6 +161,8 @@ function formattaTitoloCompatto(titolo: string): string {
 export default function VotiParlamentoEuropeo() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = hasAdminCapability(user);
   const [votazioneSelezionata, setVotazioneSelezionata] = useState<DettagliVotazione | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -216,7 +220,7 @@ export default function VotiParlamentoEuropeo() {
   };
 
   const handleRigeneraAnalisi = async () => {
-    if (!votazioneSelezionata?.uri) return;
+    if (!isAdmin || !votazioneSelezionata?.uri) return;
     
     try {
         const response = await apiRequest.post<{ success: boolean; data: AnalisiLegge }>(
@@ -583,14 +587,16 @@ export default function VotiParlamentoEuropeo() {
                               <Sparkles className="h-5 w-5" />
                               Analisi AI
                             </CardTitle>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleRigeneraAnalisi}
-                            >
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              Rigenera Analisi
-                            </Button>
+                            {isAdmin && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRigeneraAnalisi}
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Rigenera Analisi
+                              </Button>
+                            )}
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-4">

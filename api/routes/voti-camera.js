@@ -4,11 +4,20 @@ const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const PrivacyErasureLedgerService = require('../services/privacyErasureLedgerService');
 const { isConfirmedFinalParliamentVote } = require('../services/parliamentFinalVotePolicy');
+const { hasDocumentaryContext } = require('../services/parliamentGroundedAnalysis');
 
 const router = express.Router();
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
+
+// A cached AI explanation is not evidence: never expose text when its
+// persisted parliamentary document is missing or too short.
+// No additional SQL reads; the routes already select their document.
+function documentedExplanation(explanation, document) {
+  return typeof explanation === 'string' && explanation.trim() &&
+    hasDocumentaryContext(document) ? explanation : null;
+}
 
 // Funzione per assicurarsi che la tabella esista
 async function ensureTableExists() {
@@ -131,7 +140,7 @@ router.get('/', verifyToken, async (req, res) => {
       voto: row.voto,
       data_votazione: row.data_votazione,
       ultimo_aggiornamento: row.ultimo_aggiornamento,
-      spiegazione: row.spiegazione,
+      spiegazione: documentedExplanation(row.spiegazione, row.descrizione_votazione),
       votazione_id: row.votazione_id
     }));
 
@@ -189,7 +198,7 @@ router.get('/votazioni', verifyToken, async (req, res) => {
       descrizione_votazione: row.descrizione_votazione,
       camera: row.camera,
       data_votazione: row.data_votazione,
-      spiegazione: row.spiegazione,
+      spiegazione: documentedExplanation(row.spiegazione, row.descrizione_votazione),
       url_votazione: row.url_votazione,
       numero_seduta: row.numero_seduta,
       tipo_atto: row.tipo_atto,
@@ -272,7 +281,7 @@ router.get('/votazione/:votazione_id', verifyToken, async (req, res) => {
         votazione_id: votazione.votazione_id,
         titolo: votazione.titolo,
         descrizione: votazione.descrizione,
-        spiegazione: votazione.spiegazione,
+        spiegazione: documentedExplanation(votazione.spiegazione, votazione.descrizione),
         camera: votazione.camera,
         data_votazione: votazione.data_votazione,
         politici: politiciResult.rows.map(row => ({
@@ -529,7 +538,8 @@ router.post('/sync', verifyToken, requireAdmin, async (req, res) => {
     
     // Avvia la sincronizzazione in background senza attendere il completamento
     syncVotiOpenpolis().catch(error => {
-      console.error('❌ Errore durante la sincronizzazione:', error);
+      // Upstream exceptions may contain connection strings or source fragments.
+      console.error('Sincronizzazione Openpolis in background non riuscita');
     });
     
     return res.json({
@@ -538,11 +548,11 @@ router.post('/sync', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'avvio sincronizzazione:', error);
+    console.error('Avvio della sincronizzazione Openpolis non riuscito');
     return res.status(500).json({
       success: false,
       error: 'Errore nell\'avvio della sincronizzazione',
-      message: error.message
+      message: 'Sincronizzazione temporaneamente non disponibile'
     });
   }
 });
@@ -555,10 +565,10 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
   
   try {
     const votazioneId = parseInt(req.params.votazione_id);
-    console.log(`[DEBUG] Step 2: Votazione richiesta: ID=${votazioneId}`);
+    console.log('[DEBUG] Step 2: Identificativo votazione ricevuto');
     
     if (isNaN(votazioneId)) {
-      console.error(`[DEBUG] ID votazione non valido: ${req.params.votazione_id}`);
+      console.warn('Identificativo votazione non valido');
       return res.status(400).json({
         success: false,
         error: 'ID votazione non valido',
@@ -578,7 +588,7 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
     console.log(`[DEBUG] Risultati query: ${votazioneResult.rows.length} righe trovate`);
 
     if (votazioneResult.rows.length === 0) {
-      console.error(`[DEBUG] Votazione non trovata: ID=${votazioneId}`);
+      console.warn('Votazione richiesta non trovata');
       return res.status(404).json({
         success: false,
         error: 'Votazione non trovata',
@@ -588,18 +598,17 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
 
     const row = votazioneResult.rows[0];
     if (!isConfirmedFinalParliamentVote(row)) {
-      // Un voto su articolo, emendamento, fiducia, mozione, ordine del giorno
-      // o un titolo ambiguo NON deve generare spiegazioni di "voto finale".
+      // Escludi articoli, emendamenti e altri voti non finali senza consultarne AI.
       return res.status(422).json({
         success: false,
         error: 'Votazione non finale o non verificata',
         message: 'DEMOS mostra e spiega esclusivamente votazioni finali confermate da fonti ufficiali.'
       });
     }
-    console.log(`[DEBUG] Dati trovati: titolo="${row.titolo_votazione}", camera="${row.camera}"`);
+    console.log('[DEBUG] Votazione finale caricata per generazione spiegazione');
     
     if (!row.titolo_votazione || row.titolo_votazione.trim() === '') {
-      console.error(`[DEBUG] Votazione senza titolo: ID=${votazioneId}`);
+      console.warn('Votazione richiesta senza titolo');
       return res.status(400).json({
         success: false,
         error: 'Votazione non valida',
@@ -609,8 +618,17 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
 
     const { titolo_votazione, descrizione_votazione, camera, spiegazione: spiegazioneEsistente } = row;
 
-    // Se esiste già una spiegazione, restituiscila
-    if (spiegazioneEsistente && spiegazioneEsistente.trim() !== '') {
+    // Il cache-hit non supera il controllo di fonte: il documento persistito
+    // deve esistere anche per le spiegazioni già salvate in passato.
+    if (!hasDocumentaryContext(descrizione_votazione)) {
+      return res.status(503).json({
+        success: false,
+        error: 'Spiegazione AI non disponibile',
+        message: 'Spiegazione non disponibile: testo documentale insufficiente. I dati ufficiali restano consultabili.'
+      });
+    }
+
+    if (documentedExplanation(spiegazioneEsistente, descrizione_votazione)) {
       console.log(`[DEBUG] Step 4: Spiegazione già esistente, restituisco quella esistente`);
       return res.json({
         success: true,
@@ -624,7 +642,7 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
 
     // Genera la spiegazione
     console.log(`[DEBUG] Step 5: Caricamento servizio AI`);
-    console.log(`[DEBUG] Verifica variabili ambiente: GROQ_API_KEY=${!!process.env.GROQ_API_KEY}, OPENAI_API_KEY=${!!process.env.OPENAI_API_KEY}`);
+    console.log('[DEBUG] Verifica disponibilità servizio Groq Free per spiegazione parlamentare');
     
     const { generaSpiegazioneVotazione, verificaLimiteGiornaliero } = require('../services/aiExplanationService');
     
@@ -644,7 +662,7 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
 
     // Genera la spiegazione per la votazione
     console.log(`[DEBUG] Step 7: Generazione spiegazione AI`);
-    console.log(`[DEBUG] Parametri: votazione_id=${votazioneId}, titolo="${titolo_votazione}", camera="${camera}"`);
+    console.log('[DEBUG] Generazione spiegazione avviata');
     console.log(`[DEBUG] Descrizione disponibile: ${descrizione_votazione ? 'Sì (' + descrizione_votazione.length + ' caratteri)' : 'No'}`);
     
     let spiegazione;
@@ -654,36 +672,25 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
       
       console.log(`[DEBUG] Step 8: Risultato generazione: ${spiegazione ? 'Sì (' + spiegazione.length + ' caratteri)' : 'No'}`);
     } catch (genError) {
-      console.error('❌ ERRORE CRITICO durante la generazione spiegazione:');
-      console.error(`❌ Tipo errore: ${genError.constructor.name}`);
-      console.error(`❌ Messaggio: ${genError.message}`);
-      console.error(`❌ Stack trace completo:`, genError.stack);
-      
-      // Log dettagliato per errori specifici
-      if (genError.message && genError.message.includes('decommissioned')) {
-        console.error(`❌ PROBLEMA: Modello Groq deprecato! Il codice su Render usa ancora llama-3.1-70b-versatile`);
-      }
-      if (genError.message && genError.message.includes('API AI non configurata')) {
-        console.error(`❌ PROBLEMA: Chiave API non caricata su Render! Verifica GROQ_API_KEY in Environment Variables`);
-      }
+      const { classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
+      console.error('Richiesta spiegazione parlamentare non riuscita:', classifyFreeGroqError(genError));
       
       const elapsed = Date.now() - startTime;
       console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE) ========== Tempo: ${elapsed}ms`);
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
-        error: 'Errore nella generazione',
-        message: `Errore durante la generazione: ${genError.message}. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato e che il servizio sia stato riavviato.`
+        error: 'Spiegazione AI non disponibile',
+        message: 'Spiegazione AI temporaneamente non disponibile. I dati ufficiali della votazione restano consultabili.'
       });
     }
 
     if (!spiegazione) {
-      console.error(`[DEBUG] Spiegazione non generata (null o vuota) per votazione_id=${votazioneId}`);
-      const elapsed = Date.now() - startTime;
-      console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (FALLITA) ========== Tempo: ${elapsed}ms`);
-      return res.status(500).json({
+      // La mancanza di spiegazione non cambia il dato parlamentare ufficiale.
+      // Un 503 esplicito evita di far apparire una votazione come invalida.
+      return res.status(503).json({
         success: false,
-        error: 'Errore nella generazione',
-        message: 'Impossibile generare la spiegazione. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato e che l\'API sia raggiungibile.'
+        error: 'Spiegazione AI non disponibile',
+        message: 'La spiegazione non è disponibile: testo documentale insufficiente oppure limite del servizio gratuito. I dati ufficiali della votazione restano consultabili.'
       });
     }
 
@@ -701,15 +708,27 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
     });
 
   } catch (error) {
-    console.error('❌ Errore nella generazione spiegazione:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('Errore interno nel percorso di generazione spiegazione parlamentare');
     const elapsed = Date.now() - startTime;
     console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE GENERALE) ========== Tempo: ${elapsed}ms`);
     return res.status(500).json({
       success: false,
       error: 'Errore nella generazione della spiegazione',
-      message: error.message
+      message: 'Errore interno. I dati ufficiali restano consultabili.'
     });
+  }
+});
+
+// POST /api/voti-camera/groq-smoke - Admin-only, one Free-tier provider request.
+// No parliamentary SQL or writes; verifyToken may read the current account for authorization.
+// Never exposes credentials or model output.
+router.post('/groq-smoke', verifyToken, requireAdmin, async (_req, res) => {
+  try {
+    const { checkGroqFreeConnectivity } = require('../services/groqFreeSmokeService');
+    const result = await checkGroqFreeConnectivity();
+    return res.status(result.success ? 200 : 503).json(result);
+  } catch (_) {
+    return res.status(503).json({ success: false, status: 'NETWORK_OR_UNKNOWN' });
   }
 });
 
@@ -722,7 +741,7 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
   
   try {
     const politicoNome = decodeURIComponent(req.params.politico);
-    console.log(`[DEBUG] Step 2: Politico richiesto: "${politicoNome}"`);
+    console.log('[DEBUG] Richiesta spiegazione per rappresentante');
     
     // Recupera i dati del politico e la votazione associata
     console.log(`[DEBUG] Step 3: Query database per trovare politico e votazione`);
@@ -737,7 +756,7 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
     console.log(`[DEBUG] Risultati query: ${politicoResult.rows.length} righe trovate`);
 
     if (politicoResult.rows.length === 0) {
-      console.error(`[DEBUG] Politico non trovato: "${politicoNome}"`);
+      console.error('[DEBUG] Rappresentante non trovato per richiesta di spiegazione');
       return res.status(404).json({
         success: false,
         error: 'Politico non trovato',
@@ -746,11 +765,11 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
     }
 
     const row = politicoResult.rows[0];
-    console.log(`[DEBUG] Dati trovati: votazione_id=${row.votazione_id}, titolo="${row.titolo_votazione}", camera="${row.camera}"`);
+    console.log('[DEBUG] Riferimento votazione caricato');
     
     // Fix: controlla esplicitamente se votazione_id è NULL o se la votazione non esiste
     if (!row.votazione_id || !row.titolo_votazione || row.titolo_votazione.trim() === '') {
-      console.error(`[DEBUG] Votazione non trovata per politico: "${politicoNome}"`);
+      console.error('[DEBUG] Nessuna votazione associata al rappresentante');
       return res.status(404).json({
         success: false,
         error: 'Votazione non trovata',
@@ -758,10 +777,27 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
       });
     }
 
+    // La rotta legacy deve rispettare lo stesso gate sui voti finali.
+    if (!isConfirmedFinalParliamentVote(row)) {
+      return res.status(422).json({
+        success: false,
+        error: 'Votazione non finale o non verificata',
+        message: 'DEMOS mostra e spiega esclusivamente votazioni finali confermate da fonti ufficiali.'
+      });
+    }
     const { votazione_id, titolo_votazione, descrizione_votazione, camera, spiegazione: spiegazioneEsistente } = row;
 
-    // Se esiste già una spiegazione, restituiscila
-    if (spiegazioneEsistente && spiegazioneEsistente.trim() !== '') {
+    // Il cache-hit non supera il controllo di fonte: il documento persistito
+    // deve esistere anche per le spiegazioni già salvate in passato.
+    if (!hasDocumentaryContext(descrizione_votazione)) {
+      return res.status(503).json({
+        success: false,
+        error: 'Spiegazione AI non disponibile',
+        message: 'Spiegazione non disponibile: testo documentale insufficiente. I dati ufficiali restano consultabili.'
+      });
+    }
+
+    if (documentedExplanation(spiegazioneEsistente, descrizione_votazione)) {
       console.log(`[DEBUG] Step 4: Spiegazione già esistente, restituisco quella esistente`);
       return res.json({
         success: true,
@@ -794,7 +830,7 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
 
     // Genera la spiegazione per la votazione (non per il politico)
     console.log(`[DEBUG] Step 7: Generazione spiegazione AI`);
-    console.log(`[DEBUG] Parametri: votazione_id=${votazione_id}, titolo="${titolo_votazione}", camera="${camera}"`);
+    console.log('[DEBUG] Generazione spiegazione per rappresentante avviata');
     console.log(`[DEBUG] Descrizione disponibile: ${descrizione_votazione ? 'Sì (' + descrizione_votazione.length + ' caratteri)' : 'No'}`);
     
     let spiegazione;
@@ -803,25 +839,25 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
       
       console.log(`[DEBUG] Step 8: Risultato generazione: ${spiegazione ? 'Sì (' + spiegazione.length + ' caratteri)' : 'No'}`);
     } catch (genError) {
-      console.error('❌ Errore durante la generazione spiegazione:', genError);
-      console.error('❌ Stack trace:', genError.stack);
+      const { classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
+      console.error('Richiesta spiegazione per rappresentante non riuscita:', classifyFreeGroqError(genError));
       const elapsed = Date.now() - startTime;
       console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE) ========== Tempo: ${elapsed}ms`);
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
-        error: 'Errore nella generazione',
-        message: `Errore durante la generazione: ${genError.message}. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato.`
+        error: 'Spiegazione AI non disponibile',
+        message: 'Spiegazione AI temporaneamente non disponibile. I dati ufficiali restano consultabili.'
       });
     }
 
     if (!spiegazione) {
-      console.error(`[DEBUG] Spiegazione non generata (null o vuota) per votazione_id=${votazione_id}`);
+      console.warn('Spiegazione per rappresentante non generata: nessun testo disponibile');
       const elapsed = Date.now() - startTime;
       console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (FALLITA) ========== Tempo: ${elapsed}ms`);
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
-        error: 'Errore nella generazione',
-        message: 'Impossibile generare la spiegazione. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato e che l\'API sia raggiungibile.'
+        error: 'Spiegazione AI non disponibile',
+        message: 'Spiegazione AI temporaneamente non disponibile. I dati ufficiali restano consultabili.'
       });
     }
 
@@ -839,14 +875,13 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
     });
 
   } catch (error) {
-    console.error('❌ Errore nella generazione spiegazione:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('Errore interno nel percorso di generazione spiegazione parlamentare');
     const elapsed = Date.now() - startTime;
     console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE GENERALE) ========== Tempo: ${elapsed}ms`);
     return res.status(500).json({
       success: false,
       error: 'Errore nella generazione della spiegazione',
-      message: error.message
+      message: 'Errore interno. I dati ufficiali restano consultabili.'
     });
   }
 });
@@ -877,8 +912,9 @@ router.post('/genera-spiegazioni', verifyToken, requireAdmin, async (req, res) =
       if (result.limiteRaggiunto) {
         console.warn(`⚠️ Limite giornaliero raggiunto durante la generazione`);
       }
-    }).catch(error => {
-      console.error('❌ Errore nella generazione spiegazioni:', error);
+    }).catch(() => {
+      // Never log raw provider exceptions, payloads, or identifiers.
+      console.error('Generazione batch spiegazioni parlamentari non riuscita');
     });
 
     return res.json({
@@ -887,12 +923,12 @@ router.post('/genera-spiegazioni', verifyToken, requireAdmin, async (req, res) =
       limite: limiteCheck
     });
 
-  } catch (error) {
-    console.error('❌ Errore nell\'avvio generazione spiegazioni:', error);
+  } catch (_error) {
+    console.error('Avvio batch spiegazioni parlamentari non riuscito');
     return res.status(500).json({
       success: false,
       error: 'Errore nell\'avvio della generazione',
-      message: error.message
+      message: 'Generazione temporaneamente non disponibile. I dati ufficiali restano consultabili.'
     });
   }
 });
