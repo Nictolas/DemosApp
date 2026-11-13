@@ -81,7 +81,7 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
 
         {showDesktopHeader && <DesktopAppHeader />}
 
-        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : location === '/notifiche-totali' ? ' app-main--admin-notifiche' : location === '/admin/ops-center' ? ' app-main--admin-ops' : location === '/eventi' ? ' app-main--eventi' : location === '/attivisti' || location === '/organizzazioni' ? ' app-main--directory' : location === '/profilo' || location.startsWith('/profilo/') ? ' app-main--profile' : ''}${isAuthEntryPage ? ' app-main--auth-entry' : ''}${isScrollableContentPage ? ' app-main--scroll-content' : ''}${androidScrollPage ? ' app-main--android-document-scroll' : ''}`}>
+        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : location === '/notifiche-totali' ? ' app-main--admin-notifiche' : location === '/admin/ops-center' ? ' app-main--admin-ops' : location === '/eventi' ? ' app-main--eventi' : location === '/attivisti' || location === '/organizzazioni' ? ' app-main--directory' : location === '/profilo' || location.startsWith('/profilo/') ? ' app-main--profile' : ''}${location === '/opinioni-swipe' ? ' app-main--opinioni-swipe' : ''}${isAuthEntryPage ? ' app-main--auth-entry' : ''}${isScrollableContentPage ? ' app-main--scroll-content' : ''}${androidScrollPage ? ' app-main--android-document-scroll' : ''}`}>
           <ErrorBoundary>
             <div className="app-main__inner">{children}</div>
           </ErrorBoundary>
