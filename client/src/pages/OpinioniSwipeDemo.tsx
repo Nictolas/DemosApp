@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Check, Minus, RotateCcw, X } from "lucide-react";
+import { Check, CircleHelp, Ellipsis, RotateCcw, X } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import "./OpinioniSwipeDemo.css";
 
@@ -14,6 +14,9 @@ const CARDS = [
     question: "Sei favorevole alla produzione di elettricità tramite centrali nucleari?",
     image: "/images/opinioni/energia-nucleare-swipe.webp",
     alt: "Due persone in stile DEMOS discutono davanti a una centrale nucleare",
+    context: "La proposta riguarda la produzione di elettricità tramite nuove centrali nucleari.",
+    pro: "Continuità della produzione elettrica e basse emissioni operative di CO₂.",
+    con: "Costi e tempi di realizzazione, gestione delle scorie e sicurezza degli impianti.",
   },
   {
     id: "legalizzazione_canapa",
@@ -21,6 +24,9 @@ const CARDS = [
     question: "Sei favorevole a legalizzare e regolamentare la cannabis per uso adulto?",
     image: "/images/opinioni/legalizzazione-canapa-swipe.avif",
     alt: "Due persone diverse in stile DEMOS discutono di cannabis e legislazione davanti a un tribunale",
+    context: "La proposta riguarda la legalizzazione e la regolamentazione della cannabis per uso adulto.",
+    pro: "Controlli sulla vendita, sulla qualità e un possibile ridimensionamento del mercato illegale.",
+    con: "Rischi sanitari e dubbi sugli effetti della maggiore accessibilità.",
   },
 ] as const;
 
@@ -28,11 +34,11 @@ type SwipeCard = (typeof CARDS)[number];
 
 const ANSWERS = [
   { value: "contrario", label: "Contrario", icon: X },
-  { value: "indeciso", label: "Indeciso", icon: Minus },
+  { value: "indeciso", label: "Indeciso", icon: Ellipsis },
   { value: "favorevole", label: "Favorevole", icon: Check },
 ] as const;
 
-function CardContent({ card }: { card: SwipeCard }) {
+function CardContent({ card, expanded = false }: { card: SwipeCard; expanded?: boolean }) {
   return (
     <>
       <div className="opinioni-swipe-art">
@@ -50,6 +56,14 @@ function CardContent({ card }: { card: SwipeCard }) {
         <h1>{card.title}</h1>
         <p>{card.question}</p>
       </div>
+      {expanded && (
+        <section className="opinioni-swipe-details" id="opinioni-swipe-details" aria-label={`Approfondimento: ${card.title}`}>
+          <p>{card.context}</p>
+          <p><strong>Argomenti a favore:</strong> {card.pro}</p>
+          <p><strong>Argomenti contrari:</strong> {card.con}</p>
+          <small>Sintesi dimostrativa: non sostituisce le fonti.</small>
+        </section>
+      )}
     </>
   );
 }
@@ -65,6 +79,8 @@ export default function OpinioniSwipeDemo() {
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [exiting, setExiting] = useState<DemoChoice | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [history, setHistory] = useState<number[]>([]);
   const pointerStart = useRef<PointerStart | null>(null);
 
   const current = CARDS[cardIndex];
@@ -84,6 +100,8 @@ export default function OpinioniSwipeDemo() {
     if (completed || exiting) return;
     pointerStart.current = null;
     setDragging(false);
+    setDetailsOpen(false);
+    setHistory((previous) => [...previous, cardIndex]);
     if (!next) {
       // Ultima scheda: niente carta fittizia sullo sfondo.
       setDragX(0);
@@ -93,6 +111,18 @@ export default function OpinioniSwipeDemo() {
     setExiting(value);
   };
 
+  const undo = () => {
+    if (exiting || history.length === 0) return;
+    const previousIndex = history[history.length - 1];
+    pointerStart.current = null;
+    setCardIndex(previousIndex);
+    setHistory((previous) => previous.slice(0, -1));
+    setCompleted(false);
+    setDetailsOpen(false);
+    setDragX(0);
+    setDragging(false);
+  };
+
   const restart = () => {
     pointerStart.current = null;
     setCardIndex(0);
@@ -100,10 +130,12 @@ export default function OpinioniSwipeDemo() {
     setExiting(null);
     setDragX(0);
     setDragging(false);
+    setDetailsOpen(false);
+    setHistory([]);
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (completed || exiting || !event.isPrimary) return;
+    if (completed || exiting || detailsOpen || !event.isPrimary) return;
     pointerStart.current = { x: event.clientX, y: event.clientY, id: event.pointerId };
     setDragging(true);
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -111,7 +143,7 @@ export default function OpinioniSwipeDemo() {
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const start = pointerStart.current;
-    if (!start || start.id !== event.pointerId || completed || exiting) return;
+    if (!start || start.id !== event.pointerId || completed || exiting || detailsOpen) return;
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
     if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.3) {
@@ -123,7 +155,7 @@ export default function OpinioniSwipeDemo() {
     const start = pointerStart.current;
     pointerStart.current = null;
     setDragging(false);
-    if (!start || start.id !== event.pointerId || completed || exiting) return;
+    if (!start || start.id !== event.pointerId || completed || exiting || detailsOpen) return;
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
     if (Math.abs(dx) >= 75 && Math.abs(dx) > Math.abs(dy) * 1.3) {
@@ -168,7 +200,7 @@ export default function OpinioniSwipeDemo() {
           <div
             key={current.id}
             data-horizontal-swipe-region="true"
-            className={`opinioni-swipe-card opinioni-swipe-card--front${dragging ? " is-dragging" : ""}${exiting ? " is-exiting" : ""}`}
+            className={`opinioni-swipe-card opinioni-swipe-card--front${dragging ? " is-dragging" : ""}${exiting ? " is-exiting" : ""}${detailsOpen ? " is-details-open" : ""}`}
             style={{ transform: frontTransform, touchAction: "pan-y" }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -176,7 +208,7 @@ export default function OpinioniSwipeDemo() {
             onPointerCancel={handlePointerCancel}
             aria-label={`${current.title}: trascina a sinistra per Contrario, a destra per Favorevole`}
           >
-            <CardContent card={current} />
+            <CardContent card={current} expanded={detailsOpen && !completed} />
             {dragX !== 0 && !exiting && (
               <span
                 className={`opinioni-swipe-drag-label ${dragX > 0 ? "opinioni-swipe-drag-label--yes" : "opinioni-swipe-drag-label--no"}`}
@@ -190,6 +222,16 @@ export default function OpinioniSwipeDemo() {
 
         {completed ? (
           <div className="opinioni-swipe-actions" role="group" aria-label="Anteprima completata">
+            <button
+              type="button"
+              className="opinioni-swipe-action opinioni-swipe-action--secondary opinioni-swipe-action--undo"
+              onClick={undo}
+              disabled={history.length === 0}
+              aria-label="Annulla ultima scelta"
+              title="Annulla ultima scelta"
+            >
+              <RotateCcw aria-hidden="true" className="opinioni-swipe-action-icon" />
+            </button>
             <button type="button" className="opinioni-swipe-restart" onClick={restart}>
               <RotateCcw aria-hidden="true" className="opinioni-swipe-action-icon" />
               <span>Ricomincia</span>
@@ -197,18 +239,40 @@ export default function OpinioniSwipeDemo() {
           </div>
         ) : (
           <div className="opinioni-swipe-actions" role="group" aria-label="Risposta dimostrativa">
+            <button
+              type="button"
+              onClick={undo}
+              disabled={history.length === 0 || Boolean(exiting)}
+              className="opinioni-swipe-action opinioni-swipe-action--secondary opinioni-swipe-action--undo"
+              aria-label="Annulla ultima scelta"
+              title="Annulla ultima scelta"
+            >
+              <RotateCcw aria-hidden="true" className="opinioni-swipe-action-icon" />
+            </button>
             {ANSWERS.map(({ value, label, icon: Icon }) => (
               <button
                 type="button"
                 key={value}
                 onClick={() => choose(value)}
                 disabled={Boolean(exiting)}
+                aria-label={label}
+                title={label}
                 className={`opinioni-swipe-action opinioni-swipe-action--${value}`}
               >
                 <Icon aria-hidden="true" className="opinioni-swipe-action-icon" />
-                <span>{label}</span>
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((previous) => !previous)}
+              disabled={Boolean(exiting)}
+              aria-label={detailsOpen ? "Chiudi approfondimento" : "Approfondisci opinione"}
+              title={detailsOpen ? "Chiudi approfondimento" : "Approfondisci"}
+              aria-expanded={detailsOpen}
+              className={`opinioni-swipe-action opinioni-swipe-action--secondary opinioni-swipe-action--details${detailsOpen ? " is-selected" : ""}`}
+            >
+              <CircleHelp aria-hidden="true" className="opinioni-swipe-action-icon" />
+            </button>
           </div>
         )}
         <span className="sr-only" role="status" aria-live="polite">
