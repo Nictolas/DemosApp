@@ -45,13 +45,24 @@ html.dark .opinioni-swipe-page {
   padding: clamp(4px, 1.2dvh, 12px) 12px;
 }
 
-.opinioni-swipe-card {
-  box-sizing: border-box;
+/* Stack and actions share the same height budget above the fixed navbar. */
+.opinioni-swipe-stack {
+  position: relative;
   display: flex;
   flex: 0 1 auto;
-  flex-direction: column;
   width: min(100%, 370px);
   max-height: calc(100% - var(--swipe-actions-height) - var(--swipe-gap));
+  min-height: 0;
+}
+
+.opinioni-swipe-card {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  max-height: 100%;
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--swipe-card-border);
@@ -60,6 +71,30 @@ html.dark .opinioni-swipe-page {
   box-shadow: 0 4px 16px rgb(15 23 42 / 9%);
   user-select: none;
   -webkit-user-select: none;
+}
+
+.opinioni-swipe-card--behind {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transform-origin: center center;
+  transition: transform 160ms ease-out, opacity 160ms ease-out;
+}
+
+.opinioni-swipe-card--front {
+  z-index: 1;
+  transform-origin: center center;
+  transition: transform 250ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+
+.opinioni-swipe-card--front.is-dragging {
+  transition: none;
+}
+
+.opinioni-swipe-card--front.is-exiting {
+  pointer-events: none;
 }
 
 .opinioni-swipe-art {
@@ -163,6 +198,7 @@ html.dark .opinioni-swipe-restart {
   color: #bfdbfe;
 }
 
+.opinioni-swipe-action:disabled { cursor: default; }
 .opinioni-swipe-action:active { transform: scale(0.97); }
 .opinioni-swipe-action:focus-visible {
   outline: 3px solid #2563eb;
@@ -234,5 +270,7 @@ html.dark .opinioni-swipe-action--favorevole {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .opinioni-swipe-action { transition: none; }
+  .opinioni-swipe-action,
+  .opinioni-swipe-card--front,
+  .opinioni-swipe-card--behind { transition: none; }
 }
