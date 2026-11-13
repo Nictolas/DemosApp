@@ -28,6 +28,16 @@ const CARDS = [
     pro: "Controlli sulla vendita, sulla qualità e un possibile ridimensionamento del mercato illegale.",
     con: "Rischi sanitari e dubbi sugli effetti della maggiore accessibilità.",
   },
+  {
+    id: "polizia_locale_armata",
+    title: "Polizia locale armata",
+    question: "Sei favorevole a dotare di armi da fuoco gli agenti della polizia locale?",
+    image: "/images/opinioni/polizia-locale-armata-swipe.avif",
+    alt: "Due agenti della polizia locale e una cittadina dialogano in una piazza italiana",
+    context: "La proposta riguarda la dotazione di armi da fuoco agli agenti della polizia locale, nei limiti previsti dalla normativa.",
+    pro: "Maggiore capacità di intervento e protezione degli agenti in situazioni pericolose.",
+    con: "Possibili rischi di escalation, necessità di formazione e costi di gestione.",
+  },
 ] as const;
 
 type SwipeCard = (typeof CARDS)[number];
