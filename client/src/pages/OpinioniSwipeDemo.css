@@ -1,0 +1,212 @@
+/*
+ * Swipe: un'unica schermata sopra la navbar nativa di DEMOS.
+ * Le dimensioni dipendono dall'altezza realmente disponibile nella shell,
+ * non da un secondo 100vh che aggiungerebbe scroll in Safari/PWA.
+ */
+.app-main.app-main--opinioni-swipe {
+  overflow-y: hidden !important;
+  overflow-x: hidden !important;
+}
+.app-main.app-main--opinioni-swipe > .app-main__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.opinioni-swipe-page {
+  --swipe-gap: clamp(8px, 1.4dvh, 14px);
+  --swipe-actions-height: clamp(52px, 8dvh, 74px);
+  --swipe-card-bg: #ffffff;
+  --swipe-card-border: #cbd5e1;
+  --swipe-heading: #0f172a;
+  --swipe-body: #334155;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.dark .opinioni-swipe-page {
+  --swipe-card-bg: #0b1220;
+  --swipe-card-border: #334155;
+  --swipe-heading: #f8fafc;
+  --swipe-body: #e2e8f0;
+}
+
+.opinioni-swipe-viewport {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--swipe-gap);
+  overflow: hidden;
+  padding: clamp(4px, 1.2dvh, 12px) 12px;
+}
+
+.opinioni-swipe-card {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  width: min(100%, 370px);
+  max-height: calc(100% - var(--swipe-actions-height) - var(--swipe-gap));
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--swipe-card-border);
+  border-radius: 24px;
+  background: var(--swipe-card-bg);
+  box-shadow: 0 4px 16px rgb(15 23 42 / 9%);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.opinioni-swipe-art {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: #46b7ee;
+}
+
+.opinioni-swipe-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.opinioni-swipe-copy {
+  flex: 0 0 auto;
+  padding: 10px 14px 12px;
+  text-align: center;
+  background: var(--swipe-card-bg);
+}
+
+.opinioni-swipe-copy h1 {
+  margin: 0 0 5px;
+  color: var(--swipe-heading);
+  font-size: clamp(16px, 2.4dvh, 21px);
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.opinioni-swipe-copy p {
+  margin: 0;
+  color: var(--swipe-body);
+  font-size: clamp(12px, 1.8dvh, 14px);
+  line-height: 1.42;
+}
+
+.opinioni-swipe-actions {
+  display: grid;
+  flex: 0 0 var(--swipe-actions-height);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: min(100%, 370px);
+  min-height: 0;
+}
+
+.opinioni-swipe-action {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid;
+  border-radius: 17px;
+  padding: 4px 2px;
+  font-size: clamp(11px, 1.65dvh, 14px);
+  font-weight: 700;
+  line-height: 1.1;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.opinioni-swipe-action-icon {
+  width: clamp(19px, 3.2dvh, 27px);
+  height: clamp(19px, 3.2dvh, 27px);
+  flex: 0 0 auto;
+}
+
+.opinioni-swipe-action:active { transform: scale(0.97); }
+.opinioni-swipe-action:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+.opinioni-swipe-action.is-selected {
+  box-shadow: 0 0 0 2px currentColor inset;
+}
+
+.opinioni-swipe-action--contrario {
+  color: #9f1239;
+  border-color: #fda4af;
+  background: #fff1f2;
+}
+.opinioni-swipe-action--indeciso {
+  color: #334155;
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+.opinioni-swipe-action--favorevole {
+  color: #166534;
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+html.dark .opinioni-swipe-action--contrario {
+  color: #fecdd3;
+  border-color: #881337;
+  background: #291621;
+}
+html.dark .opinioni-swipe-action--indeciso {
+  color: #e2e8f0;
+  border-color: #475569;
+  background: #1e293b;
+}
+html.dark .opinioni-swipe-action--favorevole {
+  color: #86efac;
+  border-color: #166534;
+  background: #123429;
+}
+
+.opinioni-swipe-drag-label {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  border: 2px solid currentColor;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.opinioni-swipe-drag-label--no { color: #9f1239; }
+.opinioni-swipe-drag-label--yes { color: #166534; }
+
+@media (max-height: 560px) {
+  .opinioni-swipe-page {
+    --swipe-gap: 6px;
+    --swipe-actions-height: 48px;
+  }
+  .opinioni-swipe-viewport { padding-top: 3px; padding-bottom: 3px; }
+  .opinioni-swipe-copy { padding: 6px 10px 8px; }
+  .opinioni-swipe-copy h1 { font-size: 15px; margin-bottom: 2px; }
+  .opinioni-swipe-copy p { font-size: 11px; line-height: 1.25; }
+  .opinioni-swipe-action { gap: 1px; border-radius: 12px; }
+  .opinioni-swipe-action-icon { height: 18px; width: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opinioni-swipe-action { transition: none; }
+}
