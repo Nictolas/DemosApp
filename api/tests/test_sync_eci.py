@@ -1,5 +1,7 @@
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, MagicMock
+import sys
+import os
 
 from api.scripts import sync_eci
 
@@ -172,6 +174,141 @@ class SyncEciUnitTests(unittest.TestCase):
         cursor.execute.side_effect = RuntimeError("database password SECRET")
         with self.assertRaisesRegex(RuntimeError, "^CIVIC_DATABASE_IDENTITY_UNAVAILABLE$"):
             sync_eci._verify_civic_database_identity(cursor, expected)
+
+    def test_initial_eci_baseline_is_always_suppressed(self):
+        choose = sync_eci.classify_new_eci_event_status
+        self.assertEqual(choose(
+            previous_ids=set(), guard_blocked=False, reason_code=None,
+        ), "suppressed")
+        self.assertEqual(choose(
+            previous_ids={"2026-000011"}, guard_blocked=True, reason_code=None,
+        ), "suppressed")
+        self.assertEqual(choose(
+            previous_ids={"2026-000011"}, guard_blocked=False,
+            reason_code="EMERGENCY_STOP",
+        ), "suppressed")
+        self.assertEqual(choose(
+            previous_ids={"2026-000011"}, guard_blocked=False, reason_code=None,
+        ), "pending")
+
+    def test_cache_write_checks_identity_even_when_event_collection_disabled(self):
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchall.return_value = [
+            ("00000000-0000-4000-8000-000000000540",)
+        ]
+        psycopg2_stub = MagicMock()
+        psycopg2_stub.connect.return_value = conn
+        extras_stub = MagicMock()
+        expected_id = "00000000-0000-4000-8000-000000000539"
+        rows = [(
+            "2026-000011", "Official entry", 1, "eci-2026-000011",
+            "ONGOING", "2027-08-25", "Official objective",
+            "https://eci.ec.europa.eu/066/public/?lg=it",
+        )]
+        with patch.dict(sys.modules, {
+            "psycopg2": psycopg2_stub,
+            "psycopg2.extras": extras_stub,
+        }), patch.dict(os.environ, {
+            "CIVIC_RUNTIME_DATABASE_ID": expected_id,
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "false",
+        }):
+            with self.assertRaisesRegex(RuntimeError, "CIVIC_DATABASE_IDENTITY_MISMATCH"):
+                sync_eci._replace_cache("postgresql://dummy.test/db", rows)
+        statements = [
+            str(call.args[0]) for call in cursor.execute.call_args_list
+        ]
+        self.assertTrue(any("civic_runtime_identity" in sql for sql in statements))
+        self.assertFalse(any("DELETE FROM eci" in sql for sql in statements))
+        extras_stub.execute_values.assert_not_called()
+
+    def test_staging_runtime_sync_never_deletes_or_requeues_historical_eci(self):
+        identity = "00000000-0000-4000-8000-000000000539"
+        previous_id = "2026-000011"
+        new_id = "2026-000012"
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchall.side_effect = [
+            [(identity,)],  # Exact database identity.
+            [(previous_id,)],  # Existing historical baseline.
+        ]
+        cursor.fetchone.side_effect = [
+            (2,),  # Current ONGOING count after the upsert.
+            (True, "EMERGENCY_STOP"),  # The guard is blocked.
+        ]
+        psycopg2_stub = MagicMock()
+        psycopg2_stub.connect.return_value = conn
+        execute_values = MagicMock()
+        rows = [
+            (previous_id, "Existing official ECI", 100,
+             "eci-2026-000011", "ONGOING", "2027-08-25",
+             "Existing objective", "https://eci.ec.europa.eu/011"),
+            (new_id, "New official ECI", 200,
+             "eci-2026-000012", "ONGOING", "2027-08-26",
+             "New objective", "https://eci.ec.europa.eu/012"),
+        ]
+        with patch.dict(sys.modules, {
+            "psycopg2": psycopg2_stub,
+            "psycopg2.extras": MagicMock(execute_values=execute_values),
+        }), patch.dict(os.environ, {
+            "CIVIC_RUNTIME_DATABASE_ID": identity,
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "true",
+        }):
+            sync_eci._replace_cache("postgresql://staging-only/db", rows)
+
+        sql_statements = [str(call.args[0]) for call in cursor.execute.call_args_list]
+        self.assertFalse(any("DELETE FROM eci" in q or "TRUNCATE" in q
+                             for q in sql_statements))
+        self.assertTrue(any("UPDATE eci" in q and "NOT_ONGOING" in q
+                            for q in sql_statements))
+        self.assertEqual(execute_values.call_count, 2)
+        cache_sql, cache_rows = execute_values.call_args_list[0].args[1:3]
+        event_sql, event_rows = execute_values.call_args_list[1].args[1:3]
+        self.assertIn("ON CONFLICT (id) DO UPDATE", cache_sql)
+        self.assertEqual(cache_rows, rows)
+        self.assertIn("ON CONFLICT (category, official_id) DO NOTHING", event_sql)
+        self.assertEqual(event_rows, [
+            ("eci", new_id, "New official ECI", "/eci", "suppressed"),
+        ])
+        conn.close.assert_called_once()
+
+    def test_duplicate_official_ids_rejected_before_any_upsert(self):
+        identity = "00000000-0000-4000-8000-000000000539"
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cur
+        cur.fetchall.return_value = [(identity,)]
+        psycopg2_stub = MagicMock()
+        psycopg2_stub.connect.return_value = conn
+        execute_values = MagicMock()
+        row = ("2026-000011", "Official title", 1, "eci-2026-000011",
+               "ONGOING", "2027-08-25", None,
+               "https://eci.ec.europa.eu/011")
+        with patch.dict(sys.modules, {
+            "psycopg2": psycopg2_stub,
+            "psycopg2.extras": MagicMock(execute_values=execute_values),
+        }), patch.dict(os.environ, {
+            "CIVIC_RUNTIME_DATABASE_ID": identity,
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "false",
+        }):
+            with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_IDS_NOT_UNIQUE"):
+                sync_eci._replace_cache("postgresql://staging-only/db", [row, row])
+        execute_values.assert_not_called()
+        self.assertFalse(any("UPDATE eci" in str(call.args[0])
+                             for call in cur.execute.call_args_list))
+
+    def test_public_eci_and_ice_routes_only_show_ongoing(self):
+        from pathlib import Path
+        api_dir = Path(__file__).resolve().parents[1]
+        for route in ("eci.js", "ice.js"):
+            content = (api_dir / "routes" / route).read_text(encoding="utf8")
+            self.assertIn("WHERE status = 'ONGOING'", content, route)
+            self.assertIn("ORDER BY end_date ASC NULLS LAST", content, route)
 
     def test_main_returns_nonzero_on_sync_failure(self):
         with patch.object(sync_eci, "sync", side_effect=RuntimeError("boom")):
